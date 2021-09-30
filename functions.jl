@@ -254,6 +254,92 @@ function trilinear(z_mrk, x_mrk, y_mrk,
     return c
 end
 
+function trilinear_no_search(z_mrk, x_mrk, y_mrk, idz, idx, idy,
+                   atmos::Atmosphere, vals::AbstractArray)
+
+    # This function fulfills what I wanted it to do, from the comments in
+    # function bilinear(...). It's periodic in x and y. NB it should never be
+    # periodic in z, so it isn't, as that wouldn't make sense at all. Used
+    # internally for the short characteristics calculations. Wait it isn't. Why
+    # did I make this function?????
+
+    nx = length(atmos.x)
+    ny = length(atmos.y)
+
+    # bounding corner coordinates
+    z0 = atmos.z[idz]; z1 = atmos.z[idz+1]
+    x0 = atmos.x[idx]; x1 = atmos.x[idx%nx+1]
+    y0 = atmos.y[idy]; y1 = atmos.y[idy%ny+1]
+
+    # difference between coordinates and interpolation point
+    x_d = (x_mrk - x0)/(x1 - x0)
+    y_d = (y_mrk - y0)/(y1 - y0)
+    z_d = (z_mrk - z0)/(z1 - z0)
+
+    # values at each corner (z is first index in data array)
+    c000 = vals[idz, idx, idy]
+    c010 = vals[idz, idx, idy%ny+1]
+    c100 = vals[idz, idx%nx+1, idy]
+    c110 = vals[idz, idx%nx+1, idy%ny+1]
+    c001 = vals[idz+1, idx, idy]
+    c011 = vals[idz+1, idx, idy%ny+1]
+    c101 = vals[idz+1, idx%nx+1, idy]
+    c111 = vals[idz+1, idx%nx+1, idy%ny+1]
+
+    # interpolate in x direction
+    c00 = c000*(1 - x_d) + c100*x_d
+    c01 = c001*(1 - x_d) + c101*x_d
+    c10 = c010*(1 - x_d) + c100*x_d
+    c11 = c011*(1 - x_d) + c111*x_d
+
+    # interpolate in y direction
+    c0 = c00*(1 - y_d) + c10*y_d
+    c1 = c01*(1 - y_d) + c11*y_d
+
+    # intepolate in z direction
+    c = c0*(1 - z_d) + c1*z_d
+    return c
+end
+
+function bilinear(z_mrk, x_mrk, y_mrk, idz, idx, idy,
+                   atmos::Atmosphere, vals::AbstractArray)
+
+
+    nx = length(atmos.x)
+    ny = length(atmos.y)
+
+    # To include the periodic boundaries, I do the following. If idx > nx, I
+    # the value at the start of the array. The modulo operator seems strange in
+    # julia because we start at index 1 and not 0 like in C and Python.
+    # idx%nx+1 is in julia the same as idx%nx in C and Python
+    # idx%nx+1 and idy%ny+1 gets the next value on the "other" side of the
+    # domain. Hopefully, the central coordinate is always "in" the domain.
+    # Why is this not implemented in the trilinear interpolation? Because that
+    # needs to be done. And also make a version that doesn't have to search
+    # through the arrays (super slow). That version can include periodicity,
+    # the original doesn't need that for now.
+
+    x0 = atmos.x[idx]; x1 = atmos.x[idx%nx+1]
+    y0 = atmos.y[idy]; y1 = atmos.y[idy%ny+1]
+
+    c00 = vals[idz, idx, idy]
+    c01 = vals[idz, idx, idy%ny+1]
+    c10 = vals[idz, idx%nx+1, idy]
+    c11 = vals[idz, idx%nx+1, idy%ny+1]
+
+    # difference between coordinates and interpolation point
+    x_d = (x_mrk - x0)/(x1 - x0)
+    y_d = (y_mrk - y0)/(y1 - y0)
+
+    c0 = c00*(1 - x_d) + c10*x_d
+    c1 = c01*(1 - x_d) + c11*x_d
+
+
+    c = c0*(1 - y_d) + c1*y_d
+
+    return c
+end
+
 #=
     avg_mass(k::Int64, i::Int64, j::Int64)
 
@@ -334,4 +420,9 @@ function read_neighbours(fname::String, n_sites::Int64)::AbstractMatrix
         end
     end
     return neighbours[sortperm(ID), :]
+end
+
+function trapezoidal(Δx, a, b)
+    area = Δx*(a + b)/2
+    return area
 end

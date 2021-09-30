@@ -22,7 +22,7 @@ function run()
     #z_new, x_new, y_new
     p_vec, N_H_new = rejection_sampling(n_sites, atmos)
 
-    println("$(size(p_vec)[2]) new sites")
+    #println("$(size(p_vec)[2]) new sites")
 
     #=
     pyplot()
@@ -124,7 +124,24 @@ function run()
     θ = 170
     φ = 60
 
-    SC_test(θ, φ, idz, idx, idy, atmos, α, S_0, S_0)
+    # start shooting rays from the bottom of the domain. I have to start at the
+    # bottom because the rays move upwards. Kind of obvious, but it took some
+    # time to understand. If rays move downwards, I start at the top...
+    # NB we start at 2nd index because 1st index is boundary condition
+    idz = 2
+    #ΔI = 0
+    I = zeros(length(atmos.z), length(atmos.x), length(atmos.y))*u"kW*m^-2*nm^-1"
+    I[1, :, :] = S_0[1, :, :]
+    for k in 2:length(atmos.z) - 1
+        for i in 1:length(atmos.x)
+            for j in 1:length(atmos.y)
+                ΔI = short_characteristic_ray(θ, φ, k, i, j, atmos, α,
+                                              I, S_0)
+                I[k, i, j] = ΔI
+            end
+        end
+        print("$k\r")
+    end
 
     #=
     p_unitless = ustrip(p_vec)

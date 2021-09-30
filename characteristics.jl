@@ -16,18 +16,29 @@ function short_characteristic_ray(θ, φ, idz, idx, idy, atmos, α, I_0, S_0)
     y_c = atmos.y[idy]
     z_c = atmos.z[idz]
 
+    # fix angle stuff. And keep track of corners. I always use the "lower left"
+    # corner for interpolation. Therefore I keep track of the indices for the
+    # lower left corner: iiz, idx_u, and idy_u...
     if φ < 90
         sign_x = 1
         sign_y = 1
+        idx_u = idx
+        idy_u = idy
     elseif 90 < φ > 180
         sign_x = -1
         sign_y = 1
+        idx_u = idx-1
+        idy_u = idy
     elseif 180 < φ > 270
         sign_x = -1
         sign_y = -1
+        idx_u = idx-1
+        idy_u = idy-1
     elseif 270 < φ > 360
         sign_x = 1
         sign_y = -1
+        idx_u = idx
+        idy_u = idy-1
     else
         println("φ angle is not valid: $φ")
     end
@@ -37,7 +48,7 @@ function short_characteristic_ray(θ, φ, idz, idx, idy, atmos, α, I_0, S_0)
     φ = φ*pi/180
 
     # find upwind (u) points
-    z_u = atmos.z[idz_u] + 0.1u"m"
+    z_u = atmos.z[idz_u]
     Δz = z_c - z_u
     # in the Cartesian grid
     r = Δz/cos(θ)
@@ -54,14 +65,14 @@ function short_characteristic_ray(θ, φ, idz, idx, idy, atmos, α, I_0, S_0)
     α_p = α[idz, idx, idy]
 
     # exinction at upwind
-    α_u = trilinear(z_u, x_u, y_u, atmos, α)
+    α_u = bilinear(z_u, x_u, y_u, idz_u, idx_u, idy_u, atmos, α)
 
     # Find the Δτ optical path from upwind to grid point
-    Δτ_u = 1/2*sqrt(Δz^2 + Δx^2 + Δy^2)*(α_p + α_u)
+    Δτ_u = trapezoidal(sqrt(Δz^2 + Δx^2 + Δy^2), α_p, α_u)
 
     # Find source function at grid point and upwind point (intepolate)
     S_p = S_0[idz, idx, idy]
-    S_u = trilinear(z_u, x_u, y_u, atmos, S_0)
+    S_u = bilinear(z_u, x_u, y_u, idz_u, idx_u, idy_u, atmos, S_0)
 
     # From Hennicker et. al. (2020) equation 13
     e_0 = 1 - exp(-Δτ_u)
@@ -74,7 +85,7 @@ function short_characteristic_ray(θ, φ, idz, idx, idy, atmos, α, I_0, S_0)
     d_ijk = exp(-Δτ_u)
 
     # Interpolate to find intensity at upwind point
-    I_u = trilinear(z_u, x_u, y_u, atmos, I_0)
+    I_u = bilinear(z_u, x_u, y_u, idz_u, idx_u, idy_u, atmos, I_0)
 
     # Integrate intensity from two-point quadrature
     I_ijk = a_ijk*S_u + b_ijk*S_p + d_ijk*I_u
