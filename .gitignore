@@ -184,7 +184,10 @@ cython_debug/
 ### Don't want to push large data files ###
 
 # hfd5 files
-.hdf5
+*.hdf5
+
+# txt files
+*.txt
 
 # additional???
 
