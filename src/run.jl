@@ -11,7 +11,8 @@ global my_seed = 29
 Random.seed!(my_seed)
 
 function run()
-    atmos = Atmosphere(get_atmos()...)
+    DATA = "../data/bifrost_qs006023_s525_quarter.hdf5"
+    atmos = Atmosphere(get_atmos(DATA)...)
 
     nz = length(atmos.z) - 1
     nx = length(atmos.x) - 1
@@ -121,27 +122,16 @@ function run()
 
     # first ray kind of arbitrarily chosen
     # Ω = (θ, φ), space angle
-    θ = 170
-    φ = 60
+    θ = 60
+    ϕ = 10
 
     # start shooting rays from the bottom of the domain. I have to start at the
     # bottom because the rays move upwards. Kind of obvious, but it took some
     # time to understand. If rays move downwards, I start at the top...
     # NB we start at 2nd index because 1st index is boundary condition
-    idz = 2
-    #ΔI = 0
-    I = zeros(length(atmos.z), length(atmos.x), length(atmos.y))*u"kW*m^-2*nm^-1"
-    I[1, :, :] = S_0[1, :, :]
-    for k in 2:length(atmos.z) - 1
-        for i in 1:length(atmos.x)
-            for j in 1:length(atmos.y)
-                ΔI = short_characteristic_ray(θ, φ, k, i, j, atmos, α,
-                                              I, S_0)
-                I[k, i, j] = ΔI
-            end
-        end
-        print("$k\r")
-    end
+    #I = zeros(length(atmos.z), length(atmos.x), length(atmos.y))*u"kW*m^-2*nm^-1"
+    I_0 = S_0
+    I = short_characteristic_ray(θ, ϕ, I_0, S_0, atmos)
 
     #=
     p_unitless = ustrip(p_vec)
@@ -156,7 +146,6 @@ function run()
     println("z: $(p_vec[1, index]), x: $(p_vec[2, index]), y: $(p_vec[3, index])")
     println("Distance: $dist")
     =#
-
     #=
     pyplot()
     plot(ustrip(atmos.z), ustrip(S_new), dpi=300)

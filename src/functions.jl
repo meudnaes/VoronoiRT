@@ -51,9 +51,9 @@ temperature, electron_density and hydrogen populations.
 
 Original author: Ida Risnes Hansen
 =#
-function get_atmos()
+function get_atmos(file_path)
     local x, y, z, hydrogen_populations
-    h5open("bifrost_qs006023_s525_quarter.hdf5", "r") do atmos
+    h5open(file_path, "r") do atmos
         z = read(atmos, "z")u"m"
         x = read(atmos, "x")u"m"
         y = read(atmos, "y")u"m"
@@ -260,8 +260,7 @@ function trilinear_no_search(z_mrk, x_mrk, y_mrk, idz, idx, idy,
     # This function fulfills what I wanted it to do, from the comments in
     # function bilinear(...). It's periodic in x and y. NB it should never be
     # periodic in z, so it isn't, as that wouldn't make sense at all. Used
-    # internally for the short characteristics calculations. Wait it isn't. Why
-    # did I make this function?????
+    # internally for the short characteristics calculations.
 
     nx = length(atmos.x)
     ny = length(atmos.y)
@@ -301,7 +300,7 @@ function trilinear_no_search(z_mrk, x_mrk, y_mrk, idz, idx, idy,
     return c
 end
 
-function bilinear(z_mrk, x_mrk, y_mrk, idz, idx, idy,
+function bilinear_xy(z_mrk, x_mrk, y_mrk, idz, idx, idy,
                    atmos::Atmosphere, vals::AbstractArray)
 
 
@@ -402,6 +401,15 @@ function α_scattering(λ::Unitful.Length, temperature::Unitful.Temperature,
    return α
 end
 
+function J_ν(weights, intensities)
+    # Gaussian quadrature to calculate mean intensity
+    J = 0u"kW*m^-2*nm^-1"
+    for (weight, intensity) in zip(weights, intensitites)
+        J = J + weight*intensity
+    end
+    return J::Float64
+end
+
 #=
     read_neighbours(fname::String, n_sites::Int64)
 
@@ -425,4 +433,34 @@ end
 function trapezoidal(Δx, a, b)
     area = Δx*(a + b)/2
     return area
+end
+
+function xy_intersect(θ)
+    if θ < π/2
+        # 1st quadrant
+        sign_x = 0
+        sign_y = 0
+    elseif π/2 < θ > π
+        # 2nd quadrant
+        sign_x = -1
+        sign_y = 0
+    elseif π < θ > 3π/2
+        # 3rd quadrant
+        sign_x = -1
+        sign_y = -1
+    elseif 3π/2 < θ > 2π
+        # 4th quadrant
+        sign_x = 0
+        sign_y = -1
+    end
+    return sign_x, sign_y
+end
+
+function z_intersect(ϕ)
+    if ϕ < π/2
+        sign_z = 0
+    elseif ϕ > π/2
+        sign_z = -1
+    end
+    return sign_z
 end
