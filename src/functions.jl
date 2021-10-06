@@ -300,8 +300,8 @@ function trilinear_no_search(z_mrk, x_mrk, y_mrk, idz, idx, idy,
     return c
 end
 
-function bilinear_xy(z_mrk, x_mrk, y_mrk, idz, idx, idy,
-                   atmos::Atmosphere, vals::AbstractArray)
+function bilinear_xy(x_mrk, y_mrk, idx::Int, idy::Int,
+                     atmos::Atmosphere, vals)
 
 
     nx = length(atmos.x)
@@ -320,11 +320,13 @@ function bilinear_xy(z_mrk, x_mrk, y_mrk, idz, idx, idy,
 
     x0 = atmos.x[idx]; x1 = atmos.x[idx%nx+1]
     y0 = atmos.y[idy]; y1 = atmos.y[idy%ny+1]
-
-    c00 = vals[idz, idx, idy]
-    c01 = vals[idz, idx, idy%ny+1]
-    c10 = vals[idz, idx%nx+1, idy]
-    c11 = vals[idz, idx%nx+1, idy%ny+1]
+    println(idx)
+    println(idy)
+    println(vals)
+    c00 = vals[idx, idy]
+    c01 = vals[idx, idy%ny+1]
+    c10 = vals[idx%nx+1, idy]
+    c11 = vals[idx%nx+1, idy%ny+1]
 
     # difference between coordinates and interpolation point
     x_d = (x_mrk - x0)/(x1 - x0)
@@ -335,6 +337,60 @@ function bilinear_xy(z_mrk, x_mrk, y_mrk, idz, idx, idy,
 
 
     c = c0*(1 - y_d) + c1*y_d
+
+    return c
+end
+
+function bilinear_yz(z_mrk, y_mrk, idz, idy,
+                   atmos::Atmosphere, vals::AbstractArray)
+
+    # if idz > length(atmos.z)
+        # complain!
+    ny = length(atmos.y)
+
+    z0 = atmos.z[idz]; z1 = atmos.z[idz+1]
+    y0 = atmos.y[idy]; y1 = atmos.y[idy%ny+1]
+
+    c00 = vals[1, 1]
+    c01 = vals[1, 2]
+    c10 = vals[2, 1]
+    c11 = vals[2, 2]
+
+    # difference between coordinates and interpolation point
+    z_d = (z_mrk - z0)/(z1 - z0)
+    y_d = (y_mrk - y0)/(y1 - y0)
+
+    c0 = c00*(1 - z_d) + c10*z_d
+    c1 = c01*(1 - z_d) + c11*z_d
+
+    c = c0*(1 - y_d) + c1*y_d
+
+    return c
+end
+
+function bilinear_xz(z_mrk, x_mrk, y_mrk, idz, idx, idy,
+                   atmos::Atmosphere, vals::AbstractArray)
+
+    # if idz > length(atmos.z)
+        # complain!
+    nx = length(atmos.x)
+
+    z0 = atmos.z[idz]; z1 = atmos.z[idz+1]
+    x0 = atmos.x[idx]; x1 = atmos.x[idx%nx+1]
+
+    c00 = vals[idz, idx, idy]
+    c01 = vals[idz+1, idx, idy]
+    c10 = vals[idz, idx%nx+1, idy]
+    c11 = vals[idz+1, idx%nx+1, idy]
+
+    # difference between coordinates and interpolation point
+    z_d = (z_mrk - z0)/(z1 - z0)
+    x_d = (x_mrk - x0)/(x1 - x0)
+
+    c0 = c00*(1 - z_d) + c10*z_d
+    c1 = c01*(1 - z_d) + c11*z_d
+
+    c = c0*(1 - x_d) + c1*x_d
 
     return c
 end
@@ -436,6 +492,8 @@ function trapezoidal(Δx, a, b)
 end
 
 function xy_intersect(θ)
+    sign_x=0
+    sign_y=0
     if θ < π/2
         # 1st quadrant
         sign_x = 0
@@ -463,4 +521,37 @@ function z_intersect(ϕ)
         sign_z = -1
     end
     return sign_z
+end
+
+function read_quadrature(fname)
+    # elaborate (bad) scheme to extract number of points from filename
+    n_points = ""
+    switch = false
+    for (i, char) in enumerate(fname)
+        if char == 'n'
+            switch = true
+        elseif switch == true
+            try parse(Int, char)
+                n_points = string(n_points, char)
+            catch
+                break
+            end
+        end
+    end
+
+    n_points = parse(Int, n_points)
+
+    weights = zeros(n_points)
+    θ_array = zeros(n_points)
+    ϕ_array = zeros(n_points)
+
+    open(fname, "r") do io
+        for (i, line) in enumerate(eachline(fname))
+            weights[i] = parse(Float64, split(line)[1])
+            ϕ_array[i] = parse(Float64, split(line)[2])
+            θ_array[i] = parse(Float64, split(line)[3])
+        end
+    end
+
+    return weights, θ_array, ϕ_array, n_points
 end

@@ -1,7 +1,19 @@
 include("functions.jl")
 include("rays.jl")
 
-function short_characteristic_ray(θ, ϕ, I_0, S_0, α, atmos)
+
+"""
+TODO: fix boundary at the top. Add "ghost layer" for rays moving from xz or yz
+planes... how to? Start with last I_0, do extra iteration:
+
+for i in 1:nx
+    calculate SC
+    update I_0
+i = 1
+    calculate SC from last I_0
+"""
+
+function short_characteristic_ray(θ, ϕ, S_0, α, atmos; degrees)
     # First find out which wall the ray hits, to determine which direction to
     # interpolate. Exploit the fact that xy grid is equidistand partitioned for
     # all z, however z is in general not equipartitioned. Find out which Δ - r
@@ -14,7 +26,7 @@ function short_characteristic_ray(θ, ϕ, I_0, S_0, α, atmos)
     end
 
     # Allocate array for new intensity
-    I = zero(I_0)
+    I = zero(S_0)
 
     ############################################################################
     # | and - : Grid
@@ -43,38 +55,62 @@ function short_characteristic_ray(θ, ϕ, I_0, S_0, α, atmos)
     sign_z = z_intersect(θ)
     sign_x, sign_y = xy_intersect(ϕ)
 
-    # Cut point
-    idz_u = idz + 2*sign_z + 1
+    if ϕ > π/2
+        # Boundary condition
+        I_0 = S_0[1,:,:]
 
-    # loop through atmosphere
-    for k in 2:length(atmos.z) - 1
-        # calculate length until ray hits z plane
+        # loop upwards through atmosphere
+        for idz in 2:length(atmos.z)-1
+            # Grid diffference in z
+            Δz = atmos.z[idz] - atmos.z[idz-1]
 
-        # Length to plane
-        Δz = sign_z*(atmos.z[idz_u] - atmos.z[k])
-        r_z = Δz/cos(ϕ)
+            # calculate length until ray hits z plane
+            r_z = Δz/cos(ϕ)
 
-        # This finds which plane the ray intersects with
-        plane_cut = argmin([r_z, r_x, r_y])
-        for i in 1:length(atmos.x)
-            for j in 1:length(atmos.y)
-                if plane_cut == 1
-                    ΔI = z_ray(θ, ϕ, k, i, j, sign_z, sign_x, sign_y,
-                                                                 I_0, S_0, α, atmos)
+            # This finds which plane the ray intersects with
+            plane_cut = argmin([r_z, r_x, r_y])
+            if plane_cut == 1
+                ΔI = z_up_ray(θ, ϕ, idz, sign_x, sign_y, I_0, S_0, α, atmos)
 
-                elseif plane_cut==2
-                    ΔI = x_ray(θ, ϕ, k, i, j, sign_z, sign_x, sign_y,
-                                                                 I_0, S_0, α, atmos)
+            elseif plane_cut==2
+                ΔI = x_up_ray(θ, ϕ, idz, sign_x, sign_y, I_0, S_0, α, atmos)
 
-                elseif plane_cut==3
-                    ΔI = y_ray(θ, ϕ, k, i, j, sign_z, sign_x, sign_y,
-                                                                 I_0, S_0, α, atmos)
-                end
-
-                I[k, i, j] = ΔI
+            elseif plane_cut==3
+                ΔI = y_up_ray(θ, ϕ, idz, sign_x, sign_y, I_0, S_0, α, atmos)
             end
+
+            I_0 = I[idz]
+            percent = trunc(Int, 100*idz/(length(atmos.z)-1))
+            print("\t\t$percent% \r")
         end
-        print("$k \r")
+    elseif ϕ < π/2
+        # Boundary condition
+        I_0 = zero(S_0[end,:,:])
+        # loop downwards through atmosphere
+        for idz in length(atmos.z)-1:-1:2
+            # Grid diffference in z
+            Δz = atmos.z[idz+1] - atmos.z[idz]
+
+            # calculate length until ray hits z plane
+            r_z = Δz/cos(ϕ)
+
+            # This finds which plane the ray intersects with
+            plane_cut = argmin([r_z, r_x, r_y])
+            if plane_cut == 1
+                I[idz,:,:] = z_down_ray(θ, ϕ, idz, sign_x, sign_y, I_0, S_0, α, atmos)
+
+            elseif plane_cut==2
+                I[idz,:,:] = x_down_ray(θ, ϕ, idz, sign_x, sign_y, I_0, S_0, α, atmos)
+
+            elseif plane_cut==3
+                I[idz,:,:] = y_down_ray(θ, ϕ, idz, sign_x, sign_y, I_0, S_0, α, atmos)
+            end
+
+            I_0 = I[idz,:,:]
+            percent = trunc(Int, 100*(length(atmos.z)-idz+1)/(length(atmos.z)-1))
+            print("\t\t$percent% \r")
+        end
     end
+
     return I
 end

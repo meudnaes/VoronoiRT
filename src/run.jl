@@ -88,14 +88,6 @@ function run()
     # choose a wavelength
     λ = 500u"nm"  # nm
 
-    # start with rays from the bottom
-    # Trying for one column!
-    idx = 10; idy = 10; idz = 2
-
-    x0 = atmos.x[idx]
-    y0 = atmos.y[idy]
-    z0 = atmos.z[idz]
-
     # Only continuum
     η_ν = 0
 
@@ -103,8 +95,8 @@ function run()
     ε_ν = 0.1
 
     # Find continuum extinction (only with Thomson and Rayleigh)
-    α = αcont.(λ, atmos.temperature[:,:,:], atmos.electron_density[:,:,:],
-                atmos.hydrogen_populations[:,:,:], atmos.hydrogen_populations[:,:,:])
+    α = αcont.(λ, atmos.temperature, atmos.electron_density,
+                atmos.hydrogen_populations, atmos.hydrogen_populations)
 
     # Find τ continuum
     # τ_c = cumul_integrate(atmos.z, α)
@@ -122,16 +114,23 @@ function run()
 
     # first ray kind of arbitrarily chosen
     # Ω = (θ, φ), space angle
-    θ = 60
-    ϕ = 10
+    weights, θ_array, ϕ_array, n_points = read_quadrature("../quadratures/ul9n20.dat")
 
     # start shooting rays from the bottom of the domain. I have to start at the
     # bottom because the rays move upwards. Kind of obvious, but it took some
     # time to understand. If rays move downwards, I start at the top...
     # NB we start at 2nd index because 1st index is boundary condition
     #I = zeros(length(atmos.z), length(atmos.x), length(atmos.y))*u"kW*m^-2*nm^-1"
-    I_0 = S_0
-    I = short_characteristic_ray(θ, ϕ, I_0, S_0, atmos)
+    # I_0 = S_0
+
+    θ = 170
+    ϕ = 10
+    I = short_characteristic_ray(θ, ϕ, S_0, α, atmos, degrees=true)
+
+    # for i in 1:n_points
+        # print("Ray $i/$n_points \r")
+        # I = short_characteristic_ray(θ_array[i], ϕ_array[i], S_0, α, atmos, degrees=true)
+    # end
 
     #=
     p_unitless = ustrip(p_vec)
