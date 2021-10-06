@@ -318,15 +318,13 @@ function bilinear_xy(x_mrk, y_mrk, idx::Int, idy::Int,
     # through the arrays (super slow). That version can include periodicity,
     # the original doesn't need that for now.
 
-    x0 = atmos.x[idx]; x1 = atmos.x[idx%nx+1]
-    y0 = atmos.y[idy]; y1 = atmos.y[idy%ny+1]
-    println(idx)
-    println(idy)
-    println(vals)
+    x0 = atmos.x[idx]; x1 = atmos.x[roll(idx+1,nx)]
+    y0 = atmos.y[idy]; y1 = atmos.y[roll(idy+1,ny)]
+
     c00 = vals[idx, idy]
-    c01 = vals[idx, idy%ny+1]
-    c10 = vals[idx%nx+1, idy]
-    c11 = vals[idx%nx+1, idy%ny+1]
+    c01 = vals[idx, roll(idy+1,ny)]
+    c10 = vals[roll(idx+1,nx), idy]
+    c11 = vals[roll(idx+1,nx), roll(idy+1,ny)]
 
     # difference between coordinates and interpolation point
     x_d = (x_mrk - x0)/(x1 - x0)
@@ -342,7 +340,7 @@ function bilinear_xy(x_mrk, y_mrk, idx::Int, idy::Int,
 end
 
 function bilinear_yz(z_mrk, y_mrk, idz, idy,
-                   atmos::Atmosphere, vals::AbstractArray)
+                     atmos::Atmosphere, vals::AbstractArray)
 
     # if idz > length(atmos.z)
         # complain!
@@ -492,23 +490,22 @@ function trapezoidal(Δx, a, b)
 end
 
 function xy_intersect(θ)
-    sign_x=0
-    sign_y=0
+    local sign_x, sign_y
     if θ < π/2
-        # 1st quadrant
-        sign_x = 0
-        sign_y = 0
+        # 1st quadrant. Positive x, positive y
+        sign_x = 1
+        sign_y = 1
     elseif π/2 < θ > π
-        # 2nd quadrant
+        # 2nd quadrant. Negative x, positive y
         sign_x = -1
-        sign_y = 0
+        sign_y = 1
     elseif π < θ > 3π/2
-        # 3rd quadrant
+        # 3rd quadrant. Negative x, negative y
         sign_x = -1
         sign_y = -1
     elseif 3π/2 < θ > 2π
-        # 4th quadrant
-        sign_x = 0
+        # 4th quadrant. Positive x, negative y
+        sign_x = 1
         sign_y = -1
     end
     return sign_x, sign_y
@@ -548,10 +545,25 @@ function read_quadrature(fname)
     open(fname, "r") do io
         for (i, line) in enumerate(eachline(fname))
             weights[i] = parse(Float64, split(line)[1])
-            ϕ_array[i] = parse(Float64, split(line)[2])
-            θ_array[i] = parse(Float64, split(line)[3])
+            θ_array[i] = parse(Float64, split(line)[2])
+            ϕ_array[i] = parse(Float64, split(line)[3])
         end
     end
 
     return weights, θ_array, ϕ_array, n_points
+end
+
+#=
+    function roll(i::Int, nx::Int)
+Takes care of the periodic boundaries
+=#
+function roll(i::Int, nx::Int)
+    i_new = (i - 1)%nx + 1
+    return i_new::Int
+end
+
+function range_bounds(sign, bound)
+    start = (bound+sign)%(bound-sign) - sign
+    stop = (bound-sign)%(bound+sign) + sign
+    return start, stop
 end

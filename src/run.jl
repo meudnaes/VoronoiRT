@@ -123,9 +123,26 @@ function run()
     #I = zeros(length(atmos.z), length(atmos.x), length(atmos.y))*u"kW*m^-2*nm^-1"
     # I_0 = S_0
 
+    ############################################################################
     θ = 170
     ϕ = 10
-    I = short_characteristic_ray(θ, ϕ, S_0, α, atmos, degrees=true)
+    θ = θ*pi/180
+    ϕ = ϕ*pi/180
+    I = short_characteristics_up(θ, ϕ, S_0, α, atmos, degrees=false)
+    ############################################################################
+    θ = 10
+    ϕ = 10
+    θ = θ*pi/180
+    ϕ = ϕ*pi/180
+    I = short_characteristics_down(θ, ϕ, S_0, α, atmos, degrees=false)
+    ############################################################################
+    θ = 170
+    ϕ = 10
+    θ = θ*pi/180
+    ϕ = ϕ*pi/180
+    I = short_characteristics_down(θ, ϕ, S_0, α, atmos, degrees=false)
+    ###########################################################################
+
 
     # for i in 1:n_points
         # print("Ray $i/$n_points \r")
