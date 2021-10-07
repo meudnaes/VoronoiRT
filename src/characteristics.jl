@@ -63,21 +63,30 @@ function short_characteristics_up(θ, ϕ, S_0, α, atmos; degrees)
         Δz = atmos.z[idz] - atmos.z[idz-1]
 
         # calculate length until ray hits z plane
-        r_z = Δz/cos(ϕ)
+        r_z = Δz/cos(θ)
 
         # This finds which plane the ray intersects with
         plane_cut = argmin([r_z, r_x, r_y])
         if plane_cut == 1
+            if idz == 2
+                println("xy_up")
+            end
             I[idz,:,:] = xy_up_ray(θ, ϕ, idz, sign_x, sign_y, I_0, S_0, α, atmos)
         elseif plane_cut==2
+            if idz == 2
+                println("yz_up")
+            end
             I[idz,:,:] = yz_up_ray(θ, ϕ, idz, sign_x, sign_y, I_0, S_0, α, atmos)
         elseif plane_cut==3
+            if idz == 2
+                println("xz_up")
+            end
             I[idz,:,:] = xz_up_ray(θ, ϕ, idz, sign_x, sign_y, I_0, S_0, α, atmos)
         end
 
         I_0 = I[idz,:,:]
         percent = trunc(Int, 100*idz/(length(atmos.z)-1))
-        print("\t\t$percent% \r")
+        # print("\t\t$percent% \r")
     end
 
     return I
@@ -100,7 +109,6 @@ function short_characteristics_down(θ, ϕ, S_0, α, atmos; degrees)
     r_y = Δxy/(sin(ϕ)*sin(θ))
 
     # find out which plane the upwind part of the ray intersects
-    sign_z = z_intersect(θ)# we know what this is already!!
     sign_x, sign_y = xy_intersect(ϕ)
 
     # Boundary condition
@@ -111,23 +119,30 @@ function short_characteristics_down(θ, ϕ, S_0, α, atmos; degrees)
         Δz = atmos.z[idz+1] - atmos.z[idz]
 
         # calculate length until ray hits z plane
-        r_z = Δz/cos(ϕ)
+        r_z = Δz/cos(θ)
 
         # This finds which plane the ray intersects with
         plane_cut = argmin([r_z, r_x, r_y])
         if plane_cut == 1
+            if idz == length(atmos.z)-1
+                println("xy_down")
+            end
             I[idz,:,:] = xy_down_ray(θ, ϕ, idz, sign_x, sign_y, I_0, S_0, α, atmos)
-
         elseif plane_cut==2
+            if idz == length(atmos.z)-1
+                println("yz_down")
+            end
             I[idz,:,:] = yz_down_ray(θ, ϕ, idz, sign_x, sign_y, I_0, S_0, α, atmos)
-
         elseif plane_cut==3
+            if idz == length(atmos.z)-1
+                println("xz_down")
+            end
             I[idz,:,:] = xz_down_ray(θ, ϕ, idz, sign_x, sign_y, I_0, S_0, α, atmos)
         end
 
         I_0 = I[idz,:,:]
         percent = trunc(Int, 100*(length(atmos.z)-idz+1)/(length(atmos.z)-1))
-        print("\t\t$percent% \r")
+        # print("\t\t$percent% \r")
     end
 
     return I

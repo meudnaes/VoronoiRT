@@ -465,12 +465,12 @@ function J_ν(weights, intensities)
 end
 
 #=
-    read_neighbours(fname::String, n_sites::Int64)
+    read_neighbours(fname::String, n_sites::Int)
 
 Reads a file containing neighbouring cells for each grid point in the voronoi
 tesselation.
 =#
-function read_neighbours(fname::String, n_sites::Int64)::AbstractMatrix
+function read_neighbours(fname::String, n_sites::Int)::AbstractMatrix
     ID = Vector{Int64}(undef, n_sites)
     neighbours = zeros(Int64, n_sites, 40)
     open(fname, "r") do io
@@ -489,7 +489,7 @@ function trapezoidal(Δx, a, b)
     return area
 end
 
-function xy_intersect(θ)
+function xy_intersect(θ::AbstractFloat)
     local sign_x, sign_y
     if θ < π/2
         # 1st quadrant. Positive x, positive y
@@ -508,7 +508,7 @@ function xy_intersect(θ)
         sign_x = 1
         sign_y = -1
     end
-    return sign_x, sign_y
+    return sign_x::Int, sign_y::Int
 end
 
 function z_intersect(ϕ)
@@ -520,7 +520,7 @@ function z_intersect(ϕ)
     return sign_z
 end
 
-function read_quadrature(fname)
+function read_quadrature(fname::String)
     # elaborate (bad) scheme to extract number of points from filename
     n_points = ""
     switch = false
@@ -550,7 +550,7 @@ function read_quadrature(fname)
         end
     end
 
-    return weights, θ_array, ϕ_array, n_points
+    return weights::AbstractArray, θ_array::AbstractArray, ϕ_array::AbstractArray, n_points::Int
 end
 
 #=
@@ -562,8 +562,8 @@ function roll(i::Int, nx::Int)
     return i_new::Int
 end
 
-function range_bounds(sign, bound)
+function range_bounds(sign::Int, bound::Int)
     start = (bound+sign)%(bound-sign) - sign
     stop = (bound-sign)%(bound+sign) + sign
-    return start, stop
+    return start::Int, stop::Int
 end
