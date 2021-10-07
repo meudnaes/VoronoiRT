@@ -366,7 +366,7 @@ function bilinear_yz(z_mrk, y_mrk, idz, idy,
     return c
 end
 
-function bilinear_xz(z_mrk, x_mrk, y_mrk, idz, idx, idy,
+function bilinear_xz(z_mrk, x_mrk, idz, idx,
                    atmos::Atmosphere, vals::AbstractArray)
 
     # if idz > length(atmos.z)
@@ -376,10 +376,10 @@ function bilinear_xz(z_mrk, x_mrk, y_mrk, idz, idx, idy,
     z0 = atmos.z[idz]; z1 = atmos.z[idz+1]
     x0 = atmos.x[idx]; x1 = atmos.x[idx%nx+1]
 
-    c00 = vals[idz, idx, idy]
-    c01 = vals[idz+1, idx, idy]
-    c10 = vals[idz, idx%nx+1, idy]
-    c11 = vals[idz+1, idx%nx+1, idy]
+    c00 = vals[1, 1]
+    c01 = vals[1, 2]
+    c10 = vals[2, 1]
+    c11 = vals[2, 2]
 
     # difference between coordinates and interpolation point
     z_d = (z_mrk - z0)/(z1 - z0)
@@ -489,32 +489,37 @@ function trapezoidal(Δx, a, b)
     return area
 end
 
-function xy_intersect(θ::AbstractFloat)
-    local sign_x, sign_y
-    if θ < π/2
+function xy_intersect(ϕ::AbstractFloat)
+    sign_x=0
+    sign_y=0
+    if ϕ < π/2
         # 1st quadrant. Positive x, positive y
+        println("1st")
         sign_x = 1
         sign_y = 1
-    elseif π/2 < θ > π
+    elseif π/2 < ϕ < π
         # 2nd quadrant. Negative x, positive y
+        println("2nd")
         sign_x = -1
         sign_y = 1
-    elseif π < θ > 3π/2
+    elseif π < ϕ < 3π/2
         # 3rd quadrant. Negative x, negative y
+        println("3rd")
         sign_x = -1
         sign_y = -1
-    elseif 3π/2 < θ > 2π
+    elseif 3π/2 < ϕ < 2π
         # 4th quadrant. Positive x, negative y
+        println("4th")
         sign_x = 1
         sign_y = -1
     end
     return sign_x::Int, sign_y::Int
 end
 
-function z_intersect(ϕ)
-    if ϕ < π/2
+function z_intersect(θ)
+    if θ < π/2
         sign_z = 0
-    elseif ϕ > π/2
+    elseif θ > π/2
         sign_z = -1
     end
     return sign_z

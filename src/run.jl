@@ -123,33 +123,47 @@ function run()
     #I = zeros(length(atmos.z), length(atmos.x), length(atmos.y))*u"kW*m^-2*nm^-1"
     # I_0 = S_0
 
-    ############################ Test xy_up ####################################
+    ################################ Test xy_up ################################
     θ = 10
     ϕ = 10
     θ = θ*pi/180
     ϕ = ϕ*pi/180
     print("ray 1: ")
     @time I = short_characteristics_up(θ, ϕ, S_0, α, atmos, degrees=false)
-    ########################### Test xy_down ###################################
+    ############################### Test xy_down ###############################
     θ = 170
     ϕ = 10
     θ = θ*pi/180
     ϕ = ϕ*pi/180
     print("ray 2: ")
     @time I = short_characteristics_down(θ, ϕ, S_0, α, atmos, degrees=false)
-    ############################ Test yz_up ####################################
+    ################################ Test yz_up ################################
     θ = 60
     ϕ = 10
     θ = θ*pi/180
     ϕ = ϕ*pi/180
     print("ray 3: ")
     @time I = short_characteristics_up(θ, ϕ, S_0, α, atmos, degrees=false)
-    ########################### Test yz_down ###################################
+    ############################### Test yz_down ###############################
     θ = 110
-    ϕ = 10
+    ϕ = 100
     θ = θ*pi/180
     ϕ = ϕ*pi/180
     print("ray 4: ")
+    @time I = short_characteristics_down(θ, ϕ, S_0, α, atmos, degrees=false)
+    ################################ Test xz_up ################################
+    θ = 60
+    ϕ = 60
+    θ = θ*pi/180
+    ϕ = ϕ*pi/180
+    print("ray 5: ")
+    @time I = short_characteristics_up(θ, ϕ, S_0, α, atmos, degrees=false)
+    ############################### Test xz_down ###############################
+    θ = 110
+    ϕ = 60
+    θ = θ*pi/180
+    ϕ = ϕ*pi/180
+    print("ray 5: ")
     @time I = short_characteristics_down(θ, ϕ, S_0, α, atmos, degrees=false)
 
     # for i in 1:n_points
