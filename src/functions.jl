@@ -13,7 +13,6 @@ import PhysicalConstants.CODATA2018: h, c_0, k_B
 #=
     Structure containing atmospheric grid and physical values at grid point
 =#
-
 struct Atmosphere
     z::Vector{<:Unitful.Length}
     x::Vector{<:Unitful.Length}
@@ -51,7 +50,7 @@ temperature, electron_density and hydrogen populations.
 
 Original author: Ida Risnes Hansen
 =#
-function get_atmos(file_path)
+function get_atmos(file_path; periodic=true)
     local x, y, z, hydrogen_populations
     h5open(file_path, "r") do atmos
         z = read(atmos, "z")u"m"
@@ -95,6 +94,74 @@ function get_atmos(file_path)
         reverse!(temperature, dims=3)
         reverse!(electron_density, dims=3)
         reverse!(hydrogen_populations, dims=3)
+    end
+
+    if periodic
+        # Fix periodic boundaries with 'ghost' values
+        Δx = x[2] - x[1]
+        Δy = y[2] - y[1]
+
+        # Fix grid
+        x_periodic = Vector{Unitful.Length}(undef, length(x)+2)
+        y_periodic = Vector{Unitful.Length}(undef, length(x)+2)
+
+        x_periodic[2:end-1] = x
+        x_periodic[1] = x[1] - Δx
+        x_periodic[end] = x[end] + Δx
+
+        y_periodic[2:end-1] = y
+        y_periodic[1] = y[1] - Δy
+        y_periodic[end] = y[end] + Δy
+
+        # Fix quantities
+        size_add = (0, 2, 2)
+
+        # Temperature
+        temperature_periodic = Array{Unitful.Temperature, 3}(undef, size(temperature) .+ size_add)
+        temperature_periodic[:, 2:end-1, 2:end-1] = temperature
+        # x-direction
+        temperature_periodic[:,1,2:end-1] = temperature[:,end,:]
+        temperature_periodic[:,end,2:end-1] = temperature[:,1,:]
+        # y-direction
+        temperature_periodic[:,2:end-1,end] = temperature[:,:,1]
+        temperature_periodic[:,2:end-1,1] = temperature[:,:,end]
+        # fix corners
+        temperature_periodic[:,1,1] .= NaN*u"K"
+        temperature_periodic[:,1,end] .= NaN*u"K"
+        temperature_periodic[:,end,1] .= NaN*u"K"
+        temperature_periodic[:,end,end] .= NaN*u"K"
+
+        # Temperature
+        electron_density_periodic = Array{NumberDensity, 3}(undef, size(electron_density) .+ size_add)
+        electron_density_periodic[:, 2:end-1, 2:end-1] = electron_density
+        # x-direction
+        electron_density_periodic[:,1,2:end-1] = electron_density[:,end,:]
+        electron_density_periodic[:,end,2:end-1] = electron_density[:,1,:]
+        # y-direction
+        electron_density_periodic[:,2:end-1,end] = electron_density[:,:,1]
+        electron_density_periodic[:,2:end-1,1] = electron_density[:,:,end]
+        # fix corners
+        electron_density_periodic[:,1,1] .= NaN*u"m^-3"
+        electron_density_periodic[:,1,end] .= NaN*u"m^-3"
+        electron_density_periodic[:,end,1] .= NaN*u"m^-3"
+        electron_density_periodic[:,end,end] .= NaN*u"m^-3"
+
+        # Temperature
+        hydrogen_populations_periodic = Array{NumberDensity, 3}(undef, size(hydrogen_populations) .+ size_add)
+        hydrogen_populations_periodic[:, 2:end-1, 2:end-1] = hydrogen_populations
+        # x-direction
+        hydrogen_populations_periodic[:,1,2:end-1] = hydrogen_populations[:,end,:]
+        hydrogen_populations_periodic[:,end,2:end-1] = hydrogen_populations[:,1,:]
+        # y-direction
+        hydrogen_populations_periodic[:,2:end-1,end] = hydrogen_populations[:,:,1]
+        hydrogen_populations_periodic[:,2:end-1,1] = hydrogen_populations[:,:,end]
+        # fix corners
+        hydrogen_populations_periodic[:,1,1] .= NaN*u"m^-3"
+        hydrogen_populations_periodic[:,1,end] .= NaN*u"m^-3"
+        hydrogen_populations_periodic[:,end,1] .= NaN*u"m^-3"
+        hydrogen_populations_periodic[:,end,end] .= NaN*u"m^-3"
+
+        return z, x_periodic, y_periodic, temperature_periodic, electron_density_periodic, hydrogen_populations_periodic
     end
 
     return z, x, y, temperature, electron_density, hydrogen_populations
@@ -300,97 +367,27 @@ function trilinear_no_search(z_mrk, x_mrk, y_mrk, idz, idx, idy,
     return c
 end
 
-function bilinear_xy(x_mrk, y_mrk, idx::Int, idy::Int,
-                     atmos::Atmosphere, vals)
+function bilinear(x_mrk, y_mrk, x_bounds, y_bounds, vals)
 
+    # corner coordinates
+    x1 = x_bounds[1]; x2 = x_bounds[2]
+    y1 = y_bounds[1]; y2 = y_bounds[2]
 
-    nx = length(atmos.x)
-    ny = length(atmos.y)
+    # function value for each corner. 11 is lower left corner, 22 is upper right
+    Q11 = vals[1,1]     # (x1, y1)
+    Q12 = vals[1,2]     # (x1, y2)
+    Q21 = vals[2,1]     # (x2, y1)
+    Q22 = vals[2,2]     # (x2, y2)
 
-    # To include the periodic boundaries, I do the following. If idx > nx, I
-    # the value at the start of the array. The modulo operator seems strange in
-    # julia because we start at index 1 and not 0 like in C and Python.
-    # idx%nx+1 is in julia the same as idx%nx in C and Python
-    # idx%nx+1 and idy%ny+1 gets the next value on the "other" side of the
-    # domain. Hopefully, the central coordinate is always "in" the domain.
-    # Why is this not implemented in the trilinear interpolation? Because that
-    # needs to be done. And also make a version that doesn't have to search
-    # through the arrays (super slow). That version can include periodicity,
-    # the original doesn't need that for now.
+    dx = x2 - x1
+    dy = y2 - y1
 
-    x0 = atmos.x[idx]; x1 = atmos.x[roll(idx+1,nx)]
-    y0 = atmos.y[idy]; y1 = atmos.y[roll(idy+1,ny)]
+    f1 = ((x2 - x_mrk)*Q11 + (x_mrk - x1)*Q21)/dx
+    f2 = ((x2 - x_mrk)*Q12 + (x_mrk - x1)*Q22)/dx
 
-    c00 = vals[idx, idy]
-    c01 = vals[idx, roll(idy+1,ny)]
-    c10 = vals[roll(idx+1,nx), idy]
-    c11 = vals[roll(idx+1,nx), roll(idy+1,ny)]
+    f = ((y2 - y_mrk)*f1 + (y_mrk - y1)*f2)/dy
 
-    # difference between coordinates and interpolation point
-    x_d = (x_mrk - x0)/(x1 - x0)
-    y_d = (y_mrk - y0)/(y1 - y0)
-
-    c0 = c00*(1 - x_d) + c10*x_d
-    c1 = c01*(1 - x_d) + c11*x_d
-
-
-    c = c0*(1 - y_d) + c1*y_d
-
-    return c
-end
-
-function bilinear_yz(z_mrk, y_mrk, idz, idy,
-                     atmos::Atmosphere, vals::AbstractArray)
-
-    # if idz > length(atmos.z)
-        # complain!
-    ny = length(atmos.y)
-
-    z0 = atmos.z[idz]; z1 = atmos.z[idz+1]
-    y0 = atmos.y[idy]; y1 = atmos.y[idy%ny+1]
-
-    c00 = vals[1, 1]
-    c01 = vals[1, 2]
-    c10 = vals[2, 1]
-    c11 = vals[2, 2]
-
-    # difference between coordinates and interpolation point
-    z_d = (z_mrk - z0)/(z1 - z0)
-    y_d = (y_mrk - y0)/(y1 - y0)
-
-    c0 = c00*(1 - z_d) + c10*z_d
-    c1 = c01*(1 - z_d) + c11*z_d
-
-    c = c0*(1 - y_d) + c1*y_d
-
-    return c
-end
-
-function bilinear_xz(z_mrk, x_mrk, idz, idx,
-                   atmos::Atmosphere, vals::AbstractArray)
-
-    # if idz > length(atmos.z)
-        # complain!
-    nx = length(atmos.x)
-
-    z0 = atmos.z[idz]; z1 = atmos.z[idz+1]
-    x0 = atmos.x[idx]; x1 = atmos.x[idx%nx+1]
-
-    c00 = vals[1, 1]
-    c01 = vals[1, 2]
-    c10 = vals[2, 1]
-    c11 = vals[2, 2]
-
-    # difference between coordinates and interpolation point
-    z_d = (z_mrk - z0)/(z1 - z0)
-    x_d = (x_mrk - x0)/(x1 - x0)
-
-    c0 = c00*(1 - z_d) + c10*z_d
-    c1 = c01*(1 - z_d) + c11*z_d
-
-    c = c0*(1 - x_d) + c1*x_d
-
-    return c
+    return f
 end
 
 #=
@@ -490,26 +487,25 @@ function trapezoidal(Δx, a, b)
 end
 
 function xy_intersect(ϕ::AbstractFloat)
-    sign_x=0
-    sign_y=0
+    local sign_x, sign_y
     if ϕ < π/2
         # 1st quadrant. Positive x, positive y
-        println("1st")
+        print("1st, ")
         sign_x = 1
         sign_y = 1
     elseif π/2 < ϕ < π
         # 2nd quadrant. Negative x, positive y
-        println("2nd")
+        print("2nd, ")
         sign_x = -1
         sign_y = 1
     elseif π < ϕ < 3π/2
         # 3rd quadrant. Negative x, negative y
-        println("3rd")
+        print("3rd, ")
         sign_x = -1
         sign_y = -1
     elseif 3π/2 < ϕ < 2π
         # 4th quadrant. Positive x, negative y
-        println("4th")
+        print("4th, ")
         sign_x = 1
         sign_y = -1
     end
@@ -558,17 +554,13 @@ function read_quadrature(fname::String)
     return weights::AbstractArray, θ_array::AbstractArray, ϕ_array::AbstractArray, n_points::Int
 end
 
-#=
-    function roll(i::Int, nx::Int)
-Takes care of the periodic boundaries
-=#
-function roll(i::Int, nx::Int)
-    i_new = (i - 1)%nx + 1
-    return i_new::Int
-end
-
 function range_bounds(sign::Int, bound::Int)
-    start = (bound+sign)%(bound-sign) - sign
-    stop = (bound-sign)%(bound+sign) + sign
+    if sign == -1
+        start = 2
+        stop = bound-1
+    elseif sign == 1
+        start = bound-1
+        stop = 2
+    end
     return start::Int, stop::Int
 end

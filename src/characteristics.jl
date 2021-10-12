@@ -2,17 +2,6 @@ include("functions.jl")
 include("rays.jl")
 
 
-"""
-TODO: fix boundary at the top. Add "ghost layer" for rays moving from xz or yz
-planes... how to? Start with last I_0, do extra iteration:
-
-for i in 1:nx
-    calculate SC
-    update I_0
-i = 1
-    calculate SC from last I_0
-"""
-
 function short_characteristics_up(θ, ϕ, S_0, α, atmos; degrees)
     # First find out which wall the ray hits, to determine which direction to
     # interpolate. Exploit the fact that xy grid is equidistand partitioned for
@@ -47,9 +36,9 @@ function short_characteristics_up(θ, ϕ, S_0, α, atmos; degrees)
     ############################################################################
 
     # I know that Δx = Δy = constant for all grid points
-    Δxy = atmos.x[2] - atmos.x[1]
-    r_x = Δxy/(cos(ϕ)*sin(θ))
-    r_y = Δxy/(sin(ϕ)*sin(θ))
+    # Δxy = atmos.x[2] - atmos.x[1]
+    r_x = Δx/(cos(ϕ)*sin(θ))
+    r_y = Δy/(sin(ϕ)*sin(θ))
 
     # find out direction in xy the ray moves (1 for positive, -1 for negative)
     sign_x, sign_y = xy_intersect(ϕ)
@@ -63,7 +52,7 @@ function short_characteristics_up(θ, ϕ, S_0, α, atmos; degrees)
         Δz = atmos.z[idz] - atmos.z[idz-1]
 
         # calculate length until ray hits z plane
-        r_z = Δz/cos(θ)
+        r_z = abs(Δz/cos(θ))
 
         # This finds which plane the ray intersects with
         plane_cut = argmin([r_z, r_x, r_y])
@@ -104,9 +93,9 @@ function short_characteristics_down(θ, ϕ, S_0, α, atmos; degrees)
     I = zero(S_0)
 
     # I know that Δx = Δy = constant for all grid points
-    Δxy = atmos.x[2] - atmos.x[1]
-    r_x = Δxy/(cos(ϕ)*sin(θ))
-    r_y = Δxy/(sin(ϕ)*sin(θ))
+    # Δxy = atmos.x[2] - atmos.x[1]
+    r_x = Δx/(cos(ϕ)*sin(θ))
+    r_y = Δy/(sin(ϕ)*sin(θ))
 
     # find out which plane the upwind part of the ray intersects
     sign_x, sign_y = xy_intersect(ϕ)
@@ -119,7 +108,7 @@ function short_characteristics_down(θ, ϕ, S_0, α, atmos; degrees)
         Δz = atmos.z[idz+1] - atmos.z[idz]
 
         # calculate length until ray hits z plane
-        r_z = Δz/cos(θ)
+        r_z = abs(Δz/cos(θ))
 
         # This finds which plane the ray intersects with
         plane_cut = argmin([r_z, r_x, r_y])

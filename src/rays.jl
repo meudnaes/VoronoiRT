@@ -12,8 +12,8 @@ function xy_up_ray(θ::AbstractFloat, ϕ::AbstractFloat, idz::Int, sign_x::Int,
                    sign_y::Int, I_0::AbstractArray, S_0::AbstractArray,
                    α::AbstractArray, atmos::Atmosphere)
 
-    nx = length(atmos.x)
-    ny = length(atmos.y)
+    # nx = length(atmos.x)
+    # ny = length(atmos.y)
 
     # Allocate space for intensity
     I = zero(I_0)
@@ -23,7 +23,7 @@ function xy_up_ray(θ::AbstractFloat, ϕ::AbstractFloat, idz::Int, sign_x::Int,
     z_u = atmos.z[idz_u]
 
     # Length to plane
-    Δz = z_u - z_c
+    Δz = abs(z_u - z_c)
     r = Δz/cos(θ)
 
     x_increment = r*cos(ϕ)*sin(θ)
@@ -36,52 +36,62 @@ function xy_up_ray(θ::AbstractFloat, ϕ::AbstractFloat, idz::Int, sign_x::Int,
     S_upwind = S_0[idz_u,:,:]
 
     # Loop direction
-    start_x, stop_x = range_bounds(-sign_x, nx)
-    start_y, stop_y = range_bounds(-sign_y, ny)
+    start_x, stop_x = range_bounds(sign_x, nx)
+    start_y, stop_y = range_bounds(sign_y, ny)
 
     for idx in start_x:-sign_x:stop_x
+        idx_i = idx + Int((sign_x-1)/2)
+        x_c = atmos.x[idx]
+        x_u = x_c + x_increment
+
+        x_bounds = [x_c, atmos.x[idx_i]]
+
         for idy in start_y:-sign_y:stop_y
             # Centre point (c)
-            x_c = atmos.x[idx]
             y_c = atmos.y[idy]
 
-            # Lower corner to interpolate from
-            idx_i = Int(idx + (sign_x-1)/2)
-            idy_i = Int(idy + (sign_y-1)/2)
-
-            # Length to plane
-            Δz = z_c - z_u
-
-            # calculate the length to intersections with z, x, and y plane
-            r = Δz/cos(θ)
-            x_u = x_c + x_increment
+            # upwind coordinate
             y_u = y_c + y_increment
+
+
+            # Lower corner to interpolate from
+            idy_i = idy + Int((sign_y-1)/2)
+            y_bounds = [y_c, atmos.y[idy_i]]
 
             # Do linear interpolation to find τ and S
 
             # exinction at centre and upwind point
+            α_vals = [α_upwind[idx, idy]   α_upwind[idx, idy_i]
+                      α_upwind[idx_i, idy] α_upwind[idx_i, idy_i]]
+
             α_c = α_centre[idx, idy]
-            α_u = bilinear_xy(x_u, y_u, idx_i, idy_i, atmos, α_upwind)
+            α_u = bilinear(x_u, y_u, x_bounds, y_bounds, α_vals)
 
             # Find the Δτ optical path from upwind to grid point
-            Δτ_u = trapezoidal(r, α_c, α_u)
+            Δτ_upwind = trapezoidal(abs(r), α_c, α_u)
 
             # Find source function at grid point and upwind point (intepolate)
+            S_vals = [S_upwind[idx, idy]   S_upwind[idx, idy_i]
+                      S_upwind[idx_i, idy] S_upwind[idx_i, idy_i]]
+
             S_c = S_centre[idx, idy]
-            S_u = bilinear_xy(x_u, y_u, idx_i, idy_i, atmos, S_upwind)
+            S_u = bilinear(x_u, y_u, x_bounds, y_bounds, S_vals)
 
             # From Hennicker et. al. (2020) equation 13
-            e_0 = 1 - exp(-Δτ_u)
-            e_1 = Δτ_u - e_0
+            e_0 = 1 - exp(-Δτ_upwind)
+            e_1 = Δτ_upwind - e_0
 
             # From Hennicker et. al. (2020) equation 12, with ω = 1
-            a_ijk = e_0 - e_1/Δτ_u
-            b_ijk = e_1/Δτ_u
+            a_ijk = e_0 - e_1/Δτ_upwind
+            b_ijk = e_1/Δτ_upwind
             # c_ijk = 0
-            d_ijk = exp(-Δτ_u)
+            d_ijk = exp(-Δτ_upwind)
 
             # Interpolate to find intensity at upwind point
-            I_u = bilinear_xy(x_u, y_u, idx_i, idy_i, atmos, I_0)
+            I_vals = [I_0[idx, idy]   I_0[idx, idy_i]
+                      I_0[idx_i, idy] I_0[idx_i, idy_i]]
+
+            I_u = bilinear(x_u, y_u, x_bounds, y_bounds, I_vals)
 
             # Integrate intensity from two-point quadrature
             I[idx, idy] = a_ijk*S_u + b_ijk*S_c + d_ijk*I_u
@@ -102,19 +112,18 @@ function xy_down_ray(θ::AbstractFloat, ϕ::AbstractFloat, idz::Int, sign_x::Int
                      sign_y::Int, I_0::AbstractArray, S_0::AbstractArray,
                      α::AbstractArray, atmos::Atmosphere)
 
-    nx = length(atmos.x)
-    ny = length(atmos.y)
+    # nx = length(atmos.x)
+    # ny = length(atmos.y)
 
     # Allocate space for intensity
     I = zero(I_0)
-
     # Z center and upwind position
     z_c = atmos.z[idz]
     idz_u = idz + 1
     z_u = atmos.z[idz_u]
 
     # Length to plane
-    Δz = z_u - z_c
+    Δz = abs(z_u - z_c)
     r = Δz/cos(θ)
 
     x_increment = r*cos(ϕ)*sin(θ)
@@ -127,50 +136,65 @@ function xy_down_ray(θ::AbstractFloat, ϕ::AbstractFloat, idz::Int, sign_x::Int
     S_upwind = S_0[idz_u,:,:]
 
     # Loop direction
-    start_x, stop_x = range_bounds(-sign_x, nx)
-    start_y, stop_y = range_bounds(-sign_y, ny)
+    start_x, stop_x = range_bounds(sign_x, nx)
+    start_y, stop_y = range_bounds(sign_y, ny)
 
     for idx in start_x:-sign_x:stop_x
+        idx_i = idx + Int((sign_x-1)/2)
+        x_c = atmos.x[idx]
+        x_u = x_c + x_increment
+
+        x_bounds = [x_c, atmos.x[idx_i]]
         for idy in start_y:-sign_y:stop_y
             # Centre point (c)
-            x_c = atmos.x[idx]
             y_c = atmos.y[idy]
 
             # Lower corner to interpolate from
-            idx_i = idx + Int((sign_x-1)/2)
             idy_i = idy + Int((sign_y-1)/2)
 
             # calculate the length to intersections with z, x, and y plane
-            x_u = x_c + x_increment
             y_u = y_c + y_increment
 
+            y_bounds = [y_c, atmos.y[idy_i]]
+
             # Do linear interpolation to find τ and S
+
             # exinction at centre and upwind point
+            α_vals = [α_upwind[idx, idy]   α_upwind[idx, idy_i]
+                      α_upwind[idx_i, idy] α_upwind[idx_i, idy_i]]
+
             α_c = α_centre[idx, idy]
-            α_u = bilinear_xy(x_u, y_u, idx_i, idy_i, atmos, α_upwind)
+            α_u = bilinear(x_u, y_u, x_bounds, y_bounds, α_vals)
 
             # Find the Δτ optical path from upwind to grid point
-            Δτ_u = trapezoidal(r, α_c, α_u)
+            Δτ_upwind = trapezoidal(abs(r), α_c, α_u)
 
             # Find source function at grid point and upwind point (intepolate)
+            S_vals = [S_upwind[idx, idy]   S_upwind[idx, idy_i]
+                      S_upwind[idx_i, idy] S_upwind[idx_i, idy_i]]
+
             S_c = S_centre[idx, idy]
-            S_u = bilinear_xy(x_u, y_u, idx_i, idy_i, atmos, S_upwind)
+            S_u = bilinear(x_u, y_u, x_bounds, y_bounds, S_vals)
 
             # From Hennicker et. al. (2020) equation 13
-            e_0 = 1 - exp(-Δτ_u)
-            e_1 = Δτ_u - e_0
+            e_0 = 1 - exp(-Δτ_upwind)
+            e_1 = Δτ_upwind - e_0
 
             # From Hennicker et. al. (2020) equation 12, with ω = 1
-            a_ijk = e_0 - e_1/Δτ_u
-            b_ijk = e_1/Δτ_u
+            a_ijk = e_0 - e_1/Δτ_upwind
+            b_ijk = e_1/Δτ_upwind
             # c_ijk = 0
-            d_ijk = exp(-Δτ_u)
+            d_ijk = exp(-Δτ_upwind)
 
             # Interpolate to find intensity at upwind point
-            I_u = bilinear_xy(x_u, y_u, idx_i, idy_i, atmos, I_0)
+            I_vals = [I_0[idx, idy]   I_0[idx, idy_i]
+                      I_0[idx_i, idy] I_0[idx_i, idy_i]]
+
+            I_u = bilinear(x_u, y_u, x_bounds, y_bounds, I_vals)
 
             # Integrate intensity from two-point quadrature
             I[idx, idy] = a_ijk*S_u + b_ijk*S_c + d_ijk*I_u
+
         end
     end
 
@@ -189,12 +213,12 @@ function yz_up_ray(θ::AbstractFloat, ϕ::AbstractFloat, idz::Int, sign_x::Int,
                    sign_y::Int, I_0::AbstractArray, S_0::AbstractArray,
                    α::AbstractArray, atmos::Atmosphere)
 
-    nx = length(atmos.x)
-    ny = length(atmos.y)
+    # nx = length(atmos.x)
+    # ny = length(atmos.y)
 
     # Loop direction
-    start_x, stop_x = range_bounds(-sign_x, nx)
-    start_y, stop_y = range_bounds(-sign_y, ny)
+    start_x, stop_x = range_bounds(sign_x, nx)
+    start_y, stop_y = range_bounds(sign_y, ny)
 
     # Allocate space for intensity
     I = zero(I_0)
@@ -202,10 +226,10 @@ function yz_up_ray(θ::AbstractFloat, ϕ::AbstractFloat, idz::Int, sign_x::Int,
 
     # Z center and interpolation position
     z_c = atmos.z[idz]
-    idz_i = idz - 1
+    idz_i = idz-1
 
     # Length to plane
-    Δx = atmos.x[2] - atmos.x[1]
+    # Δx = atmos.x[2] - atmos.x[1]
 
     # calculate the length to upwind position
     r = Δx/(cos(ϕ)*sin(θ))
@@ -213,6 +237,8 @@ function yz_up_ray(θ::AbstractFloat, ϕ::AbstractFloat, idz::Int, sign_x::Int,
     y_increment = r*sin(ϕ)*sin(θ)
 
     z_u = z_c + z_increment
+
+    z_bounds = [z_c, atmos.z[idz_i]]
 
     α_centre = α[idz,:,:]
     α_upwind = α[idz_i,:,:]
@@ -222,10 +248,10 @@ function yz_up_ray(θ::AbstractFloat, ϕ::AbstractFloat, idz::Int, sign_x::Int,
 
     # Do the ghost cell thing...
     idx = stop_x
-    x_c = atmos.x[nx]
+    x_c = atmos.x[idx]
 
     # X upwind position
-    idx_u = roll(idx+sign_x, nx)
+    idx_u = idx+sign_x
     x_u = atmos.x[idx_u]
 
 
@@ -234,42 +260,46 @@ function yz_up_ray(θ::AbstractFloat, ϕ::AbstractFloat, idz::Int, sign_x::Int,
         y_c = atmos.y[idy]
 
         # Lower corner to interpolate from
-        idy_i = roll(idy+Int((sign_y-1)/2), ny)
+        idy_i = idy+(sign_y-1)/2
+        idy_u = idy+1
 
         y_u = y_c + y_increment
+
+        y_bounds = [atmos.y[idy_i], atmos.y[idy_u]]
 
         # Do linear interpolation to find τ and S
 
         # exinction at centre and upwind point
+        α_vals = [α_upwind[idx_u, idy_i]   α_upwind[idx_u, idy]
+                  α_centre[idx_u, idy_i]   α_centre[idx_u, idy]]
+
         α_c = α_centre[idx, idy]
-        α_vals = [α_upwind[idx_u, idy_i]    α_upwind[idx_u, idy]
-                  α_centre[idx_u, idy_i]    α_centre[idx_u, idy]]
-        α_u = bilinear_yz(z_u, y_u, idz_i, idy_i, atmos, α_vals)
+        α_u = bilinear(z_u, y_u, z_bounds, y_bounds, α_vals)
 
         # Find the Δτ optical path from upwind to grid point
-        Δτ_u = trapezoidal(r, α_c, α_u)
+        Δτ_upwind = trapezoidal(abs(r), α_c, α_u)
 
         # Find source function at grid point and upwind point (intepolate)
-        S_c = S_centre[idx, idy]
         S_vals = [S_upwind[idx_u, idy_i]    S_upwind[idx_u, idy]
                   S_centre[idx_u, idy_i]    S_centre[idx_u, idy]]
-        S_u = bilinear_yz(z_u, y_u, idz_i, idy_i, atmos, S_vals)
+        S_c = S_centre[idx, idy]
+        S_u = bilinear(z_u, y_u, z_bounds, y_bounds, S_vals)
 
         # From Hennicker et. al. (2020) equation 13
-        e_0 = 1 - exp(-Δτ_u)
-        e_1 = Δτ_u - e_0
+        e_0 = 1 - exp(-Δτ_upwind)
+        e_1 = Δτ_upwind - e_0
 
         # From Hennicker et. al. (2020) equation 12, with ω = 1
-        a_ijk = e_0 - e_1/Δτ_u
-        b_ijk = e_1/Δτ_u
+        a_ijk = e_0 - e_1/Δτ_upwind
+        b_ijk = e_1/Δτ_upwind
         # c_ijk = 0
-        d_ijk = exp(-Δτ_u)
+        d_ijk = exp(-Δτ_upwind)
 
         # Interpolate to find intensity at upwind point
         I_vals = [I_0[idx_u, idy_i]         I_0[idx_u, idy]
                   S_centre[idx_u, idy_i]    S_centre[idx_u, idy]]
 
-        I_ghost = bilinear_yz(z_u, y_u, idz_i, idy_i, atmos, I_vals)
+        I_ghost = bilinear(z_u, y_u, z_bounds, y_bounds, I_vals)
 
         # Integrate intensity from two-point quadrature
         I_upper[idy_i] = a_ijk*S_u + b_ijk*S_c + d_ijk*I_ghost
@@ -278,49 +308,52 @@ function yz_up_ray(θ::AbstractFloat, ϕ::AbstractFloat, idz::Int, sign_x::Int,
     for idx in start_x:-sign_x:stop_x
         x_c = atmos.x[idx]
         # x upwind position
-        idx_u = roll(idx+sign_x, nx)
+        idx_u = idx+sign_x
         x_u = atmos.x[idx_u]
-
         for idy in start_y:-sign_y:stop_y
             # Centre point (c)
             y_c = atmos.y[idy]
 
             # Lower corner to interpolate from
-            idy_i = roll(idy+sign_y, ny)
+            idy_i = idy+(sign_y-1)/2, ny
+            idy_u = idy+1, ny
 
             y_u = y_c + y_increment
+
+            y_bounds = [atmos.y[idy_i], atmos.y[idy_u]]
 
             # Do linear interpolation to find τ and S
 
             # exinction at centre and upwind point
-            α_c = α_centre[idx, idy]
             α_vals = [α_upwind[idx_u, idy_i]   α_upwind[idx_u, idy]
                       α_centre[idx_u, idy_i]   α_centre[idx_u, idy]]
-            α_u = bilinear_yz(z_u, y_u, idz_i, idy_i, atmos, α_vals)
+
+            α_c = α_centre[idx, idy]
+            α_u = bilinear(z_u, y_u, z_bounds, y_bounds, α_vals)
 
             # Find the Δτ optical path from upwind to grid point
-            Δτ_u = trapezoidal(r, α_c, α_u)
+            Δτ_upwind = trapezoidal(abs(r), α_c, α_u)
 
             # Find source function at grid point and upwind point (intepolate)
-            S_c = S_centre[idx, idy]
             S_vals = [S_upwind[idx_u, idy_i]    S_upwind[idx_u, idy]
                       S_centre[idx_u, idy_i]    S_centre[idx_u, idy]]
-            S_u = bilinear_yz(z_u, y_u, idz_i, idy_i, atmos, S_vals)
+            S_c = S_centre[idx, idy]
+            S_u = bilinear(z_u, y_u, z_bounds, y_bounds, S_vals)
 
             # From Hennicker et. al. (2020) equation 13
-            e_0 = 1 - exp(-Δτ_u)
-            e_1 = Δτ_u - e_0
+            e_0 = 1 - exp(-Δτ_upwind)
+            e_1 = Δτ_upwind - e_0
 
             # From Hennicker et. al. (2020) equation 12, with ω = 1
-            a_ijk = e_0 - e_1/Δτ_u
-            b_ijk = e_1/Δτ_u
+            a_ijk = e_0 - e_1/Δτ_upwind
+            b_ijk = e_1/Δτ_upwind
             # c_ijk = 0
-            d_ijk = exp(-Δτ_u)
+            d_ijk = exp(-Δτ_upwind)
 
             # Interpolate to find intensity at upwind point
             I_vals = [I_0[idx_u, idy_i]     I_0[idx_u, idy]
                       I_upper[idy_i]        I_upper[idy]   ]
-            I_u = bilinear_yz(z_u, y_u, idz_i, idy_i, atmos, I_vals)
+            I_u = bilinear(z_u, y_u, z_bounds, y_bounds, I_vals)
 
             # Integrate intensity from two-point quadrature
             I[idx, idy] = a_ijk*S_u + b_ijk*S_c + d_ijk*I_u
@@ -342,141 +375,168 @@ in radians
 function yz_down_ray(θ::AbstractFloat, ϕ::AbstractFloat, idz::Int, sign_x::Int,
                        sign_y::Int, I_0::AbstractArray, S_0::AbstractArray,
                        α::AbstractArray, atmos::Atmosphere)
-    nx = length(atmos.x)
-    ny = length(atmos.y)
+
+    # nx = length(atmos.x)
+    # ny = length(atmos.y)
 
     # Loop direction
-    start_x, stop_x = range_bounds(-sign_x, nx)
-    start_y, stop_y = range_bounds(-sign_y, ny)
+    start_x, stop_x = range_bounds(sign_x, nx)
+    start_y, stop_y = range_bounds(sign_y, ny)
 
     # Allocate space for intensity
     I = zero(I_0)
     I_lower = zero(I_0[end,:])
 
     # Z center and interpolation position
-    z_c = atmos.z[idz]
-    idz_i = idz + 1
+    z_centre = atmos.z[idz]
+    idz_upper = idz+1
 
     # Length to plane
-    Δx = atmos.x[2] - atmos.x[1]
+    # Δx = atmos.x[2] - atmos.x[1]
 
     # calculate the length to upwind position
-    r = Δx/(cos(ϕ)*sin(θ))
+    r = abs(Δx/(cos(ϕ)*sin(θ)))
     z_increment = r*cos(θ)
+
     y_increment = r*sin(ϕ)*sin(θ)
 
-    z_u = z_c + z_increment
+    z_upwind = z_centre + z_increment
 
-    α_centre = α[idz,:,:]
-    α_upwind = α[idz_i,:,:]
+    z_bounds = [z_centre, atmos.z[idz_upper]]
 
-    S_centre = S_0[idz,:,:]
-    S_upwind = S_0[idz_i,:,:]
+    α_lower = α[idz,:,:]
+    α_upper = α[idz_upper,:,:]
+
+    S_lower = S_0[idz,:,:]
+    S_upper = S_0[idz_upper,:,:]
 
     # Do the ghost cell thing...
     idx = stop_x
-    x_c = atmos.x[nx]
+    x_centre = atmos.x[idx]
 
     # X upwind position
-    idx_u = roll(idx+sign_x, nx)
-    x_u = atmos.x[idx_u]
-
+    idx_upwind = idx+sign_x
+    x_upwind = atmos.x[idx_upwind]
 
     for idy in start_y:-sign_y:stop_y
         # Centre point (c)
-        y_c = atmos.y[idy]
+        y_centre = atmos.y[idy]
 
         # Lower corner to interpolate from
-        idy_i = roll(idy+Int((sign_y-1)/2), ny)
+        idy_lower = idy+Int((sign_y-1)/2)
+        idy_upper = idy_lower+1
 
-        y_u = y_c + y_increment
+        y_upwind = y_centre + y_increment
+
+        y_bounds = [atmos.y[idy_lower], atmos.y[idy_upper]]
+        if (sign_y-1)/2 < 0
+            println((sign_y-1)/2)
+            println(y_bounds)
+            println(y_upwind)
+        end
 
         # Do linear interpolation to find τ and S
 
         # exinction at centre and upwind point
-        α_c = α_centre[idx, idy]
-        α_vals = [α_centre[idx_u, idy_i]    α_centre[idx_u, idy]
-                  α_upwind[idx_u, idy_i]    α_upwind[idx_u, idy]]
-        α_u = bilinear_yz(z_u, y_u, idz_i, idy_i, atmos, α_vals)
+        # z is 1st coordinate, changes rows in vals. y is 2nd coordinate
+        α_vals = [α_lower[idx_upwind, idy_lower]   α_lower[idx_upwind, idy_upper]
+                  α_upper[idx_upwind, idy_lower]   α_upper[idx_upwind, idy_upper]]
+
+        α_centre = α_lower[idx, idy]
+        α_upwind = bilinear(z_upwind, y_upwind, z_bounds, y_bounds, α_vals)
+
 
         # Find the Δτ optical path from upwind to grid point
-        Δτ_u = trapezoidal(r, α_c, α_u)
+        Δτ_upwind = trapezoidal(r, α_centre, α_upwind)
 
         # Find source function at grid point and upwind point (intepolate)
-        S_c = S_centre[idx, idy]
-        S_vals = [S_centre[idx_u, idy_i]    S_centre[idx_u, idy]
-                  S_upwind[idx_u, idy_i]    S_upwind[idx_u, idy]]
-        S_u = bilinear_yz(z_u, y_u, idz_i, idy_i, atmos, S_vals)
+        S_vals = [S_lower[idx_upwind, idy_lower]    S_lower[idx_upwind, idy_upper]
+                  S_upper[idx_upwind, idy_lower]    S_upper[idx_upwind, idy_upper]]
+
+        S_centre = S_lower[idx, idy]
+        S_upwind = bilinear(z_upwind, y_upwind, z_bounds, y_bounds, S_vals)
 
         # From Hennicker et. al. (2020) equation 13
-        e_0 = 1 - exp(-Δτ_u)
-        e_1 = Δτ_u - e_0
+        e_0 = 1 - exp(-Δτ_upwind)
+        e_1 = Δτ_upwind - e_0
 
         # From Hennicker et. al. (2020) equation 12, with ω = 1
-        a_ijk = e_0 - e_1/Δτ_u
-        b_ijk = e_1/Δτ_u
+        a_ijk = e_0 - e_1/Δτ_upwind
+        b_ijk = e_1/Δτ_upwind
         # c_ijk = 0
-        d_ijk = exp(-Δτ_u)
+        d_ijk = exp(-Δτ_upwind)
 
         # Interpolate to find intensity at upwind point
-        I_vals = [S_centre[idx_u, idy_i]    S_centre[idx_u, idy]
-                  I_0[idx_u, idy_i]         I_0[idx_u, idy]]
+        # I_0 is from the top
+        I_vals = [S_lower[idx_upwind, idy_lower]    S_lower[idx_upwind, idy_upper]
+                  I_0[idx_upwind, idy_lower]        I_0[idx_upwind, idy_upper]    ]
 
-        I_ghost = bilinear_yz(z_u, y_u, idz_i, idy_i, atmos, I_vals)
+        I_ghost = bilinear(z_upwind, y_upwind, z_bounds, y_bounds, I_vals)
 
         # Integrate intensity from two-point quadrature
-        I_lower[idy_i] = a_ijk*S_u + b_ijk*S_c + d_ijk*I_ghost
+        I_lower[idy_lower] = a_ijk*S_upwind + b_ijk*S_centre + d_ijk*I_ghost
     end
 
     for idx in start_x:-sign_x:stop_x
-        x_c = atmos.x[idx]
+        x_centre = atmos.x[idx]
         # X upwind position
-        idx_u = roll(idx+sign_x, nx)
-        x_u = atmos.x[idx_u]
+        idx_upwind = idx+sign_x
+        x_upwind = atmos.x[idx_upwind]
 
         for idy in start_y:-sign_y:stop_y
             # Centre point (c)
-            y_c = atmos.y[idy]
+            y_centre = atmos.y[idy]
 
             # Lower corner to interpolate from
-            idy_i = roll(idy+sign_y, ny)
+            idy_lower = idy+Int((sign_y-1)/2)
+            idy_upper = idy_lower+1
 
-            y_u = y_c + r*sin(ϕ)*sin(θ)
+            y_upwind = y_centre + y_increment
+
+            y_bounds = [atmos.y[idy_lower], atmos.y[idy_upper]]
 
             # Do linear interpolation to find τ and S
 
             # exinction at centre and upwind point
-            α_c = α_centre[idx, idy]
-            α_vals = [α_centre[idx_u, idy_i]   α_centre[idx_u, idy]
-                      α_upwind[idx_u, idy_i]   α_upwind[idx_u, idy]]
-            α_u = bilinear_yz(z_u, y_u, idz_i, idy_i, atmos, α_vals)
+            # z is 1st coordinate, changes rows in vals. y is 2nd coordinate
+            α_vals = [α_lower[idx_upwind, idy_lower]   α_lower[idx_upwind, idy_upper]
+                      α_upper[idx_upwind, idy_lower]   α_upper[idx_upwind, idy_upper]]
+
+            α_centre = α_lower[idx, idy]
+            α_upwind = bilinear(z_upwind, y_upwind, z_bounds, y_bounds, α_vals)
 
             # Find the Δτ optical path from upwind to grid point
-            Δτ_u = trapezoidal(r, α_c, α_u)
+            Δτ_upwind = trapezoidal(r, α_centre, α_upwind)
 
             # Find source function at grid point and upwind point (intepolate)
-            S_c = S_centre[idx, idy]
-            S_vals = [S_centre[idx_u, idy_i]    S_centre[idx_u, idy]
-                      S_upwind[idx_u, idy_i]    S_upwind[idx_u, idy]]
-            S_u = bilinear_yz(z_u, y_u, idz_i, idy_i, atmos, S_vals)
+            S_vals = [S_lower[idx_upwind, idy_lower]    S_lower[idx_upwind, idy_upper]
+                      S_upper[idx_upwind, idy_lower]    S_upper[idx_upwind, idy_upper]]
+
+            S_centre = S_lower[idx, idy]
+            S_upwind = bilinear(z_upwind, y_upwind, z_bounds, y_bounds, S_vals)
 
             # From Hennicker et. al. (2020) equation 13
-            e_0 = 1 - exp(-Δτ_u)
-            e_1 = Δτ_u - e_0
+            e_0 = 1 - exp(-Δτ_upwind)
+            e_1 = Δτ_upwind - e_0
 
             # From Hennicker et. al. (2020) equation 12, with ω = 1
-            a_ijk = e_0 - e_1/Δτ_u
-            b_ijk = e_1/Δτ_u
+            a_ijk = e_0 - e_1/Δτ_upwind
+            b_ijk = e_1/Δτ_upwind
             # c_ijk = 0
-            d_ijk = exp(-Δτ_u)
+            d_ijk = exp(-Δτ_upwind)
 
             # Interpolate to find intensity at upwind point
-            I_vals = [I_0[idx_u, idy_i]     I_0[idx_u, idy]
-                      I_lower[idy_i]        I_lower[idy]   ]
-            I_u = bilinear_yz(z_u, y_u, idz_i, idy_i, atmos, I_vals)
+            # I_0 is from the top
+            I_vals = [S_lower[idx_upwind, idy_lower]    S_lower[idx_upwind, idy_upper]
+                      I_0[idx_upwind, idy_lower]        I_0[idx_upwind, idy_upper]    ]
+
+            I_upwind = bilinear(z_upwind, y_upwind, z_bounds, y_bounds, I_vals)
 
             # Integrate intensity from two-point quadrature
-            I[idx, idy] = a_ijk*S_u + b_ijk*S_c + d_ijk*I_u
+            I[idx, idy] = a_ijk*S_upwind + b_ijk*S_centre + d_ijk*I_upwind
+            if I[idx, idy] < 0u"kW*m^-2*nm^-1"
+                println("Troubllle")
+            end
         end
         # Update upper interpolate value
         I_lower = I[idx, :]
@@ -496,12 +556,12 @@ function xz_up_ray(θ::AbstractFloat, ϕ::AbstractFloat, idz::Int, sign_x::Int,
                    sign_y::Int, I_0::AbstractArray, S_0::AbstractArray,
                    α::AbstractArray, atmos::Atmosphere)
 
-    nx = length(atmos.x)
-    ny = length(atmos.y)
+    # nx = length(atmos.x)
+    # ny = length(atmos.y)
 
     # Loop direction
-    start_x, stop_x = range_bounds(-sign_x, nx)
-    start_y, stop_y = range_bounds(-sign_y, ny)
+    start_x, stop_x = range_bounds(sign_x, nx)
+    start_y, stop_y = range_bounds(sign_y, ny)
 
     # Allocate space for intensity
     I = zero(I_0)
@@ -511,8 +571,10 @@ function xz_up_ray(θ::AbstractFloat, ϕ::AbstractFloat, idz::Int, sign_x::Int,
     z_c = atmos.z[idz]
     idz_i = idz - 1
 
+    z_bounds = [z_c, atmos.z[idz_i]]
+
     # Length to plane
-    Δy = atmos.y[2] - atmos.y[1]
+    # Δy = atmos.y[2] - atmos.y[1]
 
     # calculate the length to upwind position
     r = Δy/(sin(ϕ)*sin(θ))
@@ -531,8 +593,8 @@ function xz_up_ray(θ::AbstractFloat, ϕ::AbstractFloat, idz::Int, sign_x::Int,
     idy = stop_y
     y_c = atmos.y[ny]
 
-    # X upwind position
-    idy_u = roll(idy+sign_y, ny)
+    # y upwind position
+    idy_u = idy+sign_y
     y_u = atmos.y[idy_u]
 
 
@@ -541,42 +603,42 @@ function xz_up_ray(θ::AbstractFloat, ϕ::AbstractFloat, idz::Int, sign_x::Int,
         x_c = atmos.x[idx]
 
         # Lower corner to interpolate from
-        idx_i = roll(idx+Int((sign_x-1)/2), nx)
+        idx_i = idx+Int((sign_x-1)/2)
 
         x_u = x_c + x_increment
-
+        x_bounds = [x_c, atmos.x[idx_i]]
         # Do linear interpolation to find τ and S
 
         # exinction at centre and upwind point
-        α_c = α_centre[idx, idy]
         α_vals = [α_upwind[idx_i, idy_u]    α_upwind[idx, idy_u]
                   α_centre[idx_i, idy_u]    α_centre[idx, idy_u]]
-        α_u = bilinear_xz(z_u, x_u, idz_i, idx_i, atmos, α_vals)
+        α_c = α_centre[idx, idy]
+        α_u = bilinear(z_u, x_u, z_bounds, x_bounds, α_vals)
 
         # Find the Δτ optical path from upwind to grid point
-        Δτ_u = trapezoidal(r, α_c, α_u)
+        Δτ_upwind = trapezoidal(abs(r), α_c, α_u)
 
         # Find source function at grid point and upwind point (intepolate)
-        S_c = S_centre[idx, idy]
         S_vals = [S_upwind[idx_i, idy_u]    S_upwind[idx, idy_u]
                   S_centre[idx_i, idy_u]    S_centre[idx, idy_u]]
-        S_u = bilinear_xz(z_u, x_u, idz_i, idx_i, atmos, S_vals)
+        S_c = S_centre[idx, idy]
+        S_u = bilinear(z_u, x_u, z_bounds, x_bounds, S_vals)
 
         # From Hennicker et. al. (2020) equation 13
-        e_0 = 1 - exp(-Δτ_u)
-        e_1 = Δτ_u - e_0
+        e_0 = 1 - exp(-Δτ_upwind)
+        e_1 = Δτ_upwind - e_0
 
         # From Hennicker et. al. (2020) equation 12, with ω = 1
-        a_ijk = e_0 - e_1/Δτ_u
-        b_ijk = e_1/Δτ_u
+        a_ijk = e_0 - e_1/Δτ_upwind
+        b_ijk = e_1/Δτ_upwind
         # c_ijk = 0
-        d_ijk = exp(-Δτ_u)
+        d_ijk = exp(-Δτ_upwind)
 
         # Interpolate to find intensity at upwind point
         I_vals = [I_0[idx_i, idy_u]         I_0[idx, idy_u]
                   S_centre[idx_i, idy_u]    S_centre[idx, idy_u]]
 
-        I_ghost = bilinear_xz(z_u, x_u, idz_i, idx_i, atmos, I_vals)
+        I_ghost = bilinear(z_u, x_u, z_bounds, x_bounds, I_vals)
 
         # Integrate intensity from two-point quadrature
         I_upper[idx_i] = a_ijk*S_u + b_ijk*S_c + d_ijk*I_ghost
@@ -585,7 +647,7 @@ function xz_up_ray(θ::AbstractFloat, ϕ::AbstractFloat, idz::Int, sign_x::Int,
     for idy in start_y:-sign_y:stop_y
         y_c = atmos.y[idy]
         # x upwind position
-        idy_u = roll(idy+sign_y, ny)
+        idy_u =  idy+sign_y
         y_u = atmos.y[idy_u]
 
         for idx in start_x:-sign_x:stop_x
@@ -593,41 +655,42 @@ function xz_up_ray(θ::AbstractFloat, ϕ::AbstractFloat, idz::Int, sign_x::Int,
             x_c = atmos.x[idx]
 
             # Lower corner to interpolate from
-            idx_i = roll(idx+sign_x, nx)
+            idx_i = idx+Int((sign_x-1)/2)
 
             x_u = x_c + x_increment
+            x_bounds = [x_c, atmos.x[idx_i]]
 
             # Do linear interpolation to find τ and S
 
             # exinction at centre and upwind point
-            α_c = α_centre[idx, idy]
             α_vals = [α_upwind[idx_i, idy_u]   α_upwind[idx, idy_u]
                       α_centre[idx_i, idy_u]   α_centre[idx, idy_u]]
-            α_u = bilinear_xz(z_u, x_u, idz_i, idx_i, atmos, α_vals)
+            α_c = α_centre[idx, idy]
+            α_u = bilinear(z_u, x_u, z_bounds, x_bounds, α_vals)
 
             # Find the Δτ optical path from upwind to grid point
-            Δτ_u = trapezoidal(r, α_c, α_u)
+            Δτ_upwind = trapezoidal(abs(r), α_c, α_u)
 
             # Find source function at grid point and upwind point (intepolate)
-            S_c = S_centre[idx, idy]
             S_vals = [S_upwind[idx_i, idy_u]    S_upwind[idx, idy_u]
                       S_centre[idx_i, idy_u]    S_centre[idx, idy_u]]
-            S_u = bilinear_xz(z_u, x_u, idz_i, idx_i, atmos, S_vals)
+            S_c = S_centre[idx, idy]
+            S_u = bilinear(z_u, x_u, z_bounds, x_bounds, S_vals)
 
             # From Hennicker et. al. (2020) equation 13
-            e_0 = 1 - exp(-Δτ_u)
-            e_1 = Δτ_u - e_0
+            e_0 = 1 - exp(-Δτ_upwind)
+            e_1 = Δτ_upwind - e_0
 
             # From Hennicker et. al. (2020) equation 12, with ω = 1
-            a_ijk = e_0 - e_1/Δτ_u
-            b_ijk = e_1/Δτ_u
+            a_ijk = e_0 - e_1/Δτ_upwind
+            b_ijk = e_1/Δτ_upwind
             # c_ijk = 0
-            d_ijk = exp(-Δτ_u)
+            d_ijk = exp(-Δτ_upwind)
 
             # Interpolate to find intensity at upwind point
             I_vals = [I_0[idx_i, idy_u]     I_0[idx, idy_u]
                       I_upper[idx_i]        I_upper[idx]   ]
-            I_u = bilinear_xz(z_u, x_u, idz_i, idx_i, atmos, I_vals)
+            I_u = bilinear(z_u, x_u, z_bounds, x_bounds, I_vals)
 
             # Integrate intensity from two-point quadrature
             I[idx, idy] = a_ijk*S_u + b_ijk*S_c + d_ijk*I_u
@@ -649,12 +712,12 @@ in radians.
 function xz_down_ray(θ::AbstractFloat, ϕ::AbstractFloat, idz::Int, sign_x::Int,
                        sign_y::Int, I_0::AbstractArray, S_0::AbstractArray,
                        α::AbstractArray, atmos::Atmosphere)
-    nx = length(atmos.x)
-    ny = length(atmos.y)
+    # nx = length(atmos.x)
+    # ny = length(atmos.y)
 
     # Loop direction
-    start_x, stop_x = range_bounds(-sign_x, nx)
-    start_y, stop_y = range_bounds(-sign_y, ny)
+    start_x, stop_x = range_bounds(sign_x, nx)
+    start_y, stop_y = range_bounds(sign_y, ny)
 
     # Allocate space for intensity
     I = zero(I_0)
@@ -664,8 +727,10 @@ function xz_down_ray(θ::AbstractFloat, ϕ::AbstractFloat, idz::Int, sign_x::Int
     z_c = atmos.z[idz]
     idz_i = idz + 1
 
+    z_bounds = [z_c, atmos.z[idz_i]]
+
     # Length to plane
-    Δy = atmos.y[2] - atmos.y[1]
+    # Δy = atmos.y[2] - atmos.y[1]
 
     # calculate the length to upwind position
     r = Δy/(sin(ϕ)*sin(θ))
@@ -685,7 +750,7 @@ function xz_down_ray(θ::AbstractFloat, ϕ::AbstractFloat, idz::Int, sign_x::Int
     y_c = atmos.y[ny]
 
     # X upwind position
-    idy_u = roll(idy+sign_y, ny)
+    idy_u =  idy+sign_y
     y_u = atmos.y[idy_u]
 
 
@@ -694,42 +759,43 @@ function xz_down_ray(θ::AbstractFloat, ϕ::AbstractFloat, idz::Int, sign_x::Int
         x_c = atmos.x[idx]
 
         # Lower corner to interpolate from
-        idx_i = roll(idx+Int((sign_x-1)/2), nx)
+        idx_i = idx+Int((sign_x-1)/2)
 
         x_u = x_c + x_increment
+        x_bounds = [x_c, atmos.x[idx_i]]
 
         # Do linear interpolation to find τ and S
 
         # exinction at centre and upwind point
-        α_c = α_centre[idx, idy]
         α_vals = [α_centre[idx_i, idy_u]    α_centre[idx, idy_u]
                   α_upwind[idx_i, idy_u]    α_upwind[idx, idy_u]]
-        α_u = bilinear_xz(z_u, x_u, idz_i, idx_i, atmos, α_vals)
+        α_c = α_centre[idx, idy]
+        α_u = bilinear(z_u, x_u, z_bounds, x_bounds, α_vals)
 
         # Find the Δτ optical path from upwind to grid point
-        Δτ_u = trapezoidal(r, α_c, α_u)
+        Δτ_upwind = trapezoidal(abs(r), α_c, α_u)
 
         # Find source function at grid point and upwind point (intepolate)
         S_c = S_centre[idx, idy]
         S_vals = [S_centre[idx_i, idy_u]    S_centre[idx, idy_u]
                   S_upwind[idx_i, idy_u]    S_upwind[idx, idy_u]]
-        S_u = bilinear_xz(z_u, x_u, idz_i, idx_i, atmos, S_vals)
+        S_u = bilinear(z_u, x_u, z_bounds, x_bounds, S_vals)
 
         # From Hennicker et. al. (2020) equation 13
-        e_0 = 1 - exp(-Δτ_u)
-        e_1 = Δτ_u - e_0
+        e_0 = 1 - exp(-Δτ_upwind)
+        e_1 = Δτ_upwind - e_0
 
         # From Hennicker et. al. (2020) equation 12, with ω = 1
-        a_ijk = e_0 - e_1/Δτ_u
-        b_ijk = e_1/Δτ_u
+        a_ijk = e_0 - e_1/Δτ_upwind
+        b_ijk = e_1/Δτ_upwind
         # c_ijk = 0
-        d_ijk = exp(-Δτ_u)
+        d_ijk = exp(-Δτ_upwind)
 
         # Interpolate to find intensity at upwind point
         I_vals = [S_centre[idx_i, idy_u]    S_centre[idx, idy_u]
                   I_0[idx_i, idy_u]         I_0[idx, idy_u]]
 
-        I_ghost = bilinear_xz(z_u, x_u, idz_i, idx_i, atmos, I_vals)
+        I_ghost = bilinear(z_u, x_u, z_bounds, x_bounds, I_vals)
 
         # Integrate intensity from two-point quadrature
         I_lower[idx_i] = a_ijk*S_u + b_ijk*S_c + d_ijk*I_ghost
@@ -738,49 +804,48 @@ function xz_down_ray(θ::AbstractFloat, ϕ::AbstractFloat, idz::Int, sign_x::Int
     for idy in start_y:-sign_y:stop_y
         y_c = atmos.y[idy]
         # X upwind position
-        idy_u = roll(idy+sign_y, ny)
+        idy_u =  idy+sign_y
         y_u = atmos.y[idy_u]
 
         for idx in start_x:-sign_x:stop_x
             # Centre point (c)
-            y_c = atmos.y[idy]
+            x_c = atmos.y[idy]
 
             # Lower corner to interpolate from
-            idy_i = roll(idy+sign_y, ny)
-
-            y_u = y_c + r*sin(ϕ)*sin(θ)
-
+            idx_i = idx+Int((sign_x-1)/2)
+            x_u = x_c + x_increment
+            x_bounds = [x_c, atmos.x[idx_i]]
             # Do linear interpolation to find τ and S
 
             # exinction at centre and upwind point
             α_c = α_centre[idx, idy]
             α_vals = [α_centre[idx_i, idy_u]   α_centre[idx, idy_u]
                       α_upwind[idx_i, idy_u]   α_upwind[idx, idy_u]]
-            α_u = bilinear_xz(z_u, x_u, idz_i, idx_i, atmos, α_vals)
+            α_u = bilinear(z_u, x_u, z_bounds, x_bounds, α_vals)
 
             # Find the Δτ optical path from upwind to grid point
-            Δτ_u = trapezoidal(r, α_c, α_u)
+            Δτ_upwind = trapezoidal(abs(r), α_c, α_u)
 
             # Find source function at grid point and upwind point (intepolate)
             S_c = S_centre[idx, idy]
             S_vals = [S_centre[idx_i, idy_u]    S_centre[idx, idy_u]
                       S_upwind[idx_i, idy_u]    S_upwind[idx, idy_u]]
-            S_u = bilinear_xz(z_u, x_u, idz_i, idx_i, atmos, S_vals)
+            S_u = bilinear(z_u, x_u, z_bounds, x_bounds, S_vals)
 
             # From Hennicker et. al. (2020) equation 13
-            e_0 = 1 - exp(-Δτ_u)
-            e_1 = Δτ_u - e_0
+            e_0 = 1 - exp(-Δτ_upwind)
+            e_1 = Δτ_upwind - e_0
 
             # From Hennicker et. al. (2020) equation 12, with ω = 1
-            a_ijk = e_0 - e_1/Δτ_u
-            b_ijk = e_1/Δτ_u
+            a_ijk = e_0 - e_1/Δτ_upwind
+            b_ijk = e_1/Δτ_upwind
             # c_ijk = 0
-            d_ijk = exp(-Δτ_u)
+            d_ijk = exp(-Δτ_upwind)
 
             # Interpolate to find intensity at upwind point
             I_vals = [I_0[idx_i, idy_u]     I_0[idx, idy_u]
                       I_lower[idx_i]        I_lower[idx]   ]
-            I_u = bilinear_xz(z_u, x_u, idz_i, idx_i, atmos, I_vals)
+            I_u = bilinear(z_u, x_u, z_bounds, x_bounds, I_vals)
 
             # Integrate intensity from two-point quadrature
             I[idx, idy] = a_ijk*S_u + b_ijk*S_c + d_ijk*I_u

@@ -14,10 +14,14 @@ function run()
     DATA = "../data/bifrost_qs006023_s525_quarter.hdf5"
     atmos = Atmosphere(get_atmos(DATA)...)
 
-    nz = length(atmos.z) - 1
-    nx = length(atmos.x) - 1
-    ny = length(atmos.y) - 1
+    global nz = length(atmos.z) - 1
+    global nx = length(atmos.x) - 1
+    global ny = length(atmos.y) - 1
 
+    global Δx = atmos.x[2] - atmos.x[1]
+    global Δy = atmos.y[2] - atmos.y[1]
+
+    #=
     n_sites = 1_000 #nz*nx*ny
 
     #z_new, x_new, y_new
@@ -44,7 +48,6 @@ function run()
     # x_new = x_new[P]
     # y_new = y_new[P]
 
-    #=
     @time begin
         for k in 1:nz
             for i in 1:nx
@@ -71,7 +74,6 @@ function run()
         println(io, "z_min = $(atmos.z[1])")
         println(io, "z_max = $(atmos.z[end])")
     end
-    =#
 
     write_arrays(p_vec[1, :], p_vec[2, :], p_vec[3, :], "seeds.txt")
 
@@ -84,6 +86,7 @@ function run()
         # temperature_new[k] = trilinear(z_new[k], x_new[k], y_new[k], atmos, atmos.temperature)
         # N_e_new[k] = trilinear(z_new[k], x_new[k], y_new[k], atmos, atmos.electron_density)
     end
+    =#
 
     # choose a wavelength
     λ = 500u"nm"  # nm
@@ -116,60 +119,18 @@ function run()
     # Ω = (θ, φ), space angle
     weights, θ_array, ϕ_array, n_points = read_quadrature("../quadratures/ul9n20.dat")
 
-    # start shooting rays from the bottom of the domain. I have to start at the
-    # bottom because the rays move upwards. Kind of obvious, but it took some
-    # time to understand. If rays move downwards, I start at the top...
-    # NB we start at 2nd index because 1st index is boundary condition
-    #I = zeros(length(atmos.z), length(atmos.x), length(atmos.y))*u"kW*m^-2*nm^-1"
-    # I_0 = S_0
+    J = zero(S_0)
 
-    ################################ Test xy_up ################################
-    θ = 10
-    ϕ = 10
-    θ = θ*pi/180
-    ϕ = ϕ*pi/180
-    print("ray 1: ")
-    @time I = short_characteristics_up(θ, ϕ, S_0, α, atmos, degrees=false)
-    ############################### Test xy_down ###############################
-    θ = 170
-    ϕ = 10
-    θ = θ*pi/180
-    ϕ = ϕ*pi/180
-    print("ray 2: ")
-    @time I = short_characteristics_down(θ, ϕ, S_0, α, atmos, degrees=false)
-    ################################ Test yz_up ################################
-    θ = 60
-    ϕ = 10
-    θ = θ*pi/180
-    ϕ = ϕ*pi/180
-    print("ray 3: ")
-    @time I = short_characteristics_up(θ, ϕ, S_0, α, atmos, degrees=false)
-    ############################### Test yz_down ###############################
-    θ = 110
-    ϕ = 100
-    θ = θ*pi/180
-    ϕ = ϕ*pi/180
-    print("ray 4: ")
-    @time I = short_characteristics_down(θ, ϕ, S_0, α, atmos, degrees=false)
-    ################################ Test xz_up ################################
-    θ = 60
-    ϕ = 60
-    θ = θ*pi/180
-    ϕ = ϕ*pi/180
-    print("ray 5: ")
-    @time I = short_characteristics_up(θ, ϕ, S_0, α, atmos, degrees=false)
-    ############################### Test xz_down ###############################
-    θ = 110
-    ϕ = 60
-    θ = θ*pi/180
-    ϕ = ϕ*pi/180
-    print("ray 5: ")
-    @time I = short_characteristics_down(θ, ϕ, S_0, α, atmos, degrees=false)
+    i = 3
 
-    # for i in 1:n_points
-        # print("Ray $i/$n_points \r")
-        # I = short_characteristic_ray(θ_array[i], ϕ_array[i], S_0, α, atmos, degrees=true)
-    # end
+    if θ_array[i] > 90
+        J += weights[i] .* short_characteristics_up(θ_array[i], ϕ_array[i], S_0, α, atmos, degrees=true)
+    elseif θ_array[i] < 90
+        J += weights[i] .* short_characteristics_down(θ_array[i], ϕ_array[i], S_0, α, atmos, degrees=true)
+    else
+        println("Invalid angle θ")
+        exit(1)
+    end
 
     #=
     p_unitless = ustrip(p_vec)
