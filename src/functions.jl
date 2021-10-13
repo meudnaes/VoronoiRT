@@ -50,20 +50,20 @@ temperature, electron_density and hydrogen populations.
 
 Original author: Ida Risnes Hansen
 =#
-function get_atmos(file_path; periodic=true)
+function get_atmos(file_path; periodic=true, skip=1)
     local x, y, z, hydrogen_populations
     h5open(file_path, "r") do atmos
-        z = read(atmos, "z")u"m"
-        x = read(atmos, "x")u"m"
-        y = read(atmos, "y")u"m"
+        z = read(atmos, "z")[1:skip:end]*u"m"
+        x = read(atmos, "x")[1:skip:end]*u"m"
+        y = read(atmos, "y")[1:skip:end]*u"m"
 
-        velocity_x = read(atmos, "velocity_x")u"m/s"
-        velocity_y = read(atmos, "velocity_y")u"m/s"
-        velocity_z = read(atmos, "velocity_z")u"m/s"
+        velocity_x = read(atmos, "velocity_x")[1:skip:end, 1:skip:end, 1:skip:end]*u"m/s"
+        velocity_y = read(atmos, "velocity_y")[1:skip:end, 1:skip:end, 1:skip:end]*u"m/s"
+        velocity_z = read(atmos, "velocity_z")[1:skip:end, 1:skip:end, 1:skip:end]*u"m/s"
 
-        temperature = read(atmos, "temperature")u"K"
-        electron_density = read(atmos, "electron_density")u"m^-3"
-        hydrogen_populations = read(atmos, "hydrogen_populations")u"m^-3"
+        temperature = read(atmos, "temperature")[1:skip:end, 1:skip:end, 1:skip:end]*u"K"
+        electron_density = read(atmos, "electron_density")[1:skip:end, 1:skip:end, 1:skip:end]*u"m^-3"
+        hydrogen_populations = read(atmos, "hydrogen_populations")[1:skip:end, 1:skip:end, 1:skip:end]*u"m^-3"
     end
 
     if length(size(z)) == 2
@@ -126,10 +126,10 @@ function get_atmos(file_path; periodic=true)
         temperature_periodic[:,2:end-1,end] = temperature[:,:,1]
         temperature_periodic[:,2:end-1,1] = temperature[:,:,end]
         # fix corners
-        temperature_periodic[:,1,1] .= NaN*u"K"
-        temperature_periodic[:,1,end] .= NaN*u"K"
-        temperature_periodic[:,end,1] .= NaN*u"K"
-        temperature_periodic[:,end,end] .= NaN*u"K"
+        temperature_periodic[:,1,1] .= 1000*u"K"
+        temperature_periodic[:,1,end] .= 1000*u"K"
+        temperature_periodic[:,end,1] .= 1000*u"K"
+        temperature_periodic[:,end,end] .= 1000*u"K"
 
         # Temperature
         electron_density_periodic = Array{NumberDensity, 3}(undef, size(electron_density) .+ size_add)
@@ -141,10 +141,10 @@ function get_atmos(file_path; periodic=true)
         electron_density_periodic[:,2:end-1,end] = electron_density[:,:,1]
         electron_density_periodic[:,2:end-1,1] = electron_density[:,:,end]
         # fix corners
-        electron_density_periodic[:,1,1] .= NaN*u"m^-3"
-        electron_density_periodic[:,1,end] .= NaN*u"m^-3"
-        electron_density_periodic[:,end,1] .= NaN*u"m^-3"
-        electron_density_periodic[:,end,end] .= NaN*u"m^-3"
+        electron_density_periodic[:,1,1] .= 0*u"m^-3"
+        electron_density_periodic[:,1,end] .= 0*u"m^-3"
+        electron_density_periodic[:,end,1] .= 0*u"m^-3"
+        electron_density_periodic[:,end,end] .= 0*u"m^-3"
 
         # Temperature
         hydrogen_populations_periodic = Array{NumberDensity, 3}(undef, size(hydrogen_populations) .+ size_add)
@@ -156,10 +156,10 @@ function get_atmos(file_path; periodic=true)
         hydrogen_populations_periodic[:,2:end-1,end] = hydrogen_populations[:,:,1]
         hydrogen_populations_periodic[:,2:end-1,1] = hydrogen_populations[:,:,end]
         # fix corners
-        hydrogen_populations_periodic[:,1,1] .= NaN*u"m^-3"
-        hydrogen_populations_periodic[:,1,end] .= NaN*u"m^-3"
-        hydrogen_populations_periodic[:,end,1] .= NaN*u"m^-3"
-        hydrogen_populations_periodic[:,end,end] .= NaN*u"m^-3"
+        hydrogen_populations_periodic[:,1,1] .= 0*u"m^-3"
+        hydrogen_populations_periodic[:,1,end] .= 0*u"m^-3"
+        hydrogen_populations_periodic[:,end,1] .= 0*u"m^-3"
+        hydrogen_populations_periodic[:,end,end] .= 0*u"m^-3"
 
         return z, x_periodic, y_periodic, temperature_periodic, electron_density_periodic, hydrogen_populations_periodic
     end
@@ -381,6 +381,10 @@ function bilinear(x_mrk, y_mrk, x_bounds, y_bounds, vals)
 
     dx = x2 - x1
     dy = y2 - y1
+
+    if dx == 0 || dy == 0
+        println("Zero diff")
+    end
 
     f1 = ((x2 - x_mrk)*Q11 + (x_mrk - x1)*Q21)/dx
     f2 = ((x2 - x_mrk)*Q12 + (x_mrk - x1)*Q22)/dx

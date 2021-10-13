@@ -387,6 +387,10 @@ function yz_down_ray(θ::AbstractFloat, ϕ::AbstractFloat, idz::Int, sign_x::Int
     I = zero(I_0)
     I_lower = zero(I_0[end,:])
 
+    if idz ==5
+        println(size(I_lower))
+    end
+
     # Z center and interpolation position
     z_centre = atmos.z[idz]
     idz_upper = idz+1
@@ -429,11 +433,6 @@ function yz_down_ray(θ::AbstractFloat, ϕ::AbstractFloat, idz::Int, sign_x::Int
         y_upwind = y_centre + y_increment
 
         y_bounds = [atmos.y[idy_lower], atmos.y[idy_upper]]
-        if (sign_y-1)/2 < 0
-            println((sign_y-1)/2)
-            println(y_bounds)
-            println(y_upwind)
-        end
 
         # Do linear interpolation to find τ and S
 
@@ -445,7 +444,6 @@ function yz_down_ray(θ::AbstractFloat, ϕ::AbstractFloat, idz::Int, sign_x::Int
         α_centre = α_lower[idx, idy]
         α_upwind = bilinear(z_upwind, y_upwind, z_bounds, y_bounds, α_vals)
 
-
         # Find the Δτ optical path from upwind to grid point
         Δτ_upwind = trapezoidal(r, α_centre, α_upwind)
 
@@ -456,7 +454,7 @@ function yz_down_ray(θ::AbstractFloat, ϕ::AbstractFloat, idz::Int, sign_x::Int
         S_centre = S_lower[idx, idy]
         S_upwind = bilinear(z_upwind, y_upwind, z_bounds, y_bounds, S_vals)
 
-        # From Hennicker et. al. (2020) equation 13
+        # From Hennicker et. al. (2020) equation 13, also see Hauschildt et. al. p. 276
         e_0 = 1 - exp(-Δτ_upwind)
         e_1 = Δτ_upwind - e_0
 
@@ -471,10 +469,11 @@ function yz_down_ray(θ::AbstractFloat, ϕ::AbstractFloat, idz::Int, sign_x::Int
         I_vals = [S_lower[idx_upwind, idy_lower]    S_lower[idx_upwind, idy_upper]
                   I_0[idx_upwind, idy_lower]        I_0[idx_upwind, idy_upper]    ]
 
-        I_ghost = bilinear(z_upwind, y_upwind, z_bounds, y_bounds, I_vals)
+
+        I_upwind = bilinear(z_upwind, y_upwind, z_bounds, y_bounds, I_vals)
 
         # Integrate intensity from two-point quadrature
-        I_lower[idy_lower] = a_ijk*S_upwind + b_ijk*S_centre + d_ijk*I_ghost
+        I_lower[idy_lower] = a_ijk*S_upwind + b_ijk*S_centre + d_ijk*I_upwind
     end
 
     for idx in start_x:-sign_x:stop_x
@@ -527,15 +526,22 @@ function yz_down_ray(θ::AbstractFloat, ϕ::AbstractFloat, idz::Int, sign_x::Int
 
             # Interpolate to find intensity at upwind point
             # I_0 is from the top
-            I_vals = [S_lower[idx_upwind, idy_lower]    S_lower[idx_upwind, idy_upper]
-                      I_0[idx_upwind, idy_lower]        I_0[idx_upwind, idy_upper]    ]
+            I_vals = [I_lower[idy_lower]         I_lower[idy_upper]
+                      I_0[idx_upwind, idy_lower] I_0[idx_upwind, idy_upper]]
 
             I_upwind = bilinear(z_upwind, y_upwind, z_bounds, y_bounds, I_vals)
 
             # Integrate intensity from two-point quadrature
             I[idx, idy] = a_ijk*S_upwind + b_ijk*S_centre + d_ijk*I_upwind
+
             if I[idx, idy] < 0u"kW*m^-2*nm^-1"
-                println("Troubllle")
+                println("intensity is negative")
+                println(I[idx, idy])
+                println("$idz $idx $idy")
+            end
+
+            if idy == 1 || idy == ny || idx == 1 || idx == nx
+                println("Centre is at ghost value, out of bounds")
             end
         end
         # Update upper interpolate value

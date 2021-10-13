@@ -12,11 +12,11 @@ Random.seed!(my_seed)
 
 function run()
     DATA = "../data/bifrost_qs006023_s525_quarter.hdf5"
-    atmos = Atmosphere(get_atmos(DATA)...)
+    atmos = Atmosphere(get_atmos(DATA; periodic=true, skip=8)...)
 
-    global nz = length(atmos.z) - 1
-    global nx = length(atmos.x) - 1
-    global ny = length(atmos.y) - 1
+    global nz = length(atmos.z)
+    global nx = length(atmos.x)
+    global ny = length(atmos.y)
 
     global Δx = atmos.x[2] - atmos.x[1]
     global Δy = atmos.y[2] - atmos.y[1]
@@ -117,21 +117,26 @@ function run()
 
     # first ray kind of arbitrarily chosen
     # Ω = (θ, φ), space angle
-    weights, θ_array, ϕ_array, n_points = read_quadrature("../quadratures/ul9n20.dat")
+    # weights, θ_array, ϕ_array, n_points = read_quadrature("../quadratures/ul9n20.dat")
 
     J = zero(S_0)
 
-    i = 3
+    θ = 60
+    ϕ = 10
 
-    if θ_array[i] > 90
-        J += weights[i] .* short_characteristics_up(θ_array[i], ϕ_array[i], S_0, α, atmos, degrees=true)
-    elseif θ_array[i] < 90
-        J += weights[i] .* short_characteristics_down(θ_array[i], ϕ_array[i], S_0, α, atmos, degrees=true)
+
+    if θ > 90
+        J1 = short_characteristics_up(θ, ϕ, S_0, α, atmos, degrees=true)
+    elseif θ < 90
+        J1 = short_characteristics_down(θ, ϕ, S_0, α, atmos, degrees=true)
     else
         println("Invalid angle θ")
         exit(1)
     end
 
+    global Intensity = J1
+
+    #println(isnan.(J[:, 2:nx-1, 2:ny-1]))
     #=
     p_unitless = ustrip(p_vec)
 
