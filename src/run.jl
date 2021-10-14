@@ -121,20 +121,30 @@ function run()
 
     J = zero(S_0)
 
-    θ = 60
-    ϕ = 10
+    """
+    fix the ghost zones for intensity
+    """
 
+    θ_array = [60, 180-60, 180-60, 60, 170]
+    ϕ_array = [10, 360-10, 95, 360-95, 50]
 
-    if θ > 90
-        J1 = short_characteristics_up(θ, ϕ, S_0, α, atmos, degrees=true)
-    elseif θ < 90
-        J1 = short_characteristics_down(θ, ϕ, S_0, α, atmos, degrees=true)
-    else
-        println("Invalid angle θ")
-        exit(1)
+    N = length(θ_array)
+
+    weights = ones(N)/N
+
+    for i in 1:length(θ_array)
+        if θ_array[i] > 90
+            I_ray = weights[i]*short_characteristics_up(θ_array[i], ϕ_array[i], S_0, α, atmos, degrees=true)
+        elseif θ_array[i] < 90
+            I_ray = weights[i]*short_characteristics_down(θ_array[i], ϕ_array[i], S_0, α, atmos, degrees=true)
+        else
+            println("Invalid angle θ")
+            exit(1)
+        end
+        J += I_ray
     end
 
-    global Intensity = J1
+    global J_mean = uconvert.(u"kW*m^-2*nm^-1*sr^-1", J[:,2:end-1,2:end-1])
 
     #println(isnan.(J[:, 2:nx-1, 2:ny-1]))
     #=

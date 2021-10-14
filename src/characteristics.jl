@@ -47,7 +47,7 @@ function short_characteristics_up(θ, ϕ, S_0, α, atmos; degrees)
     I[1,:,:] = S_0[1,:,:]
 
     # loop upwards through atmosphere
-    for idz in 2:length(atmos.z)-1
+    for idz in 2:length(atmos.z)
         # Grid diffference in z
         Δz = atmos.z[idz] - atmos.z[idz-1]
 
@@ -120,7 +120,6 @@ function short_characteristics_down(θ, ϕ, S_0, α, atmos; degrees)
             if idz == length(atmos.z)-1
                 println("yz_down")
             end
-            println("HERE")
             I[idz,:,:] = yz_down_ray(θ, ϕ, idz, sign_x, sign_y, I[idz+1,:,:], S_0, α, atmos)
         elseif plane_cut==3
             if idz == length(atmos.z)-1
