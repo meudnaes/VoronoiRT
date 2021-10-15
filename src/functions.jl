@@ -193,9 +193,6 @@ function rejection_sampling(n_sites::Int, atmos::Atmosphere)
 
     # allocate arrays for new sites
     p_vec = Matrix{Unitful.Length}(undef, (3, n_sites))
-    #z_new = Vector{Unitful.Length}(undef, n_sites)
-    #x_new = Vector{Unitful.Length}(undef, n_sites)
-    #y_new = Vector{Unitful.Length}(undef, n_sites)
     N_H_new = Vector{NumberDensity}(undef, n_sites)
 
     for i in 1:n_sites
@@ -205,19 +202,20 @@ function rejection_sampling(n_sites::Int, atmos::Atmosphere)
             x_ref = ref_vec[2]*(x_max - x_min) + x_min
             y_ref = ref_vec[3]*(y_max - y_min) + y_min
 
+            # acceptance criterion, "reference"
             density_ref = trilinear(z_ref, x_ref, y_ref, atmos, atmos.hydrogen_populations)
+            # random sample, compare to reference
             density_ran = rand(Float32)*(N_H_max - N_H_min) + N_H_min
             if density_ran < density_ref
-                # z_new[i] = z_ref
-                # x_new[i] = x_ref
-                # y_new[i] = y_ref
+                # a point is accepted, store position and move on
                 p_vec[:, i] .= (z_ref, x_ref, y_ref)
                 N_H_new[i] = trilinear(z_ref, x_ref, y_ref, atmos, atmos.hydrogen_populations)
+                # break to find next site
                 break
             end
         end
     end
-    return p_vec, N_H_new #z_new, x_new, y_new, N_H_new
+    return p_vec, N_H_new
 end
 
 #=
@@ -270,7 +268,7 @@ function find_sites(z_new::Array, x_new::Array, y_new::Array,
 end
 
 #=
-    trilinear(x, y, z, hydrogen_populations)
+    trilinear(x_mrk, y_mrk, z_mrk, hydrogen_populations)
 
 Three-dimensional linear interpolation. Takes a function
 $f: \mathbb{R}^3 -> \mathbb{R}$ and returns the trilinear interpolation in the
@@ -321,52 +319,15 @@ function trilinear(z_mrk, x_mrk, y_mrk,
     return c
 end
 
-function trilinear_no_search(z_mrk, x_mrk, y_mrk, idz, idx, idy,
-                   atmos::Atmosphere, vals::AbstractArray)
+#=
+    bilinear(x_mrk, y_mrk, x_bounds, y_bounds, vals)
 
-    # This function fulfills what I wanted it to do, from the comments in
-    # function bilinear(...). It's periodic in x and y. NB it should never be
-    # periodic in z, so it isn't, as that wouldn't make sense at all. Used
-    # internally for the short characteristics calculations.
-
-    nx = length(atmos.x)
-    ny = length(atmos.y)
-
-    # bounding corner coordinates
-    z0 = atmos.z[idz]; z1 = atmos.z[idz+1]
-    x0 = atmos.x[idx]; x1 = atmos.x[idx%nx+1]
-    y0 = atmos.y[idy]; y1 = atmos.y[idy%ny+1]
-
-    # difference between coordinates and interpolation point
-    x_d = (x_mrk - x0)/(x1 - x0)
-    y_d = (y_mrk - y0)/(y1 - y0)
-    z_d = (z_mrk - z0)/(z1 - z0)
-
-    # values at each corner (z is first index in data array)
-    c000 = vals[idz, idx, idy]
-    c010 = vals[idz, idx, idy%ny+1]
-    c100 = vals[idz, idx%nx+1, idy]
-    c110 = vals[idz, idx%nx+1, idy%ny+1]
-    c001 = vals[idz+1, idx, idy]
-    c011 = vals[idz+1, idx, idy%ny+1]
-    c101 = vals[idz+1, idx%nx+1, idy]
-    c111 = vals[idz+1, idx%nx+1, idy%ny+1]
-
-    # interpolate in x direction
-    c00 = c000*(1 - x_d) + c100*x_d
-    c01 = c001*(1 - x_d) + c101*x_d
-    c10 = c010*(1 - x_d) + c100*x_d
-    c11 = c011*(1 - x_d) + c111*x_d
-
-    # interpolate in y direction
-    c0 = c00*(1 - y_d) + c10*y_d
-    c1 = c01*(1 - y_d) + c11*y_d
-
-    # intepolate in z direction
-    c = c0*(1 - z_d) + c1*z_d
-    return c
-end
-
+Two-dimensional linear interpolation. Takes a function
+$f: \mathbb{R}^2 -> \mathbb{R}$ and returns the biilinear interpolation in the
+coordinates (x_mrk, y_mrk). Assumes an underlying cartesian grid (x_i, y_i)
+Values are defined on the corners of the rectangle spanned by x_bounds and
+y_bounds. x_mrk and y_mrk have to lie inside this rectangle.
+=#
 function bilinear(x_mrk, y_mrk, x_bounds, y_bounds, vals)
 
     # corner coordinates
@@ -379,16 +340,15 @@ function bilinear(x_mrk, y_mrk, x_bounds, y_bounds, vals)
     Q21 = vals[2,1]     # (x2, y1)
     Q22 = vals[2,2]     # (x2, y2)
 
+    # Rectangle side length
     dx = x2 - x1
     dy = y2 - y1
 
-    if dx == 0 || dy == 0
-        println("Zero diff")
-    end
-
+    # Interpolate in x-direction
     f1 = ((x2 - x_mrk)*Q11 + (x_mrk - x1)*Q21)/dx
     f2 = ((x2 - x_mrk)*Q12 + (x_mrk - x1)*Q22)/dx
 
+    # Interpolate in y-direction
     f = ((y2 - y_mrk)*f1 + (y_mrk - y1)*f2)/dy
 
     return f
@@ -418,6 +378,12 @@ function mass_function(k::Int64, i::Int64, j::Int64, atmos::Atmosphere)
     return mass::Float32
 end
 
+#=
+    function write_arrays(z::AbstractArray, x::AbstractArray, y::AbstractArray,
+                          fname::String)
+
+Writes the arrays z, x, and y to a file with filename fname.
+=#
 function write_arrays(z::AbstractArray, x::AbstractArray, y::AbstractArray,
                       fname::String)
 
@@ -434,7 +400,7 @@ function write_arrays(z::AbstractArray, x::AbstractArray, y::AbstractArray,
 end
 
 # Physics functions
-function αcont(λ::Unitful.Length, temperature::Unitful.Temperature,
+function α_cont(λ::Unitful.Length, temperature::Unitful.Temperature,
                electron_density::NumberDensity, h_ground_density::NumberDensity,
                proton_density::NumberDensity)
     α = Transparency.hminus_ff_stilley(λ, temperature, h_ground_density, electron_density)
@@ -454,15 +420,6 @@ function α_scattering(λ::Unitful.Length, temperature::Unitful.Temperature,
    α = thomson(electron_density)
    α += rayleigh_h(λ, h_ground_density)
    return α
-end
-
-function J_ν(weights, intensities)
-    # Gaussian quadrature to calculate mean intensity
-    J = 0u"kW*m^-2*nm^-1"
-    for (weight, intensity) in zip(weights, intensitites)
-        J = J + weight*intensity
-    end
-    return J::Float64
 end
 
 #=
@@ -485,48 +442,52 @@ function read_neighbours(fname::String, n_sites::Int)::AbstractMatrix
     return neighbours[sortperm(ID), :]
 end
 
-function trapezoidal(Δx, a, b)
+#=
+    trapezoidal(Δx::AbstractFloat, a::AbstractFloat, b::AbstractFloat)
+
+Trapezoidal rule.
+=#
+function trapezoidal(Δx::AbstractFloat, a::AbstractFloat, b::AbstractFloat)
     area = Δx*(a + b)/2
-    return area
+    return area::AbstractFloat
 end
 
+#=
+    xy_intersect(ϕ::AbstractFloat)
+
+Finds quadrant defined by the azimuthal angle ϕ
+=#
 function xy_intersect(ϕ::AbstractFloat)
     local sign_x, sign_y
     if ϕ < π/2
         # 1st quadrant. Positive x, positive y
-        print("1st, ")
         sign_x = 1
         sign_y = 1
     elseif π/2 < ϕ < π
         # 2nd quadrant. Negative x, positive y
-        print("2nd, ")
         sign_x = -1
         sign_y = 1
     elseif π < ϕ < 3π/2
         # 3rd quadrant. Negative x, negative y
-        print("3rd, ")
         sign_x = -1
         sign_y = -1
     elseif 3π/2 < ϕ < 2π
         # 4th quadrant. Positive x, negative y
-        print("4th, ")
         sign_x = 1
         sign_y = -1
     end
     return sign_x::Int, sign_y::Int
 end
 
-function z_intersect(θ)
-    if θ < π/2
-        sign_z = 0
-    elseif θ > π/2
-        sign_z = -1
-    end
-    return sign_z
-end
+#=
+    function read_quadrature(fname::String)
 
+Read quarature weights and angles from file. Returns weights, horizontal angle,
+azimuthal angle, and number of quadrature points. Quadratures found in
+https://cdsarc.cds.unistra.fr/viz-bin/cat/J/A+A/645/A101#/browse
+from Bestard & Bueno (2021)
+=#
 function read_quadrature(fname::String)
-    # elaborate (bad) scheme to extract number of points from filename
     n_points = ""
     switch = false
     for (i, char) in enumerate(fname)
@@ -558,6 +519,12 @@ function read_quadrature(fname::String)
     return weights::AbstractArray, θ_array::AbstractArray, ϕ_array::AbstractArray, n_points::Int
 end
 
+#=
+    function range_bounds(sign::Int, bound::Int)
+
+Given a quadrant from sign_x and sign_x from xy_intersect(), this function
+determines the loop start end stop point for the short characteristics ray.
+=#
 function range_bounds(sign::Int, bound::Int)
     if sign == -1
         start = 2

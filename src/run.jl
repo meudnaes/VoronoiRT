@@ -98,7 +98,7 @@ function run()
     ε_ν = 0.1
 
     # Find continuum extinction (only with Thomson and Rayleigh)
-    α = αcont.(λ, atmos.temperature, atmos.electron_density,
+    α = α_cont.(λ, atmos.temperature, atmos.electron_density,
                 atmos.hydrogen_populations, atmos.hydrogen_populations)
 
     # Find τ continuum
@@ -115,33 +115,17 @@ function run()
     # start at index 2, since we know the downwind intensity
     # idz = 2, idx = 10, idy = 10 ...
 
-    # first ray kind of arbitrarily chosen
     # Ω = (θ, φ), space angle
-    # weights, θ_array, ϕ_array, n_points = read_quadrature("../quadratures/ul9n20.dat")
+    weights, θ_array, ϕ_array, n_points = read_quadrature("../quadratures/ul9n20.dat")
 
     J = zero(S_0)
 
-    """
-    fix the ghost zones for intensity
-    """
-
-    θ_array = [60, 180-60, 180-60, 60, 170]
-    ϕ_array = [10, 360-10, 95, 360-95, 50]
-
-    N = length(θ_array)
-
-    weights = ones(N)/N
-
-    for i in 1:length(θ_array)
+    for i in 1:n_points
         if θ_array[i] > 90
-            I_ray = weights[i]*short_characteristics_up(θ_array[i], ϕ_array[i], S_0, α, atmos, degrees=true)
+            J += weights[i]*short_characteristics_up(θ_array[i], ϕ_array[i], S_0, α, atmos, degrees=true)
         elseif θ_array[i] < 90
-            I_ray = weights[i]*short_characteristics_down(θ_array[i], ϕ_array[i], S_0, α, atmos, degrees=true)
-        else
-            println("Invalid angle θ")
-            exit(1)
+            J += weights[i]*short_characteristics_down(θ_array[i], ϕ_array[i], S_0, α, atmos, degrees=true)
         end
-        J += I_ray
     end
 
     global J_mean = uconvert.(u"kW*m^-2*nm^-1*sr^-1", J[:,2:end-1,2:end-1])
