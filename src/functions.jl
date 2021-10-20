@@ -1,18 +1,20 @@
 using HDF5
+using Random
 using Unitful
 using Distances
 using Transparency
 using LinearAlgebra
 using NumericalIntegration
 
-import PhysicalConstants.CODATA2018: h, c_0, k_B
+import PhysicalConstants.CODATA2018: h, c_0, k_B, m_p
 
 @derived_dimension NumberDensity Unitful.𝐋^-3
+@derived_dimension ColumnDensity Unitful.𝐋^-2
 @derived_dimension UnitsIntensity_λ Unitful.P * Unitful.L^-3
 
-#=
+"""
     Structure containing atmospheric grid and physical values at grid point
-=#
+"""
 struct Atmosphere
     z::Vector{<:Unitful.Length}
     x::Vector{<:Unitful.Length}
@@ -22,35 +24,36 @@ struct Atmosphere
     hydrogen_populations::Array{<:NumberDensity, 3}
 end
 
-#=
+"""
     function B_ν(ν, T)
 
 Planck's law! Radiation in LTE. Takes frequency and temperature, returns
 specific intensity
-=#
+"""
 function B_ν(ν, T)::AbstractFloat
     return 2*h*ν^3/c_0^2 * 1/(exp(h*ν/(k_B*T)) - 1)
 end
 
-#=
+"""
     function B_ν(λ, T)
 
 Planck's law! Radiation in LTE. Takes wavelength and temperature, returns
 specific intensity
-=#
+"""
 function B_λ(λ, T)
     return 2*h*c_0^2/λ^5 * 1/(exp(h*c_0/(λ*k_B*T)) - 1)
 end
 
-#=
+"""
     get_atmos()
 Reads and slices atmosphere parameters from a bifrost atmosphere. Atmosphere
 has to be stored in a hdf5 file. Returns atmosphere dimensions, velocity,
 temperature, electron_density and hydrogen populations.
 
 Original author: Ida Risnes Hansen
-=#
+"""
 function get_atmos(file_path; periodic=true, skip=1)
+    println("---Extracting atmospheric data---")
     local x, y, z, hydrogen_populations
     h5open(file_path, "r") do atmos
         z = read(atmos, "z")[1:skip:end]*u"m"
@@ -97,6 +100,7 @@ function get_atmos(file_path; periodic=true, skip=1)
     end
 
     if periodic
+        println("---Periodic boundaries in x and y---")
         # Fix periodic boundaries with 'ghost' values
         Δx = x[2] - x[1]
         Δy = y[2] - y[1]
@@ -126,10 +130,10 @@ function get_atmos(file_path; periodic=true, skip=1)
         temperature_periodic[:,2:end-1,end] = temperature[:,:,1]
         temperature_periodic[:,2:end-1,1] = temperature[:,:,end]
         # fix corners
-        temperature_periodic[:,1,1] .= 1000*u"K"
-        temperature_periodic[:,1,end] .= 1000*u"K"
-        temperature_periodic[:,end,1] .= 1000*u"K"
-        temperature_periodic[:,end,end] .= 1000*u"K"
+        temperature_periodic[:,1,1] .= temperature[:,end,end]
+        temperature_periodic[:,1,end] .= temperature[:,end,1]
+        temperature_periodic[:,end,1] .= temperature[:,1,end]
+        temperature_periodic[:,end,end] .= temperature[:,1,1]
 
         # Temperature
         electron_density_periodic = Array{NumberDensity, 3}(undef, size(electron_density) .+ size_add)
@@ -141,10 +145,10 @@ function get_atmos(file_path; periodic=true, skip=1)
         electron_density_periodic[:,2:end-1,end] = electron_density[:,:,1]
         electron_density_periodic[:,2:end-1,1] = electron_density[:,:,end]
         # fix corners
-        electron_density_periodic[:,1,1] .= 0*u"m^-3"
-        electron_density_periodic[:,1,end] .= 0*u"m^-3"
-        electron_density_periodic[:,end,1] .= 0*u"m^-3"
-        electron_density_periodic[:,end,end] .= 0*u"m^-3"
+        electron_density_periodic[:,1,1] .= electron_density[:,end,end]
+        electron_density_periodic[:,1,end] .= electron_density[:,end,1]
+        electron_density_periodic[:,end,1] .= electron_density[:,1,end]
+        electron_density_periodic[:,end,end] .= electron_density[:,1,1]
 
         # Temperature
         hydrogen_populations_periodic = Array{NumberDensity, 3}(undef, size(hydrogen_populations) .+ size_add)
@@ -156,10 +160,11 @@ function get_atmos(file_path; periodic=true, skip=1)
         hydrogen_populations_periodic[:,2:end-1,end] = hydrogen_populations[:,:,1]
         hydrogen_populations_periodic[:,2:end-1,1] = hydrogen_populations[:,:,end]
         # fix corners
-        hydrogen_populations_periodic[:,1,1] .= 0*u"m^-3"
-        hydrogen_populations_periodic[:,1,end] .= 0*u"m^-3"
-        hydrogen_populations_periodic[:,end,1] .= 0*u"m^-3"
-        hydrogen_populations_periodic[:,end,end] .= 0*u"m^-3"
+        hydrogen_populations_periodic[:,1,1] .= hydrogen_populations[:,end,end]
+        hydrogen_populations_periodic[:,1,end] .= hydrogen_populations[:,end,1]
+        hydrogen_populations_periodic[:,end,1] .= hydrogen_populations[:,1,end]
+        hydrogen_populations_periodic[:,end,end] .= hydrogen_populations[:,1,1]
+
 
         return z, x_periodic, y_periodic, temperature_periodic, electron_density_periodic, hydrogen_populations_periodic
     end
@@ -167,7 +172,7 @@ function get_atmos(file_path; periodic=true, skip=1)
     return z, x, y, temperature, electron_density, hydrogen_populations
 end
 
-#=
+"""
     rejection_sampling(n_sites::Int)
 
 Sample 3D vectors according to hydrogen distribution. Samples are obtained
@@ -180,33 +185,41 @@ Make this method better by comparing with another distribution??? This will
 increase the rate for acceptance.
 Right now the reference distribution is the uniform pdf, scaled between N_H_max
 and N_H_min.
-=#
+"""
 function rejection_sampling(n_sites::Int, atmos::Atmosphere)
     # Find max and min to convert random number between 0 and 1 to coordinate
+    println("---Sampling new sites---")
     z_min = minimum(atmos.z); z_max = maximum(atmos.z)
     x_min = minimum(atmos.x); x_max = maximum(atmos.x)
     y_min = minimum(atmos.y); y_max = maximum(atmos.y)
 
+    Δz = z_max - z_min
+    Δx = x_max - x_min
+    Δy = y_max - y_min
+
     # Find max and min populations to scale uniform distribution
     N_H_min = minimum(atmos.hydrogen_populations)
     N_H_max = maximum(atmos.hydrogen_populations)
+
+    ΔN_H = N_H_max - N_H_min
 
     # allocate arrays for new sites
     p_vec = Matrix{Unitful.Length}(undef, (3, n_sites))
     N_H_new = Vector{NumberDensity}(undef, n_sites)
 
     for i in 1:n_sites
+        print("site $i/$n_sites \r")
         while true
             ref_vec = rand(Float64, 3)
-            z_ref = ref_vec[1]*(z_max - z_min) + z_min
-            x_ref = ref_vec[2]*(x_max - x_min) + x_min
-            y_ref = ref_vec[3]*(y_max - y_min) + y_min
+            z_ref = ref_vec[1]*Δz + z_min
+            x_ref = ref_vec[2]*Δx + x_min
+            y_ref = ref_vec[3]*Δy + y_min
 
             # acceptance criterion, "reference"
             density_ref = trilinear(z_ref, x_ref, y_ref, atmos, atmos.hydrogen_populations)
             # random sample, compare to reference
-            density_ran = rand(Float32)*(N_H_max - N_H_min) + N_H_min
-            if density_ran < density_ref
+            density_ran = rand(Float32)*ΔN_H + N_H_min
+            if density_ref > density_ran
                 # a point is accepted, store position and move on
                 p_vec[:, i] .= (z_ref, x_ref, y_ref)
                 N_H_new[i] = trilinear(z_ref, x_ref, y_ref, atmos, atmos.hydrogen_populations)
@@ -215,10 +228,11 @@ function rejection_sampling(n_sites::Int, atmos::Atmosphere)
             end
         end
     end
+    print("                                                                 \r")
     return p_vec, N_H_new
 end
 
-#=
+"""
     find_sites_sorted(z_new::Array, x_new::Array, y_new::Array,
                       z_bounds::Tuple{Float64, Float64},
                       x_bounds::Tuple{Float64, Float64},
@@ -227,11 +241,15 @@ end
 Identifies and counts number of sites in (z_new, x_new, y_new) that are inside
 the cube with bounds in (z, x, y) defined by z_bounds, x_bounds and y_bounds.
 Assumes the coordinate z_new to be in increasing order.
-=#
-function find_sites_sorted(z_new::Array, x_new::Array, y_new::Array,
+"""
+function find_sites_sorted(p_new::AbstractArray,
                            z_bounds::Tuple,
                            x_bounds::Tuple,
                            y_bounds::Tuple)
+
+    z_new = p_new[1, :]
+    x_new = p_new[2, :]
+    y_new = p_new[3, :]
 
     hits = 0
     k_lower = searchsortedfirst(z_new, z_bounds[1])
@@ -245,14 +263,14 @@ function find_sites_sorted(z_new::Array, x_new::Array, y_new::Array,
     return hits::Int64
 end
 
-#=
+"""
     find_sites(z_new::Array, x_new::Array, y_new::Array,
                z_bounds::Tuple{Float64, Float64},
                x_bounds::Tuple{Float64, Float64},
                y_bounds::Tuple{Float64, Float64})
 
 Same as `find_sites_sorted`, but doesn't assume any array to be sorted
-=#
+"""
 function find_sites(z_new::Array, x_new::Array, y_new::Array,
                     z_bounds::Tuple{Float64, Float64},
                     x_bounds::Tuple{Float64, Float64},
@@ -267,15 +285,14 @@ function find_sites(z_new::Array, x_new::Array, y_new::Array,
     return hits::Int64
 end
 
-#=
+@doc raw"""
     trilinear(x_mrk, y_mrk, z_mrk, hydrogen_populations)
 
 Three-dimensional linear interpolation. Takes a function
 $f: \mathbb{R}^3 -> \mathbb{R}$ and returns the trilinear interpolation in the
 coordinates (x, y, z). Assumes an original cartesian grid (x, y, z), and
 values for each grid point (hydrogen_populations) are defined
-=#
-
+"""
 function trilinear(z_mrk, x_mrk, y_mrk,
                    atmos::Atmosphere, vals::AbstractArray)
     # Returns the index of the first value in a greater than or equal to x
@@ -319,7 +336,7 @@ function trilinear(z_mrk, x_mrk, y_mrk,
     return c
 end
 
-#=
+@doc raw"""
     bilinear(x_mrk, y_mrk, x_bounds, y_bounds, vals)
 
 Two-dimensional linear interpolation. Takes a function
@@ -327,7 +344,7 @@ $f: \mathbb{R}^2 -> \mathbb{R}$ and returns the biilinear interpolation in the
 coordinates (x_mrk, y_mrk). Assumes an underlying cartesian grid (x_i, y_i)
 Values are defined on the corners of the rectangle spanned by x_bounds and
 y_bounds. x_mrk and y_mrk have to lie inside this rectangle.
-=#
+"""
 function bilinear(x_mrk, y_mrk, x_bounds, y_bounds, vals)
 
     # corner coordinates
@@ -354,18 +371,16 @@ function bilinear(x_mrk, y_mrk, x_bounds, y_bounds, vals)
     return f
 end
 
-#=
-    avg_mass(k::Int64, i::Int64, j::Int64)
+"""
+    mass_function(k::Int64, i::Int64, j::Int64)
 
 Finds the mass of a cell by taking the average mass density over all cell
 corners and multiplies with the volume of the cell. Assumes an original
 cartesian grid (x, y, z) and a corresponding value (hydrogen_populations) for
 each grid point
-=#
+"""
 function mass_function(k::Int64, i::Int64, j::Int64, atmos::Atmosphere)
-    volume = Float32((atmos.z[k+1] - atmos.z[k])
-                    *(atmos.x[i+1] - atmos.x[i])
-                    *(atmos.y[j+1] - atmos.y[j]))
+    volume = (atmos.z[k+1] - atmos.z[k])*(atmos.x[i+1] - atmos.x[i])*(atmos.y[j+1] - atmos.y[j])
     avg_density = (atmos.hydrogen_populations[k, i, j] +
                    atmos.hydrogen_populations[k, i, j+1] +
                    atmos.hydrogen_populations[k, i+1, j+1] +
@@ -373,17 +388,17 @@ function mass_function(k::Int64, i::Int64, j::Int64, atmos::Atmosphere)
                    atmos.hydrogen_populations[k+1, i, j] +
                    atmos.hydrogen_populations[k+1, i, j+1] +
                    atmos.hydrogen_populations[k+1, i+1, j+1] +
-                   atmos.hydrogen_populations[k+1, i+1, j])/8
+                   atmos.hydrogen_populations[k+1, i+1, j])/8*m_p
     mass = volume*avg_density
-    return mass::Float32
+    return mass
 end
 
-#=
+"""
     function write_arrays(z::AbstractArray, x::AbstractArray, y::AbstractArray,
                           fname::String)
 
 Writes the arrays z, x, and y to a file with filename fname.
-=#
+"""
 function write_arrays(z::AbstractArray, x::AbstractArray, y::AbstractArray,
                       fname::String)
 
@@ -403,6 +418,7 @@ end
 function α_cont(λ::Unitful.Length, temperature::Unitful.Temperature,
                electron_density::NumberDensity, h_ground_density::NumberDensity,
                proton_density::NumberDensity)
+
     α = Transparency.hminus_ff_stilley(λ, temperature, h_ground_density, electron_density)
     # Wait with this
     #α = Transparency.hminus_bf_geltman(λ, temperature, h_ground_density, electron_density)
@@ -417,17 +433,30 @@ end
 function α_scattering(λ::Unitful.Length, temperature::Unitful.Temperature,
                electron_density::NumberDensity, h_ground_density::NumberDensity,
                proton_density::NumberDensity)
+
    α = thomson(electron_density)
    α += rayleigh_h(λ, h_ground_density)
    return α
 end
 
-#=
+function α_absorption(λ::Unitful.Length, temperature::Unitful.Temperature,
+               electron_density::NumberDensity, h_ground_density::NumberDensity,
+               proton_density::NumberDensity)
+
+    α = Transparency.hminus_ff_stilley(λ, temperature, h_ground_density, electron_density)
+    # Wait with this
+    #α = Transparency.hminus_bf_geltman(λ, temperature, h_ground_density, electron_density)
+    α += hydrogenic_ff(c_0 / λ, temperature, electron_density, proton_density, 1)
+    α += h2plus_ff(λ, temperature, h_ground_density, proton_density)
+    α += h2plus_bf(λ, temperature, h_ground_density, proton_density)
+end
+
+"""
     read_neighbours(fname::String, n_sites::Int)
 
 Reads a file containing neighbouring cells for each grid point in the voronoi
 tesselation.
-=#
+"""
 function read_neighbours(fname::String, n_sites::Int)::AbstractMatrix
     ID = Vector{Int64}(undef, n_sites)
     neighbours = zeros(Int64, n_sites, 40)
@@ -442,21 +471,21 @@ function read_neighbours(fname::String, n_sites::Int)::AbstractMatrix
     return neighbours[sortperm(ID), :]
 end
 
-#=
+"""
     trapezoidal(Δx::AbstractFloat, a::AbstractFloat, b::AbstractFloat)
 
 Trapezoidal rule.
-=#
-function trapezoidal(Δx::AbstractFloat, a::AbstractFloat, b::AbstractFloat)
+"""
+function trapezoidal(Δx, a, b)
     area = Δx*(a + b)/2
-    return area::AbstractFloat
+    return area
 end
 
-#=
+"""
     xy_intersect(ϕ::AbstractFloat)
 
 Finds quadrant defined by the azimuthal angle ϕ
-=#
+"""
 function xy_intersect(ϕ::AbstractFloat)
     local sign_x, sign_y
     if ϕ < π/2
@@ -479,14 +508,14 @@ function xy_intersect(ϕ::AbstractFloat)
     return sign_x::Int, sign_y::Int
 end
 
-#=
+"""
     function read_quadrature(fname::String)
 
 Read quarature weights and angles from file. Returns weights, horizontal angle,
 azimuthal angle, and number of quadrature points. Quadratures found in
 https://cdsarc.cds.unistra.fr/viz-bin/cat/J/A+A/645/A101#/browse
 from Bestard & Bueno (2021)
-=#
+"""
 function read_quadrature(fname::String)
     n_points = ""
     switch = false
@@ -519,12 +548,12 @@ function read_quadrature(fname::String)
     return weights::AbstractArray, θ_array::AbstractArray, ϕ_array::AbstractArray, n_points::Int
 end
 
-#=
+"""
     function range_bounds(sign::Int, bound::Int)
 
 Given a quadrant from sign_x and sign_x from xy_intersect(), this function
 determines the loop start end stop point for the short characteristics ray.
-=#
+"""
 function range_bounds(sign::Int, bound::Int)
     if sign == -1
         start = 2

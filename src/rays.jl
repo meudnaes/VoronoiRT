@@ -1,13 +1,13 @@
 include("functions.jl")
 
-#=
+"""
     function z_up_ray(θ::AbstractFloat, ϕ::AbstractFloat, idz::Int, sign_x::Int,
                        sign_y::Int, I_0::AbstractArray, S_0::AbstractArray,
                        α::AbstractArray, atmos::Atmosphere)
 
 Ray moving upwards, upwind point intersecting with lower xy plane. Assumes angle
 in radians.
-=#
+"""
 function xy_up_ray(θ::AbstractFloat, ϕ::AbstractFloat, idz::Int, sign_x::Int,
                    sign_y::Int, I_0::AbstractArray, S_0::AbstractArray,
                    α::AbstractArray, atmos::Atmosphere)
@@ -105,14 +105,14 @@ function xy_up_ray(θ::AbstractFloat, ϕ::AbstractFloat, idz::Int, sign_x::Int,
     return I
 end
 
-#=
+"""
     function xy_down_ray(θ::AbstractFloat, ϕ::AbstractFloat, idz::Int, sign_x::Int,
                          sign_y::Int, I_0::AbstractArray, S_0::AbstractArray,
                          α::AbstractArray, atmos::Atmosphere)
 
 Ray moving downwards, upwind point intersecting with upper xy plane. Assumes
 angle in radians.
-=#
+"""
 function xy_down_ray(θ::AbstractFloat, ϕ::AbstractFloat, idz::Integer, sign_x::Integer,
                      sign_y::Integer, I_0::AbstractArray, S_0::AbstractArray,
                      α::AbstractArray, atmos::Atmosphere)
@@ -205,14 +205,14 @@ function xy_down_ray(θ::AbstractFloat, ϕ::AbstractFloat, idz::Integer, sign_x:
     return I
 end
 
-#=
+"""
     function yz_up_ray(θ::AbstractFloat, ϕ::AbstractFloat, idz::Int, sign_x::Int,
                        sign_y::Int, I_0::AbstractArray, S_0::AbstractArray,
                        α::AbstractArray, atmos::Atmosphere)
 
 Ray moving upwards, upwind point intersecting with yz plane. Assumes angle
 in radians.
-=#
+"""
 function yz_up_ray(θ::AbstractFloat, ϕ::AbstractFloat, idz::Int, sign_x::Int,
                    sign_y::Int, I_0::AbstractArray, S_0::AbstractArray,
                    α::AbstractArray, atmos::Atmosphere)
@@ -383,14 +383,14 @@ function yz_up_ray(θ::AbstractFloat, ϕ::AbstractFloat, idz::Int, sign_x::Int,
     return I
 end
 
-#=
+"""
     function yz_down_ray(θ::AbstractFloat, ϕ::AbstractFloat, idz::Int, sign_x::Int,
                          sign_y::Int, I_0::AbstractArray, S_0::AbstractArray,
                          α::AbstractArray, atmos::Atmosphere)
 
 Ray moving downwards, upwind point intersecting with yz plane. Assumes angle
 in radians
-=#
+"""
 function yz_down_ray(θ::AbstractFloat, ϕ::AbstractFloat, idz::Int, sign_x::Int,
                        sign_y::Int, I_0::AbstractArray, S_0::AbstractArray,
                        α::AbstractArray, atmos::Atmosphere)
@@ -564,14 +564,14 @@ function yz_down_ray(θ::AbstractFloat, ϕ::AbstractFloat, idz::Int, sign_x::Int
     return I
 end
 
-#=
+"""
     function xz_up_ray(θ::AbstractFloat, ϕ::AbstractFloat, idz::Int, sign_x::Int,
                        sign_y::Int, I_0::AbstractArray, S_0::AbstractArray,
                        α::AbstractArray, atmos::Atmosphere)
 
 Ray moving upwards, upwind point intersecting with xz plane. Assumes angle
 in radians.
-=#
+"""
 function xz_up_ray(θ::AbstractFloat, ϕ::AbstractFloat, idz::Int, sign_x::Int,
                    sign_y::Int, I_0::AbstractArray, S_0::AbstractArray,
                    α::AbstractArray, atmos::Atmosphere)
@@ -742,14 +742,14 @@ function xz_up_ray(θ::AbstractFloat, ϕ::AbstractFloat, idz::Int, sign_x::Int,
     return I
 end
 
-#=
+"""
     function xz_down_ray(θ::AbstractFloat, ϕ::AbstractFloat, idz::Int, sign_x::Int,
                            sign_y::Int, I_0::AbstractArray, S_0::AbstractArray,
                            α::AbstractArray, atmos::Atmosphere)
 
 Ray moving downwards, upwind point intersecting with xz plane. Assumes angle
 in radians.
-=#
+"""
 function xz_down_ray(θ::AbstractFloat, ϕ::AbstractFloat, idz::Int, sign_x::Int,
                        sign_y::Int, I_0::AbstractArray, S_0::AbstractArray,
                        α::AbstractArray, atmos::Atmosphere)
