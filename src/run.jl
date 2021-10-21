@@ -68,4 +68,73 @@ function run()
     print("")
 end
 
-run()
+function searchlight()
+    nx = ny = nz = 100
+
+    z = Vector(LinRange(-10, 10, nz))u"m"
+    x = Vector(LinRange(-10, 10, nx))u"m"
+    y = Vector(LinRange(-10, 10, ny))u"m"
+
+    temperature = ones(nz, nx, ny)u"K"
+    electron_density = zeros(nz, nx, ny)u"m^-3"
+    hydrogen_populations = zeros(nz, nx, ny)u"m^-3"
+
+    atmos = Atmosphere(z, x, y, temperature, electron_density, hydrogen_populations)
+
+    global nz = length(atmos.z)
+    global nx = length(atmos.x)
+    global ny = length(atmos.y)
+
+    global Δx = atmos.x[2] - atmos.x[1]
+    global Δy = atmos.y[2] - atmos.y[1]
+
+    S_0 = zeros(nz, nx, ny)u"kW*m^-2*nm^-1"
+    α = zeros(nz, nx, ny)u"m^-1"
+
+    I_light = 1u"kW*m^-2*nm^-1"
+
+    I_0 = zero(S_0[1,:,:])
+    I_0[45:54,45:54] .= I_light
+
+    θ_array = [170, 130, 110, 70,  70,  10]
+    ϕ_array = [10,  30,  50,  310, 330, 350]
+
+    for (θ, ϕ) in zip(θ_array, ϕ_array)
+
+        if θ > 90
+            I = short_characteristics_up(θ, ϕ, S_0, α, atmos;
+                            degrees=true, I_0=I_0, pt=true)[:, 2:end-1, 2:end-1]
+            heatmap(ustrip(x[2:end-1]),
+                    ustrip(y[2:end-1]),
+                    ustrip(I[end, :, :])/ustrip(I_light),
+                    xaxis="x",
+                    yaxis="y",
+                    dpi=300,
+                    rightmargin=10Plots.mm,
+                    title="Searchlight",
+                    aspect_ratio=:equal)
+
+            println("Bottom: $(I_light*100), Top: $(sum(I[end,:,:]))")
+        elseif θ < 90
+            I = short_characteristics_down(θ, ϕ, S_0, α, atmos;
+                            degrees=true, I_0=I_0, pt=true)[:, 2:end-1, 2:end-1]
+            heatmap(ustrip(x[2:end-1]),
+                    ustrip(y[2:end-1]),
+                    ustrip(I[1, :, :])/ustrip(I_light),
+                    xaxis="x",
+                    yaxis="y",
+                    dpi=300,
+                    rightmargin=10Plots.mm,
+                    title="Searchlight",
+                    aspect_ratio=:equal)
+
+            println("Top: $(I_light*100), Bottom: $(sum(I[1,:,:]))")
+        end
+        savefig("searchlight_$(θ)_$(ϕ)")
+    end
+
+    print("")
+end
+
+searchlight()
+# run()

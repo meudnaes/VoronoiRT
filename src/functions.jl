@@ -19,9 +19,29 @@ struct Atmosphere
     z::Vector{<:Unitful.Length}
     x::Vector{<:Unitful.Length}
     y::Vector{<:Unitful.Length}
+    # nz::Int
+    # nx::Int
+    # ny::Int
+    # Δx::AbstractFloat
+    # Δy::AbstractFloat
     temperature::Array{<:Unitful.Temperature, 3}
     electron_density::Array{<:NumberDensity, 3}
     hydrogen_populations::Array{<:NumberDensity, 3}
+    #=function Atmosphere(z::Vector{<:Unitful.Length},
+                        x::Vector{<:Unitful.Length},
+                        y::Vector{<:Unitful.Length},
+                        temperature::Array{<:Unitful.Temperature, 3},
+                        electron_density::Array{<:NumberDensity, 3},
+                        hydrogen_populations::Array{<:NumberDensity, 3}) where T <: AbstractFloat
+        #Funcy func
+        nz = length(z)
+        nx = length(x)
+        ny = length(y)
+        Δx = x[2] - x[1]
+        Δy = y[2] - y[1]
+        new{T}(z, x, y, nz, nx, ny, Δx, Δy,
+               temperature, electron_density, hydrogen_populations)
+    end=#
 end
 
 """
@@ -563,4 +583,35 @@ function range_bounds(sign::Int, bound::Int)
         stop = 2
     end
     return start::Int, stop::Int
+end
+
+"""
+Computes weights for linear integration of source function,
+approximating `exp(-Δτ)` for very small and very large values of `Δτ`.
+"""
+function weights(Δτ::T) where T <: AbstractFloat
+    if Δτ < 5e-4
+        w1 = Δτ * (1 - Δτ / 2)
+        w2 = Δτ^2 * (0.5f0 - Δτ / 3)
+    elseif Δτ > 50
+        w1 = w2 = one(T)
+    else
+        expΔτ = exp(-Δτ)
+        w1 = 1 - expΔτ
+        w2 = w1 - Δτ * expΔτ
+    end
+    return w1, w2
+end
+
+function coefficients(w1, w2, Δτ_upwind)
+    if Δτ_upwind == 0
+        a = 0
+        b = 0
+        c = 1
+    else
+        a = w1 - w2/Δτ_upwind
+        b = w1/Δτ_upwind
+        c = exp(-Δτ_upwind)
+    end
+    return a, b, c
 end
