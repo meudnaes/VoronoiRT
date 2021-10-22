@@ -1,7 +1,12 @@
 #=
 Short characteristic method to solve intensity along rays going through all grid
-points 
+points.
 =#
+
+# Think about the interpolation when the ray does not hit lower or upper
+# plane. This is solved through an 'extra' iteration for now, but I think that is
+# a bad idea, especially in high gradient regions. Doesn't work well for
+# searchlight test
 
 include("functions.jl")
 
@@ -12,7 +17,7 @@ Computes intensity along rays traveling upwards from the bottom to the top
 through all grid points in the atmosphere. Initial intensity I_0 = B_λ(T) at the
 bottom of the domain.
 """
-function short_characteristics_up(θ, ϕ, S_0, α, atmos; degrees)
+function short_characteristics_up(θ, ϕ, S_0, α, atmos; degrees=true, I_0=false, pt=false)
     ############################################################################
     # | and - : Grid
     #     x   : Grid points
@@ -49,8 +54,13 @@ function short_characteristics_up(θ, ϕ, S_0, α, atmos; degrees)
     # find out direction in xy the ray moves (1 for positive, -1 for negative)
     sign_x, sign_y = xy_intersect(ϕ)
 
-    # Boundary condition
-    I[1,:,:] = S_0[1,:,:]
+    if I_0 == false
+        # Boundary condition
+        I[1,:,:] = S_0[1,:,:]
+    else
+        I[1,:,:] = I_0
+    end
+
 
     # loop upwards through atmosphere
     for idz in 2:nz
@@ -64,10 +74,19 @@ function short_characteristics_up(θ, ϕ, S_0, α, atmos; degrees)
         plane_cut = argmin([r_z, r_x, r_y])
         if plane_cut == 1
             I[idz,:,:] = xy_up_ray(θ, ϕ, idz, sign_x, sign_y, I[idz-1,:,:], S_0, α, atmos)
+            if idz==2 && pt == true
+                println("xy_up_ray")
+            end
         elseif plane_cut==2
             I[idz,:,:] = yz_up_ray(θ, ϕ, idz, sign_x, sign_y, I[idz-1,:,:], S_0, α, atmos)
+            if idz==2 && pt == true
+                println("yz_up_ray")
+            end
         elseif plane_cut==3
             I[idz,:,:] = xz_up_ray(θ, ϕ, idz, sign_x, sign_y, I[idz-1,:,:], S_0, α, atmos)
+            if idz==2 && pt == true
+                println("xz_up_ray")
+            end
         end
     end
 
@@ -81,7 +100,7 @@ Computes intensity along rays traveling downwards from the top to the bottom
 through all grid points in the atmosphere. Initial intensity I_0 = 0 at the top
 of the domain.
 """
-function short_characteristics_down(θ, ϕ, S_0, α, atmos; degrees)
+function short_characteristics_down(θ, ϕ, S_0, α, atmos; degrees=true, I_0=false, pt=false)
     ############################################################################
     # | and - : Grid
     #     x   : Grid points
@@ -116,8 +135,13 @@ function short_characteristics_down(θ, ϕ, S_0, α, atmos; degrees)
     # find out which plane the upwind part of the ray intersects
     sign_x, sign_y = xy_intersect(ϕ)
 
-    # Boundary condition
-    I[nz,:,:] = zero(S_0[end,:,:])
+    if I_0 == false
+        # Boundary condition
+        I[end,:,:] = zero(S_0[end,:,:])
+    else
+        I[end,:,:] = I_0
+    end
+
     # loop downwards through atmosphere
     for idz in nz-1:-1:1
         # Grid diffference in z
@@ -130,10 +154,19 @@ function short_characteristics_down(θ, ϕ, S_0, α, atmos; degrees)
         plane_cut = argmin([r_z, r_x, r_y])
         if plane_cut == 1
             I[idz,:,:] = xy_down_ray(θ, ϕ, idz, sign_x, sign_y, I[idz+1,:,:], S_0, α, atmos)
+            if idz==nz-1 && pt == true
+                println("xy_down_ray")
+            end
         elseif plane_cut==2
             I[idz,:,:] = yz_down_ray(θ, ϕ, idz, sign_x, sign_y, I[idz+1,:,:], S_0, α, atmos)
+            if idz==nz-1 && pt == true
+                println("yz_down_ray")
+            end
         elseif plane_cut==3
             I[idz,:,:] = xz_down_ray(θ, ϕ, idz, sign_x, sign_y, I[idz+1,:,:], S_0, α, atmos)
+            if idz==nz-1 && pt == true
+                println("xz_down_ray")
+            end
         end
     end
 
@@ -216,15 +249,9 @@ function xy_up_ray(θ::AbstractFloat, ϕ::AbstractFloat, idz::Int, sign_x::Int,
             S_centre = S_0[idz, idx, idy]
             S_upwind = bilinear(x_upwind, y_upwind, x_bounds, y_bounds, S_vals)
 
-            # From Hennicker et. al. (2020) equation 13
-            e_0 = 1 - exp(-Δτ_upwind)
-            e_1 = Δτ_upwind - e_0
+            w1, w2 =  weights(Δτ_upwind)
+            a_ijk, b_ijk, c_ijk = coefficients(w1, w2, Δτ_upwind)
 
-            # From Hennicker et. al. (2020) equation 12, with ω = 1
-            a_ijk = e_0 - e_1/Δτ_upwind
-            b_ijk = e_1/Δτ_upwind
-            # c_ijk = 0
-            d_ijk = exp(-Δτ_upwind)
 
             # Interpolate to find intensity at upwind point
             I_vals = [I_0[idx_lower, idy_lower] I_0[idx_lower, idy_upper]
@@ -233,8 +260,10 @@ function xy_up_ray(θ::AbstractFloat, ϕ::AbstractFloat, idz::Int, sign_x::Int,
             I_upwind = bilinear(x_upwind, y_upwind, x_bounds, y_bounds, I_vals)
 
             # Integrate intensity from two-point quadrature
-            I[idx, idy] = a_ijk*S_upwind + b_ijk*S_centre + d_ijk*I_upwind
+            # Fix low optical depth
+            I[idx, idy] = a_ijk*S_upwind + b_ijk*S_centre + c_ijk*I_upwind
         end
+
         # Update ghost zones
         I[idx, 1] = I[idx, end-1]
         I[idx, end] = I[idx, 2]
@@ -315,15 +344,8 @@ function xy_down_ray(θ::AbstractFloat, ϕ::AbstractFloat, idz::Integer, sign_x:
             S_centre = S_0[idz, idx, idy]
             S_upwind = bilinear(x_upwind, y_upwind, x_bounds, y_bounds, S_vals)
 
-            # From Hennicker et. al. (2020) equation 13
-            e_0 = 1 - exp(-Δτ_upwind)
-            e_1 = Δτ_upwind - e_0
-
-            # From Hennicker et. al. (2020) equation 12, with ω = 1
-            a_ijk = e_0 - e_1/Δτ_upwind
-            b_ijk = e_1/Δτ_upwind
-            # c_ijk = 0
-            d_ijk = exp(-Δτ_upwind)
+            w1, w2 =  weights(Δτ_upwind)
+            a_ijk, b_ijk, c_ijk = coefficients(w1, w2, Δτ_upwind)
 
             # Interpolate to find intensity at upwind point
             I_vals = [I_0[idx_lower, idy_lower]     I_0[idx_lower, idy_upper]
@@ -332,7 +354,7 @@ function xy_down_ray(θ::AbstractFloat, ϕ::AbstractFloat, idz::Integer, sign_x:
             I_upwind = bilinear(x_upwind, y_upwind, x_bounds, y_bounds, I_vals)
 
             # Integrate intensity from two-point quadrature
-            I[idx, idy] = a_ijk*S_upwind + b_ijk*S_centre + d_ijk*I_upwind
+            I[idx, idy] = a_ijk*S_upwind + b_ijk*S_centre + c_ijk*I_upwind
 
         end
         # Update ghost zones
@@ -425,15 +447,8 @@ function yz_up_ray(θ::AbstractFloat, ϕ::AbstractFloat, idz::Int, sign_x::Int,
         S_centre = S_upper[idx, idy]
         S_upwind = bilinear(z_upwind, y_upwind, z_bounds, y_bounds, S_vals)
 
-        # From Hennicker et. al. (2020) equation 13, also see Hauschildt et. al. p. 276
-        e_0 = 1 - exp(-Δτ_upwind)
-        e_1 = Δτ_upwind - e_0
-
-        # From Hennicker et. al. (2020) equation 12, with ω = 1
-        a_ijk = e_0 - e_1/Δτ_upwind
-        b_ijk = e_1/Δτ_upwind
-        # c_ijk = 0
-        d_ijk = exp(-Δτ_upwind)
+        w1, w2 =  weights(Δτ_upwind)
+        a_ijk, b_ijk, c_ijk = coefficients(w1, w2, Δτ_upwind)
 
         # Interpolate to find intensity at upwind point
         # I_0 is from the top
@@ -444,7 +459,7 @@ function yz_up_ray(θ::AbstractFloat, ϕ::AbstractFloat, idz::Int, sign_x::Int,
         I_upwind = bilinear(z_upwind, y_upwind, z_bounds, y_bounds, I_vals)
 
         # Integrate intensity from two-point quadrature
-        I_upper[idy_lower] = a_ijk*S_upwind + b_ijk*S_centre + d_ijk*I_upwind
+        I_upper[idy_lower] = a_ijk*S_upwind + b_ijk*S_centre + c_ijk*I_upwind
     end
 
     I_upper[1] = I_upper[end-1]
@@ -487,15 +502,8 @@ function yz_up_ray(θ::AbstractFloat, ϕ::AbstractFloat, idz::Int, sign_x::Int,
             S_centre = S_upper[idx, idy]
             S_upwind = bilinear(z_upwind, y_upwind, z_bounds, y_bounds, S_vals)
 
-            # From Hennicker et. al. (2020) equation 13, also see Hauschildt et. al. p. 276
-            e_0 = 1 - exp(-Δτ_upwind)
-            e_1 = Δτ_upwind - e_0
-
-            # From Hennicker et. al. (2020) equation 12, with ω = 1
-            a_ijk = e_0 - e_1/Δτ_upwind
-            b_ijk = e_1/Δτ_upwind
-            # c_ijk = 0
-            d_ijk = exp(-Δτ_upwind)
+            w1, w2 =  weights(Δτ_upwind)
+            a_ijk, b_ijk, c_ijk = coefficients(w1, w2, Δτ_upwind)
 
             # Interpolate to find intensity at upwind point
             # I_0 is from the top
@@ -506,7 +514,7 @@ function yz_up_ray(θ::AbstractFloat, ϕ::AbstractFloat, idz::Int, sign_x::Int,
             I_upwind = bilinear(z_upwind, y_upwind, z_bounds, y_bounds, I_vals)
 
             # Integrate intensity from two-point quadrature
-            I[idx, idy] = a_ijk*S_upwind + b_ijk*S_centre + d_ijk*I_upwind
+            I[idx, idy] = a_ijk*S_upwind + b_ijk*S_centre + c_ijk*I_upwind
         end
         # Update ghost zones
         I[idx, 1] = I[idx, end-1]
@@ -605,15 +613,8 @@ function yz_down_ray(θ::AbstractFloat, ϕ::AbstractFloat, idz::Int, sign_x::Int
         S_centre = S_lower[idx, idy]
         S_upwind = bilinear(z_upwind, y_upwind, z_bounds, y_bounds, S_vals)
 
-        # From Hennicker et. al. (2020) equation 13, also see Hauschildt et. al. p. 276
-        e_0 = 1 - exp(-Δτ_upwind)
-        e_1 = Δτ_upwind - e_0
-
-        # From Hennicker et. al. (2020) equation 12, with ω = 1
-        a_ijk = e_0 - e_1/Δτ_upwind
-        b_ijk = e_1/Δτ_upwind
-        # c_ijk = 0
-        d_ijk = exp(-Δτ_upwind)
+        w1, w2 =  weights(Δτ_upwind)
+        a_ijk, b_ijk, c_ijk = coefficients(w1, w2, Δτ_upwind)
 
         # Interpolate to find intensity at upwind point
         # I_0 is from the top
@@ -624,7 +625,7 @@ function yz_down_ray(θ::AbstractFloat, ϕ::AbstractFloat, idz::Int, sign_x::Int
         I_upwind = bilinear(z_upwind, y_upwind, z_bounds, y_bounds, I_vals)
 
         # Integrate intensity from two-point quadrature
-        I_lower[idy_lower] = a_ijk*S_upwind + b_ijk*S_centre + d_ijk*I_upwind
+        I_lower[idy_lower] = a_ijk*S_upwind + b_ijk*S_centre + c_ijk*I_upwind
     end
 
     I_lower[1] = I_lower[end-1]
@@ -668,15 +669,8 @@ function yz_down_ray(θ::AbstractFloat, ϕ::AbstractFloat, idz::Int, sign_x::Int
             S_centre = S_lower[idx, idy]
             S_upwind = bilinear(z_upwind, y_upwind, z_bounds, y_bounds, S_vals)
 
-            # From Hennicker et. al. (2020) equation 13
-            e_0 = 1 - exp(-Δτ_upwind)
-            e_1 = Δτ_upwind - e_0
-
-            # From Hennicker et. al. (2020) equation 12, with ω = 1
-            a_ijk = e_0 - e_1/Δτ_upwind
-            b_ijk = e_1/Δτ_upwind
-            # c_ijk = 0
-            d_ijk = exp(-Δτ_upwind)
+            w1, w2 =  weights(Δτ_upwind)
+            a_ijk, b_ijk, c_ijk = coefficients(w1, w2, Δτ_upwind)
 
             # Interpolate to find intensity at upwind point
             # I_0 is from the top
@@ -686,7 +680,7 @@ function yz_down_ray(θ::AbstractFloat, ϕ::AbstractFloat, idz::Int, sign_x::Int
             I_upwind = bilinear(z_upwind, y_upwind, z_bounds, y_bounds, I_vals)
 
             # Integrate intensity from two-point quadrature
-            I[idx, idy] = a_ijk*S_upwind + b_ijk*S_centre + d_ijk*I_upwind
+            I[idx, idy] = a_ijk*S_upwind + b_ijk*S_centre + c_ijk*I_upwind
         end
 
         # Update ghost zones
@@ -784,15 +778,8 @@ function xz_up_ray(θ::AbstractFloat, ϕ::AbstractFloat, idz::Int, sign_x::Int,
         S_centre = S_upper[idx, idy]
         S_upwind = bilinear(z_upwind, x_upwind, z_bounds, x_bounds, S_vals)
 
-        # From Hennicker et. al. (2020) equation 13, also see Hauschildt et. al. p. 276
-        e_0 = 1 - exp(-Δτ_upwind)
-        e_1 = Δτ_upwind - e_0
-
-        # From Hennicker et. al. (2020) equation 12, with ω = 1
-        a_ijk = e_0 - e_1/Δτ_upwind
-        b_ijk = e_1/Δτ_upwind
-        # c_ijk = 0
-        d_ijk = exp(-Δτ_upwind)
+        w1, w2 =  weights(Δτ_upwind)
+        a_ijk, b_ijk, c_ijk = coefficients(w1, w2, Δτ_upwind)
 
         # Interpolate to find intensity at upwind point
         # I_0 is from the top
@@ -803,7 +790,7 @@ function xz_up_ray(θ::AbstractFloat, ϕ::AbstractFloat, idz::Int, sign_x::Int,
         I_upwind = bilinear(z_upwind, x_upwind, z_bounds, x_bounds, I_vals)
 
         # Integrate intensity from two-point quadrature
-        I_upper[idx_lower] = a_ijk*S_upwind + b_ijk*S_centre + d_ijk*I_upwind
+        I_upper[idx_lower] = a_ijk*S_upwind + b_ijk*S_centre + c_ijk*I_upwind
     end
 
     I_upper[1] = I_upper[end-1]
@@ -846,15 +833,8 @@ function xz_up_ray(θ::AbstractFloat, ϕ::AbstractFloat, idz::Int, sign_x::Int,
             S_centre = S_upper[idx, idy]
             S_upwind = bilinear(z_upwind, x_upwind, z_bounds, x_bounds, S_vals)
 
-            # From Hennicker et. al. (2020) equation 13, also see Hauschildt et. al. p. 276
-            e_0 = 1 - exp(-Δτ_upwind)
-            e_1 = Δτ_upwind - e_0
-
-            # From Hennicker et. al. (2020) equation 12, with ω = 1
-            a_ijk = e_0 - e_1/Δτ_upwind
-            b_ijk = e_1/Δτ_upwind
-            # c_ijk = 0
-            d_ijk = exp(-Δτ_upwind)
+            w1, w2 =  weights(Δτ_upwind)
+            a_ijk, b_ijk, c_ijk = coefficients(w1, w2, Δτ_upwind)
 
             # Interpolate to find intensity at upwind point
             # I_0 is from the top
@@ -865,7 +845,7 @@ function xz_up_ray(θ::AbstractFloat, ϕ::AbstractFloat, idz::Int, sign_x::Int,
             I_upwind = bilinear(z_upwind, x_upwind, z_bounds, x_bounds, I_vals)
 
             # Integrate intensity from two-point quadrature
-            I[idx, idy] = a_ijk*S_upwind + b_ijk*S_centre + d_ijk*I_upwind
+            I[idx, idy] = a_ijk*S_upwind + b_ijk*S_centre + c_ijk*I_upwind
         end
         # Update ghost zones
         I[1, idy] = I[end-1, idy]
@@ -964,15 +944,8 @@ function xz_down_ray(θ::AbstractFloat, ϕ::AbstractFloat, idz::Int, sign_x::Int
         S_centre = S_lower[idx, idy]
         S_upwind = bilinear(z_upwind, x_upwind, z_bounds, x_bounds, S_vals)
 
-        # From Hennicker et. al. (2020) equation 13, also see Hauschildt et. al. p. 276
-        e_0 = 1 - exp(-Δτ_upwind)
-        e_1 = Δτ_upwind - e_0
-
-        # From Hennicker et. al. (2020) equation 12, with ω = 1
-        a_ijk = e_0 - e_1/Δτ_upwind
-        b_ijk = e_1/Δτ_upwind
-        # c_ijk = 0
-        d_ijk = exp(-Δτ_upwind)
+        w1, w2 =  weights(Δτ_upwind)
+        a_ijk, b_ijk, c_ijk = coefficients(w1, w2, Δτ_upwind)
 
         # Interpolate to find intensity at upwind point
         # I_0 is from the top
@@ -982,7 +955,7 @@ function xz_down_ray(θ::AbstractFloat, ϕ::AbstractFloat, idz::Int, sign_x::Int
         I_upwind = bilinear(z_upwind, x_upwind, z_bounds, x_bounds, I_vals)
 
         # Integrate intensity from two-point quadrature
-        I_lower[idx_lower] = a_ijk*S_upwind + b_ijk*S_centre + d_ijk*I_upwind
+        I_lower[idx_lower] = a_ijk*S_upwind + b_ijk*S_centre + c_ijk*I_upwind
     end
 
     I_lower[1] = I_lower[end-1]
@@ -1025,15 +998,8 @@ function xz_down_ray(θ::AbstractFloat, ϕ::AbstractFloat, idz::Int, sign_x::Int
             S_centre = S_upper[idx, idy]
             S_upwind = bilinear(z_upwind, x_upwind, z_bounds, x_bounds, S_vals)
 
-            # From Hennicker et. al. (2020) equation 13, also see Hauschildt et. al. p. 276
-            e_0 = 1 - exp(-Δτ_upwind)
-            e_1 = Δτ_upwind - e_0
-
-            # From Hennicker et. al. (2020) equation 12, with ω = 1
-            a_ijk = e_0 - e_1/Δτ_upwind
-            b_ijk = e_1/Δτ_upwind
-            # c_ijk = 0
-            d_ijk = exp(-Δτ_upwind)
+            w1, w2 =  weights(Δτ_upwind)
+            a_ijk, b_ijk, c_ijk = coefficients(w1, w2, Δτ_upwind)
 
             # Interpolate to find intensity at upwind point
             # I_0 is from the top
@@ -1043,7 +1009,7 @@ function xz_down_ray(θ::AbstractFloat, ϕ::AbstractFloat, idz::Int, sign_x::Int
             I_upwind = bilinear(z_upwind, x_upwind, z_bounds, x_bounds, I_vals)
 
             # Integrate intensity from two-point quadrature
-            I[idx, idy] = a_ijk*S_upwind + b_ijk*S_centre + d_ijk*I_upwind
+            I[idx, idy] = a_ijk*S_upwind + b_ijk*S_centre + c_ijk*I_upwind
         end
 
         # Update ghost zones

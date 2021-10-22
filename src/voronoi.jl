@@ -1,7 +1,7 @@
 include("functions.jl")
 
 DATA = "../data/bifrost_qs006023_s525_quarter.hdf5"
-atmos = Atmosphere(get_atmos(DATA; periodic=false, skip=2)...)
+atmos = Atmosphere(get_atmos(DATA; periodic=false, skip=3)...)
 
 nz = length(atmos.z)
 nx = length(atmos.x)
@@ -74,17 +74,28 @@ end
 end
 =#
 
-# Print boundaries for voro++ file
-open("boundaries.txt", "w") do io
-    println(io, "x_min = $(atmos.x[1])")
-    println(io, "x_max = $(atmos.x[end])")
-    println(io, "y_min = $(atmos.y[1])")
-    println(io, "y_max = $(atmos.y[end])")
-    println(io, "z_min = $(atmos.z[1])")
-    println(io, "z_max = $(atmos.z[end])")
-end
+sites_file = "sites.txt"
 
-write_arrays(p_vec[1, :], p_vec[2, :], p_vec[3, :], "seeds.txt")
+write_arrays(ustrip(p_vec[1, :]),
+             ustrip(p_vec[2, :]),
+             ustrip(p_vec[3, :]),
+             sites_file)
+
+# export box geometry to voro++
+# run(`python voro_preprocessing.py
+#                 $(ustrip(atmos.z[1])) $(ustrip(atmos.z[end]))
+#                 $(ustrip(atmos.x[1])) $(ustrip(atmos.x[end]))
+#                 $(ustrip(atmos.y[1])) $(ustrip(atmos.y[end]))`)
+
+x_min = ustrip(atmos.x[1])
+x_max = ustrip(atmos.x[end])
+y_min = ustrip(atmos.y[1])
+y_max = ustrip(atmos.y[end])
+z_min = ustrip(atmos.z[1])
+z_max = ustrip(atmos.z[end])
+# export sites to voro++, and compute grid information
+println("---Preprocessing grid---")
+run(`./voro.sh $sites_file $x_min $x_max $y_min $y_max $z_min $z_max`)
 
 # initialise the system in LTE
 temperature_new = Vector{Unitful.Temperature}(undef, n_sites)

@@ -434,6 +434,17 @@ function write_arrays(z::AbstractArray, x::AbstractArray, y::AbstractArray,
     end
 end
 
+function write_boundaries(z_min, z_max, x_min, x_max, y_min, y_max, fname::String)
+    open(fname, "w") do io
+        println(io, "z_min = $z_min")
+        println(io, "z_max = $z_max")
+        println(io, "x_min = $x_min")
+        println(io, "x_max = $x_max")
+        println(io, "y_min = $y_min")
+        println(io, "y_max = $y_max")
+    end
+end
+
 # Physics functions
 function α_cont(λ::Unitful.Length, temperature::Unitful.Temperature,
                electron_density::NumberDensity, h_ground_density::NumberDensity,
