@@ -14,6 +14,7 @@ CXX?=g++
 CFLAGS+=-Wall -ansi -pedantic -O3
 
 # Relative include and library paths for compilation of the examples
+# Relative path to voro++ library
 E_INC=-I../../voro/src
 E_LIB=-L../../voro/src
 

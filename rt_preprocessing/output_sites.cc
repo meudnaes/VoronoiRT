@@ -1,8 +1,4 @@
-// Custom output example code
-//
-// Author   : Chris H. Rycroft (Harvard University / LBL)
-// Email    : chr@alum.mit.edu
-// Date     : August 30th 2011
+// Modified example code
 
 #include "voro++.hh"
 using namespace voro;
@@ -12,7 +8,7 @@ const int n_x=6,n_y=6,n_z=6;
 
 int main(int argc, char **argv) {
 
-	if(argc < 8){
+	if(argc < 9){
 		printf("Too few input arguments\n");
 		exit(0);
 	}
@@ -21,18 +17,21 @@ int main(int argc, char **argv) {
 	// File containing sites
 	char* sites_file = argv[1];
 
+	// File to write neighbours
+	char* neighbours_file = argv[2];
+
 	// Box-geometry
-	double x_min = atof(argv[2]), x_max = atof(argv[3]);
-	double y_min = atof(argv[4]), y_max = atof(argv[5]);
-	double z_min = atof(argv[6]), z_max = atof(argv[7]);
+	double x_min = atof(argv[3]), x_max = atof(argv[4]);
+	double y_min = atof(argv[5]), y_max = atof(argv[6]);
+	double z_min = atof(argv[7]), z_max = atof(argv[8]);
 
 	printf("---Calculating neighbours---\n");
 
 	// Create a container with the geometry given above, and make it
-	// non-periodic in each of the three coordinates. Allocate space for
+	// periodic in x and y, and non-periodic in z. Allocate space for
 	// eight particles within each computational block.
 	container con(x_min,x_max,y_min,y_max,z_min,z_max,n_x,n_y,n_z,
-			false,false,false,20);
+			true,true,false,8);
 
 	// Import the monodisperse test packing and output the Voronoi
 	// tessellation in gnuplot and POV-Ray formats.
@@ -43,5 +42,5 @@ int main(int argc, char **argv) {
 	// the total face area, the order of each face, the areas of each face,
 	// the vertices making up each face, and the neighboring particle (or
 	// wall) corresponding to each face.
-	con.print_custom("%i %n","neighbours.txt");
+	con.print_custom("%i %n",neighbours_file);
 }
