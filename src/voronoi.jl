@@ -74,18 +74,14 @@ end
 end
 =#
 
-sites_file = "sites.txt"
+sites_file = "../data/sites.txt"
+neighbours_file = "../data/neighbours.txt"
 
+# write sites to file
 write_arrays(ustrip(p_vec[1, :]),
              ustrip(p_vec[2, :]),
              ustrip(p_vec[3, :]),
              sites_file)
-
-# export box geometry to voro++
-# run(`python voro_preprocessing.py
-#                 $(ustrip(atmos.z[1])) $(ustrip(atmos.z[end]))
-#                 $(ustrip(atmos.x[1])) $(ustrip(atmos.x[end]))
-#                 $(ustrip(atmos.y[1])) $(ustrip(atmos.y[end]))`)
 
 x_min = ustrip(atmos.x[1])
 x_max = ustrip(atmos.x[end])
@@ -95,7 +91,8 @@ z_min = ustrip(atmos.z[1])
 z_max = ustrip(atmos.z[end])
 # export sites to voro++, and compute grid information
 println("---Preprocessing grid---")
-run(`./voro.sh $sites_file $x_min $x_max $y_min $y_max $z_min $z_max`)
+run(`./voro.sh $sites_file $neighbours_file
+               $x_min $x_max $y_min $y_max $z_min $z_max`)
 
 # initialise the system in LTE
 temperature_new = Vector{Unitful.Temperature}(undef, n_sites)
