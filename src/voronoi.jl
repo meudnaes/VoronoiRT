@@ -1,4 +1,8 @@
 include("functions.jl")
+include("voronoi_utils.jl")
+
+global my_seed = 1001
+Random.seed!(my_seed)
 
 DATA = "../data/bifrost_qs006023_s525_quarter.hdf5"
 atmos = Atmosphere(get_atmos(DATA; periodic=false, skip=3)...)
@@ -9,11 +13,10 @@ ny = length(atmos.y)
 
 n_sites = nz*nx*ny
 
-p_vec, N_H_new = rejection_sampling(n_sites, atmos)
+p_vec = rejection_sampling(n_sites, atmos)
 
 # sort z array
-P = sortperm(p_vec[1, :])
-p_vec = p_vec[:, P]
+p_vec = sort_array(p_vec; axis=1)
 
 function plot_sites()
     pyplot()
@@ -53,6 +56,7 @@ function column_count_mass()
     print("                                                                 \r")
 
     println("$(sum(column_sites)) and $n_sites should match")
+    return column_mass, column_sites
 end
 
  # column_count_mass()
@@ -97,9 +101,13 @@ run(`./voro.sh $sites_file $neighbours_file
 # initialise the system in LTE
 temperature_new = Vector{Unitful.Temperature}(undef, n_sites)
 N_e_new = Vector{NumberDensity}(undef, n_sites)
+N_H_new = Vector{NumberDensity}(undef, n_sites)
 for k in 1:n_sites
     temperature_new[k] = trilinear(p_vec[1, k], p_vec[2, k], p_vec[3, k], atmos, atmos.temperature)
     N_e_new[k] = trilinear(p_vec[1, k], p_vec[2, k], p_vec[3, k], atmos, atmos.electron_density)
-    # temperature_new[k] = trilinear(z_new[k], x_new[k], y_new[k], atmos, atmos.temperature)
-    # N_e_new[k] = trilinear(z_new[k], x_new[k], y_new[k], atmos, atmos.electron_density)
+    N_H_new[k] = trilinear(p_vec[1, k], p_vec[2, k], p_vec[3, k], atmos, atmos.hydrogen_populations)
 end
+
+sites = VoronoiSites(p_vec[1,:], p_vec[2,:], p_vec[3,:], temperature_new, N_e_new, N_H_new)
+
+neighbours = read_neighbours(neighbours_file, n_sites, sites)

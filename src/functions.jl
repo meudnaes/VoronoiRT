@@ -10,6 +10,7 @@ import PhysicalConstants.CODATA2018: h, c_0, k_B, m_p
 
 @derived_dimension NumberDensity Unitful.𝐋^-3
 @derived_dimension ColumnDensity Unitful.𝐋^-2
+@derived_dimension Volume Unitful.𝐋^3
 @derived_dimension UnitsIntensity_λ Unitful.P * Unitful.L^-3
 
 """
@@ -137,7 +138,7 @@ function get_atmos(file_path; periodic=true, skip=1)
         y_periodic[1] = y[1] - Δy
         y_periodic[end] = y[end] + Δy
 
-        # Fix quantities
+        # Add ghost layers on each side in x and y
         size_add = (0, 2, 2)
 
         # Temperature
@@ -225,7 +226,6 @@ function rejection_sampling(n_sites::Int, atmos::Atmosphere)
 
     # allocate arrays for new sites
     p_vec = Matrix{Unitful.Length}(undef, (3, n_sites))
-    N_H_new = Vector{NumberDensity}(undef, n_sites)
 
     for i in 1:n_sites
         print("site $i/$n_sites \r")
@@ -242,14 +242,13 @@ function rejection_sampling(n_sites::Int, atmos::Atmosphere)
             if density_ref > density_ran
                 # a point is accepted, store position and move on
                 p_vec[:, i] .= (z_ref, x_ref, y_ref)
-                N_H_new[i] = trilinear(z_ref, x_ref, y_ref, atmos, atmos.hydrogen_populations)
                 # break to find next site
                 break
             end
         end
     end
     print("                                                                 \r")
-    return p_vec, N_H_new
+    return p_vec
 end
 
 """
@@ -418,6 +417,7 @@ end
                           fname::String)
 
 Writes the arrays z, x, and y to a file with filename fname.
+Arrays are written in columns [ row number ] [ x ] [ y ] [ z ]
 """
 function write_arrays(z::AbstractArray, x::AbstractArray, y::AbstractArray,
                       fname::String)
@@ -480,26 +480,6 @@ function α_absorption(λ::Unitful.Length, temperature::Unitful.Temperature,
     α += hydrogenic_ff(c_0 / λ, temperature, electron_density, proton_density, 1)
     α += h2plus_ff(λ, temperature, h_ground_density, proton_density)
     α += h2plus_bf(λ, temperature, h_ground_density, proton_density)
-end
-
-"""
-    read_neighbours(fname::String, n_sites::Int)
-
-Reads a file containing neighbouring cells for each grid point in the voronoi
-tesselation.
-"""
-function read_neighbours(fname::String, n_sites::Int)::AbstractMatrix
-    ID = Vector{Int64}(undef, n_sites)
-    neighbours = zeros(Int64, n_sites, 40)
-    open(fname, "r") do io
-        for (i, l) in enumerate(eachline(io))
-            ID[i] = parse(Int64, split(l)[1])
-            for j in 2:length(split(l))
-                neighbours[i, j-1] = parse(Int64, split(l)[j])
-            end
-        end
-    end
-    return neighbours[sortperm(ID), :]
 end
 
 """
