@@ -1,3 +1,5 @@
+using NearestNeighbors
+
 include("functions.jl")
 include("voronoi_utils.jl")
 
@@ -87,18 +89,21 @@ write_arrays(ustrip(p_vec[1, :]),
              ustrip(p_vec[3, :]),
              sites_file)
 
-x_min = ustrip(atmos.x[1])
-x_max = ustrip(atmos.x[end])
-y_min = ustrip(atmos.y[1])
-y_max = ustrip(atmos.y[end])
-z_min = ustrip(atmos.z[1])
-z_max = ustrip(atmos.z[end])
+x_min = atmos.x[1]
+x_max = atmos.x[end]
+y_min = atmos.y[1]
+y_max = atmos.y[end]
+z_min = atmos.z[1]
+z_max = atmos.z[end]
 # export sites to voro++, and compute grid information
 println("---Preprocessing grid---")
+#=
 run(`./voro.sh $sites_file $neighbours_file
-               $x_min $x_max $y_min $y_max $z_min $z_max`)
+               $(ustrip(x_min)) $(ustrip(x_max))
+               $(ustrip(y_min)) $(ustrip(y_max))
+               $(ustrip(z_min)) $(ustrip(z_max))`)
+=#
 
-# initialise the system in LTE
 temperature_new = Vector{Unitful.Temperature}(undef, n_sites)
 N_e_new = Vector{NumberDensity}(undef, n_sites)
 N_H_new = Vector{NumberDensity}(undef, n_sites)
@@ -108,6 +113,62 @@ for k in 1:n_sites
     N_H_new[k] = trilinear(p_vec[1, k], p_vec[2, k], p_vec[3, k], atmos, atmos.hydrogen_populations)
 end
 
-sites = VoronoiSites(p_vec[1,:], p_vec[2,:], p_vec[3,:], temperature_new, N_e_new, N_H_new)
+# Create a tree
+tree = KDTree(ustrip(p_vec))
 
-neighbours = read_neighbours(neighbours_file, n_sites, sites)
+# Voronoi grid
+sites = VoronoiSites(p_vec[1,:], p_vec[2,:], p_vec[3,:], temperature_new, N_e_new, N_H_new)
+cells = read_neighbours(neighbours_file, n_sites, sites)
+
+raster = RasterDomain(collect(LinRange(z_min, z_max, 100)),
+                      collect(LinRange(x_min, x_max, 100)),
+                      collect(LinRange(y_min, y_max, 100)))
+
+site = [raster.z[10], raster.x[25], raster.y[80]]
+
+k = 30
+nearest_neighbours = knn(tree, ustrip(raster_site), k)
+
+i1 = inv_dist_itp(nearest_neighbours[1], nearest_neighbours[2]u"m", 1, sites)
+i2 = inv_dist_itp(nearest_neighbours[1], nearest_neighbours[2]u"m", 2, sites)
+i3 = inv_dist_itp(nearest_neighbours[1], nearest_neighbours[2]u"m", 3, sites)
+i4 = inv_dist_itp(nearest_neighbours[1], nearest_neighbours[2]u"m", 4, sites)
+i5 = inv_dist_itp(nearest_neighbours[1], nearest_neighbours[2]u"m", 5, sites)
+i6 = inv_dist_itp(nearest_neighbours[1], nearest_neighbours[2]u"m", 6, sites)
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+#

@@ -17,6 +17,12 @@ struct VoronoiCell
     n::Int
 end
 
+struct RasterDomain
+    z::Vector{<:Unitful.Length}
+    x::Vector{<:Unitful.Length}
+    y::Vector{<:Unitful.Length}
+end
+
 function sort_array(array::AbstractArray; axis=1)::AbstractArray
     ix = sortperm(array[axis, :])
     array_sorted = array[:, ix]
@@ -53,4 +59,16 @@ function read_neighbours(fname::String, n_sites::Int, sites::VoronoiSites)
         end
     end
     return neighbours[sortperm(ID), :]
+end
+
+function inv_dist_itp(idxs, dists, p, sites::VoronoiSites)
+    avg_inv_dist = 1/dists[1]^p
+    f = sites.hydrogen_populations[1]/dists[1]^p
+    for i in 2:k
+        idx = idxs[i]
+        inv_dist = 1/dists[i]^p
+        avg_inv_dist += inv_dist
+        f += sites.hydrogen_populations[idx]*inv_dist
+    end
+    f = f/avg_inv_dist
 end
