@@ -1,18 +1,18 @@
 struct VoronoiSites
-    z::Vector{<:Unitful.Length}
-    x::Vector{<:Unitful.Length}
-    y::Vector{<:Unitful.Length}
-    temperature::Vector{<:Unitful.Temperature}
-    electron_density::Vector{<:NumberDensity}
-    hydrogen_populations::Vector{<:NumberDensity}
+    z::Vector{Float64}
+    x::Vector{Float64}
+    y::Vector{Float64}
+    temperature::Vector{Float64}
+    electron_density::Vector{Float64}
+    hydrogen_populations::Vector{Float64}
 end
 
 struct VoronoiCell
     ID::Int
-    z::Unitful.Length
-    x::Unitful.Length
-    y::Unitful.Length
-    volume::Volume
+    z::Float64
+    x::Float64
+    y::Float64
+    volume::Float64
     neighbours::Vector{Int}
     n::Int
 end
@@ -47,7 +47,7 @@ function read_neighbours(fname::String, n_sites::Int, sites::VoronoiSites)
             x = sites.x[ID[i]]
             y = sites.y[ID[i]]
             # Volume of cell
-            volume = parse(Float64, split(l)[2])*u"m^3"
+            volume = parse(Float64, split(l)[2])
 
             # neighbouring cells
             line = Vector{Int}(undef, lineLength-2)
@@ -62,9 +62,9 @@ function read_neighbours(fname::String, n_sites::Int, sites::VoronoiSites)
 end
 
 function inv_dist_itp(idxs, dists, p, sites::VoronoiSites)
-    avg_inv_dist = 1/dists[1]^p
-    f = sites.hydrogen_populations[1]/dists[1]^p
-    for i in 2:k
+    avg_inv_dist = 0
+    f = 0
+    for i in 1:length(idxs)
         idx = idxs[i]
         inv_dist = 1/dists[i]^p
         avg_inv_dist += inv_dist

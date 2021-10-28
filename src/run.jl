@@ -7,7 +7,7 @@ include("lambda_iteration.jl")
 global my_seed = 29
 Random.seed!(my_seed)
 
-function run()
+function main()
     DATA = "../data/bifrost_qs006023_s525_quarter.hdf5"
     atmos = Atmosphere(get_atmos(DATA; periodic=true, skip=4)...)
 
@@ -137,4 +137,4 @@ function searchlight()
 end
 
 searchlight()
-# run()
+# main()

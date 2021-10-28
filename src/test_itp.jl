@@ -2,6 +2,9 @@ using Plots
 using Random
 using NearestNeighbors
 
+global my_seed = 1001
+Random.seed!(my_seed)
+
 function inv_dist_itp_test(idxs, dists, p, values)
     avg_inv_dist = 0
     f = 0
@@ -27,11 +30,11 @@ y_samples = samples[2,:]
 # Create a tree
 tree = KDTree(samples)
 
-k = Int(n_samples/4)
+k = 15
 
 function_values = sample_function.(x_samples, y_samples)
 
-raster_size = 250
+raster_size = 500
 x_range = LinRange(-1,1,raster_size)
 y_range = LinRange(-1,1,raster_size)
 
@@ -55,11 +58,13 @@ function plot_the_itp(p)
             y_range,
             raster_values,
             title="p=$p, $k neighbours",
-            dpi=400)
-    savefig("../img/inv_dist_$(p)_$(k)")
+            dpi=350,
+            aspect_ratio=:equal,
+            xlim=[-1,1])
+    savefig("../img/InverseDistance/inv_dist_$(Int(p*100))_$(k)")
 end
 
-p = [1, 2, 3, 4, 5, 7, 10, 15, 20, 30, 40, 50]
+p = [1,2,3,4,5,7,10,15,40]
 for i in p
     plot_the_itp(i)
 end
@@ -75,5 +80,7 @@ heatmap(x_range,
         y_range,
         true_values,
         title="comparison",
-        dpi=400)
-savefig("../img/inv_dist_comparison")
+        dpi=350,
+        aspect_ratio=:equal,
+        xlim=[-1,1])
+savefig("../img/InverseDistance/inv_dist_comparison")

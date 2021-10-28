@@ -21,9 +21,9 @@ int main(int argc, char **argv) {
 	char* neighbours_file = argv[2];
 
 	// Box-geometry
-	double x_min = atof(argv[3]), x_max = atof(argv[4]);
-	double y_min = atof(argv[5]), y_max = atof(argv[6]);
-	double z_min = atof(argv[7]), z_max = atof(argv[8]);
+	const double x_min = atof(argv[3]), x_max = atof(argv[4]);
+	const double y_min = atof(argv[5]), y_max = atof(argv[6]);
+	const double z_min = atof(argv[7]), z_max = atof(argv[8]);
 
 	printf("---Calculating neighbours---\n");
 
@@ -42,5 +42,5 @@ int main(int argc, char **argv) {
 	// the total face area, the order of each face, the areas of each face,
 	// the vertices making up each face, and the neighboring particle (or
 	// wall) corresponding to each face.
-	con.print_custom("%i %n",neighbours_file);
+	con.print_custom("%i %v %n",neighbours_file);
 }
