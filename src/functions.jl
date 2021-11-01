@@ -207,7 +207,7 @@ increase the rate for acceptance.
 Right now the reference distribution is the uniform pdf, scaled between N_H_max
 and N_H_min.
 """
-function rejection_sampling(n_sites::Int, atmos::Atmosphere)
+function rejection_sampling(n_sites::Int, atmos::Atmosphere, quantity::AbstractArray)
     # Find max and min to convert random number between 0 and 1 to coordinate
     println("---Sampling new sites---")
     z_min = minimum(atmos.z); z_max = maximum(atmos.z)
@@ -219,10 +219,10 @@ function rejection_sampling(n_sites::Int, atmos::Atmosphere)
     Δy = y_max - y_min
 
     # Find max and min populations to scale uniform distribution
-    N_H_min = minimum(atmos.hydrogen_populations)
-    N_H_max = maximum(atmos.hydrogen_populations)
+    q_min = minimum(quantity)
+    q_max = maximum(quantity)
 
-    ΔN_H = N_H_max - N_H_min
+    Δq = q_max - q_min
 
     # allocate arrays for new sites
     p_vec = Matrix{Unitful.Length}(undef, (3, n_sites))
@@ -236,9 +236,9 @@ function rejection_sampling(n_sites::Int, atmos::Atmosphere)
             y_ref = ref_vec[3]*Δy + y_min
 
             # acceptance criterion, "reference"
-            density_ref = trilinear(z_ref, x_ref, y_ref, atmos, atmos.hydrogen_populations)
+            density_ref = trilinear(z_ref, x_ref, y_ref, atmos, quantity)
             # random sample, compare to reference
-            density_ran = rand(Float32)*ΔN_H + N_H_min
+            density_ran = rand(Float64)*Δq + q_min
             if density_ref > density_ran
                 # a point is accepted, store position and move on
                 p_vec[:, i] .= (z_ref, x_ref, y_ref)

@@ -64,7 +64,7 @@ function plot_the_itp(p)
     savefig("../img/InverseDistance/inv_dist_$(Int(p*100))_$(k)")
 end
 
-p = [1,2,3,4,5,7,10,15,40]
+p = [3]
 for i in p
     plot_the_itp(i)
 end
@@ -79,8 +79,18 @@ end
 heatmap(x_range,
         y_range,
         true_values,
-        title="comparison",
+        title="True Function",
         dpi=350,
         aspect_ratio=:equal,
         xlim=[-1,1])
 savefig("../img/InverseDistance/inv_dist_comparison")
+
+scatter(x_samples,
+        y_samples,
+        title="samples",
+        dpi=350,
+        aspect_ratio=:equal,
+        xlim=[-1,1],
+        xlabel=raw"$x$",
+        ylabel=raw"$y$")
+savefig("../img/InverseDistance/sample_points")

@@ -1,3 +1,5 @@
+using NearestNeighbors
+
 struct VoronoiSites
     z::Vector{Float64}
     x::Vector{Float64}
@@ -5,6 +7,12 @@ struct VoronoiSites
     temperature::Vector{Float64}
     electron_density::Vector{Float64}
     hydrogen_populations::Vector{Float64}
+    z_min::Float64
+    z_max::Float64
+    x_min::Float64
+    x_max::Float64
+    y_min::Float64
+    y_max::Float64
 end
 
 struct VoronoiCell
@@ -12,8 +20,9 @@ struct VoronoiCell
     z::Float64
     x::Float64
     y::Float64
-    volume::Float64
+    volume::Float64 # Volume of the cell
     neighbours::Vector{Int}
+    faces::Vector{Float64}  # area of the faces
     n::Int
 end
 
@@ -34,12 +43,14 @@ end
 Reads a file containing neighbouring cells for each grid point in the voronoi
 tesselation.
 """
-function read_neighbours(fname::String, n_sites::Int, sites::VoronoiSites)
+function read_cell(fname::String, n_sites::Int, sites::VoronoiSites)
     ID = Vector{Int64}(undef, n_sites)
-    neighbours = Vector{VoronoiCell}(undef, n_sites)
+    cell = Vector{VoronoiCell}(undef, n_sites)
     open(fname, "r") do io
         for (i, l) in enumerate(eachline(io))
             lineLength = length(split(l))
+
+            N = Int((lineLength-2)/2)
 
             # Which cell
             ID[i] = parse(Int64, split(l)[1])
@@ -50,15 +61,22 @@ function read_neighbours(fname::String, n_sites::Int, sites::VoronoiSites)
             volume = parse(Float64, split(l)[2])
 
             # neighbouring cells
-            line = Vector{Int}(undef, lineLength-2)
-            for j in 3:lineLength
-                line[j-2] = parse(Int64, split(l)[j])
+            neighbours = Vector{Int}(undef, N)
+            for j in 3:N+2
+                neighbours[j-2] = parse(Int64, split(l)[j])
             end
+
+            area = Vector{Float64}(undef, N)
+            # area of faces
+            for j in N+3:lineLength
+                area[j-(N+2)] = parse(Float64, split(l)[j])
+            end
+
             # store all neighbour information
-            neighbours[i] = VoronoiCell(ID[i], z, x, y, volume, line, lineLength-2)
+            cell[i] = VoronoiCell(ID[i], z, x, y, volume, neighbours, area, N)
         end
     end
-    return neighbours[sortperm(ID), :]
+    return cell[sortperm(ID), :]
 end
 
 function inv_dist_itp(idxs, dists, p, sites::VoronoiSites)
@@ -69,6 +87,18 @@ function inv_dist_itp(idxs, dists, p, sites::VoronoiSites)
         inv_dist = 1/dists[i]^p
         avg_inv_dist += inv_dist
         f += sites.hydrogen_populations[idx]*inv_dist
+    end
+    f = f/avg_inv_dist
+end
+
+function inv_dist_itp_test(idxs, dists, p, values)
+    avg_inv_dist = 0
+    f = 0
+    for i in 1:length(idxs)
+        idx = idxs[i]
+        inv_dist = 1/dists[i]^p
+        avg_inv_dist += inv_dist
+        f += values[idx]*inv_dist
     end
     f = f/avg_inv_dist
 end

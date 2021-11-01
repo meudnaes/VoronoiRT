@@ -1,10 +1,14 @@
-using NearestNeighbors
+using Plots
+using UnitfulRecipes
+using NPZ
 
 include("functions.jl")
 include("voronoi_utils.jl")
+include("irregular_ray_tracing.jl")
 
 global my_seed = 1001
 Random.seed!(my_seed)
+
 
 function plot_sites(sites::VoronoiSites)
     pyplot()
@@ -62,7 +66,8 @@ end
 
 function main()
     DATA = "../data/bifrost_qs006023_s525_quarter.hdf5"
-    atmos = Atmosphere(get_atmos(DATA; periodic=false, skip=3)...)
+    global atmos
+    atmos = Atmosphere(get_atmos(DATA; periodic=false, skip=8)...)
 
     nx = length(atmos.x)
     nz = length(atmos.z)
@@ -70,7 +75,7 @@ function main()
 
     n_sites = nz*nx*ny
 
-    p_vec = rejection_sampling(n_sites, atmos)
+    p_vec = rejection_sampling(n_sites, atmos, log10.(ustrip.(atmos.hydrogen_populations)))
 
     # sort z array
     p_vec = sort_array(p_vec; axis=1)
@@ -95,6 +100,7 @@ function main()
     # export sites to voro++, and compute grid information
     println("---Preprocessing grid---")
 
+
     # compute neigbours
     run(`./voro.sh $sites_file $neighbours_file
                    $(x_min) $(x_max)
@@ -105,20 +111,78 @@ function main()
     tree = KDTree(ustrip(p_vec))
 
     # Voronoi grid
-    sites = VoronoiSites(_initialise(p_vec, atmos)...)
+    sites = VoronoiSites(_initialise(p_vec, atmos)...,
+                         z_min, z_max, x_min, x_max, y_min, y_max)
 
     # plot_sites(sites)
     # column_count_mass(atmos, sites)
 
+    # Creates an array of VoronoiCell
+    cells = read_cell(neighbours_file, n_sites, sites)
 
-    cells = read_neighbours(neighbours_file, n_sites, sites)
-
+    #=
     site = [(z_max - z_min)/2,
             (x_max - x_min)/2,
             (y_max - y_min)/2]
 
     k = 30
     nearest_neighbours = knn(tree, site, k, true)
+    =#
+
+    #I_0 = 0
+    #irregular_SC_up(sites, cells, tree, I_0)
+    layer = zeros(Int, n_sites)
+
+    lower_boundary = -5
+    for cell in cells
+        if any(i -> i==lower_boundary, cell.neighbours)
+            layer[cell.ID] = 1
+        end
+    end
+
+    lower_layer=1
+    while true
+        for cell in cells
+            if layer[cell.ID] == 0
+                for neighbor_ID in cell.neighbours
+                    if neighbor_ID > 0 && layer[neighbor_ID] == lower_layer
+                        layer[cell.ID] = lower_layer+1
+                        break
+                    end
+                end
+            end
+        end
+
+        if !any(i -> i==0, layer)
+            break
+        end
+
+        lower_layer += 1
+    end
+
+
+    #= # This might be useful
+    raster_size = 250
+    x_range = LinRange(x_min,x_max,raster_size)
+    z_range = LinRange(z_min,z_max,raster_size)
+    y_range = LinRange(y_min,y_max,raster_size)
+
+    layer_values = Array{Int, 3}(undef, (raster_size, raster_size, raster_size))
+
+    for i in 1:raster_size
+        for j in 1:raster_size
+            for k in 1:raster_size
+                raster_site = [z_range[i], x_range[j], y_range[k]]
+                nearest_neighbour = nn(tree, raster_site)
+                layer_values[i, j, k] = layer[nearest_neighbour[1]]
+            end
+        end
+    end
+    =#
+
+    npzwrite("../python/p.npy", ustrip(p_vec))
+    npzwrite("../python/layer.npy", layer)
+
 end
 
 main()
