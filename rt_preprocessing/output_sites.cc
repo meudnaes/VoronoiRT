@@ -42,5 +42,5 @@ int main(int argc, char **argv) {
 	// the total face area, the order of each face, the areas of each face,
 	// the vertices making up each face, and the neighboring particle (or
 	// wall) corresponding to each face.
-	con.print_custom("%i %v %n",neighbours_file);
+	con.print_custom("%i %v %n %f",neighbours_file);
 }

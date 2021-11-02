@@ -34,6 +34,9 @@ Manifest.toml
 
 .ipynb_checkpoints
 */.ipynb_checkpoints/*
+# Don't want notebooks either
+*.ipynb
+
 
 # IPython
 profile_default/
@@ -47,6 +50,8 @@ ipython_config.py
 __pycache__/
 *.py[cod]
 *$py.class
+# Numpy files
+*.npy
 
 # C extensions
 *.so
