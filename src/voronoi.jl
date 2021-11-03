@@ -12,9 +12,12 @@ Random.seed!(my_seed)
 
 function plot_sites(sites::VoronoiSites)
     pyplot()
-    scatter(sites.x/1e6,
-            sites.y/1e6,
-            sites.z/1e6,
+    z = sites.positions[1,:]
+    x = sites.positions[2,:]
+    y = sites.positions[3,:]
+    scatter(x/1e6,
+            y/1e6,
+            z/1e6,
             dpi=300)
     savefig("sites.png")
 end
@@ -23,6 +26,10 @@ function column_count_mass(atmos::Atmosphere, sites::VoronoiSites)
     # Not the actual mass, but column number density of hydrogen...
     column_mass = Array{Unitful.Mass, 2}(undef, (nx-1, ny-1))
     column_sites = Array{Int64, 2}(undef, (nx-1, ny-1))
+
+    z = sites.positions[1,:]
+    x = sites.positions[2,:]
+    y = sites.positions[3,:]
 
     for i in 1:nx-1
         x_bounds = (atmos.x[i], atmos.x[i+1])
@@ -35,7 +42,7 @@ function column_count_mass(atmos::Atmosphere, sites::VoronoiSites)
             end
             hits = 0
             for l in 1:n_sites
-                if x_bounds[1] < sites.x[l] < x_bounds[2] && y_bounds[1] < sites.y[l] < y_bounds[2]
+                if x_bounds[1] < x[l] < x_bounds[2] && y_bounds[1] < y[l] < y_bounds[2]
                     hits += 1
                 end
             end
@@ -61,12 +68,11 @@ function _initialise(p_vec, atmos::Atmosphere)
         N_e_new[k] = trilinear(p_vec[1, k], p_vec[2, k], p_vec[3, k], atmos, atmos.electron_density)
         N_H_new[k] = trilinear(p_vec[1, k], p_vec[2, k], p_vec[3, k], atmos, atmos.hydrogen_populations)
     end
-    return ustrip(p_vec[1,:]), ustrip(p_vec[2,:]), ustrip(p_vec[3,:]), ustrip(temperature_new), ustrip(N_e_new), ustrip(N_H_new)
+    return ustrip(p_vec), ustrip(temperature_new), ustrip(N_e_new), ustrip(N_H_new)
 end
 
 function main()
     DATA = "../data/bifrost_qs006023_s525_quarter.hdf5"
-    global atmos
     atmos = Atmosphere(get_atmos(DATA; periodic=false, skip=8)...)
 
     nx = length(atmos.x)
@@ -76,9 +82,6 @@ function main()
     n_sites = nz*nx*ny
 
     p_vec = rejection_sampling(n_sites, atmos, log10.(ustrip.(atmos.hydrogen_populations)))
-
-    # sort z array
-    p_vec = sort_array(p_vec; axis=1)
 
 
     sites_file = "../data/sites.txt"
@@ -118,7 +121,7 @@ function main()
     # column_count_mass(atmos, sites)
 
     # Creates an array of VoronoiCell
-    cells = read_cell(neighbours_file, n_sites, sites)
+    cells, layers = read_cell(neighbours_file, n_sites, sites)
 
     #=
     site = [(z_max - z_min)/2,
@@ -131,35 +134,8 @@ function main()
 
     #I_0 = 0
     #irregular_SC_up(sites, cells, tree, I_0)
-    layer = zeros(Int, n_sites)
 
-    lower_boundary = -5
-    for cell in cells
-        if any(i -> i==lower_boundary, cell.neighbours)
-            layer[cell.ID] = 1
-        end
-    end
-
-    lower_layer=1
-    while true
-        for cell in cells
-            if layer[cell.ID] == 0
-                for neighbor_ID in cell.neighbours
-                    if neighbor_ID > 0 && layer[neighbor_ID] == lower_layer
-                        layer[cell.ID] = lower_layer+1
-                        break
-                    end
-                end
-            end
-        end
-
-        if !any(i -> i==0, layer)
-            break
-        end
-
-        lower_layer += 1
-    end
-
+    # Sort `cells`
 
     #= # This might be useful
     raster_size = 250
@@ -180,8 +156,11 @@ function main()
     end
     =#
 
-    npzwrite("../python/p.npy", ustrip(p_vec))
-    npzwrite("../python/layer.npy", layer)
+    # npzwrite("../python/p.npy", ustrip(p_vec))
+    # npzwrite("../python/layer.npy", layer)
+
+    # Now we should probably sort the grid by layers
+    # layer = Vector[1, 1, ..., 1, 2, 2, ..., 2, 3, 3, ..., 3, ...]
 
 end
 

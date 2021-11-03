@@ -1,9 +1,9 @@
 using NearestNeighbors
 
+include("functions.jl")
+
 struct VoronoiSites
-    z::Vector{Float64}
-    x::Vector{Float64}
-    y::Vector{Float64}
+    positions::Matrix{Float64}
     temperature::Vector{Float64}
     electron_density::Vector{Float64}
     hydrogen_populations::Vector{Float64}
@@ -17,24 +17,17 @@ end
 
 struct VoronoiCell
     ID::Int
-    z::Float64
-    x::Float64
-    y::Float64
+    position::Vector{Float64}
     volume::Float64 # Volume of the cell
     neighbours::Vector{Int}
-    faces::Vector{Float64}  # area of the faces
-    n::Int
+    faces::Vector{Float64}  # Area of the faces
+    n::Int # Number of neighbours
 end
 
 struct RasterDomain
     z::Vector{<:Unitful.Length}
     x::Vector{<:Unitful.Length}
     y::Vector{<:Unitful.Length}
-end
-
-function sort_array(array::AbstractArray; axis=1)::AbstractArray
-    ix = sortperm(array[axis, :])
-    array_sorted = array[:, ix]
 end
 
 """
@@ -45,7 +38,7 @@ tesselation.
 """
 function read_cell(fname::String, n_sites::Int, sites::VoronoiSites)
     ID = Vector{Int64}(undef, n_sites)
-    cell = Vector{VoronoiCell}(undef, n_sites)
+    cells = Vector{VoronoiCell}(undef, n_sites)
     open(fname, "r") do io
         for (i, l) in enumerate(eachline(io))
             lineLength = length(split(l))
@@ -54,29 +47,74 @@ function read_cell(fname::String, n_sites::Int, sites::VoronoiSites)
 
             # Which cell
             ID[i] = parse(Int64, split(l)[1])
-            z = sites.z[ID[i]]
-            x = sites.x[ID[i]]
-            y = sites.y[ID[i]]
+
+            # Coordinates
+            z = sites.positions[1, ID[i]]
+            x = sites.positions[2, ID[i]]
+            y = sites.positions[3, ID[i]]
+
             # Volume of cell
             volume = parse(Float64, split(l)[2])
 
-            # neighbouring cells
+            # Neighbouring cells
             neighbours = Vector{Int}(undef, N)
             for j in 3:N+2
                 neighbours[j-2] = parse(Int64, split(l)[j])
             end
 
+            # Area of faces
             area = Vector{Float64}(undef, N)
-            # area of faces
             for j in N+3:lineLength
                 area[j-(N+2)] = parse(Float64, split(l)[j])
             end
 
-            # store all neighbour information
-            cell[i] = VoronoiCell(ID[i], z, x, y, volume, neighbours, area, N)
+            # Store all neighbour information for current cell
+            cells[i] = VoronoiCell(ID[i], [z, x, y], volume, neighbours, area, N)
         end
     end
-    return cell[sortperm(ID), :]
+
+    layers = _sort_by_layer(n_sites, cells)
+
+
+    # Sort the arrays
+    p = sortperm(layers)
+    layers = layers[p]
+    cells = cells[p, :]
+
+    return cells, layers
+
+end
+
+function _sort_by_layer(n_sites::Int, cells::AbstractArray{VoronoiCell})
+    layers = zeros(Int, n_sites)
+
+    lower_boundary = -5
+    for cell in cells
+        if any(i -> i==lower_boundary, cell.neighbours)
+            layers[cell.ID] = 1
+        end
+    end
+
+    lower_layer=1
+    while true
+        for cell in cells
+            if layers[cell.ID] == 0
+                for neighbor_ID in cell.neighbours
+                    if neighbor_ID > 0 && layers[neighbor_ID] == lower_layer
+                        layers[cell.ID] = lower_layer+1
+                        break
+                    end
+                end
+            end
+        end
+
+        if !any(i -> i==0, layers)
+            break
+        end
+
+        lower_layer += 1
+    end
+    return layers
 end
 
 function inv_dist_itp(idxs, dists, p, sites::VoronoiSites)
@@ -86,7 +124,7 @@ function inv_dist_itp(idxs, dists, p, sites::VoronoiSites)
         idx = idxs[i]
         inv_dist = 1/dists[i]^p
         avg_inv_dist += inv_dist
-        f += sites.hydrogen_populations[idx]*inv_dist
+        f += values[idx]*inv_dist
     end
     f = f/avg_inv_dist
 end

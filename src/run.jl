@@ -96,7 +96,7 @@ function searchlight()
     I_0 = zero(S_0[1,:,:])
     I_0[45:54,45:54] .= I_light
 
-    θ_array = [170, 130, 110, 70,  70,  10]
+    θ_array = [170, 120, 110, 70,  70,  10]
     ϕ_array = [10,  30,  50,  310, 330, 350]
 
     for (θ, ϕ) in zip(θ_array, ϕ_array)
@@ -130,7 +130,7 @@ function searchlight()
 
             println("Top: $(I_light*100), Bottom: $(sum(I[1,:,:]))")
         end
-        savefig("searchlight_$(θ)_$(ϕ)")
+        savefig("../img/searchlight/searchlight_$(θ)_$(ϕ)")
     end
 
     print("")

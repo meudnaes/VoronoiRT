@@ -606,3 +606,15 @@ function coefficients(w1, w2, Δτ_upwind)
     end
     return a, b, c
 end
+
+function smallestNonNegative(arr::AbstractArray)
+    minVal = Inf
+    index = 0
+    for i in 1:length(arr)
+        if 0 < arr[i] < minVal
+            minVal = s[i]
+            index = i
+        end
+    end
+    return index::Int, minVal::Float
+end
