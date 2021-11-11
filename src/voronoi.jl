@@ -164,39 +164,100 @@ function main()
 
 end
 
-main()
+function searchlight_irregular()
+    nx = ny = nz = 11
+
+    n_sites = nz*nx*ny
+
+    bounds = [[0 1]
+              [0 1]
+              [0 1]]
+
+    temperature = ones(n_sites)
+    electron_density = zeros(n_sites)
+    hydrogen_populations = zeros(n_sites)
+
+    sample_quantity = ones(nz, nx, ny)
+
+    positions = rand(3, n_sites).*1
+    #rejection_sampling(n_sites, bounds, sample_quantity)
+
+    sites_file = "../data/searchlight_sites.txt"
+    neighbours_file = "../data/searchlight_neighbours.txt"
+
+    # write sites to file
+    write_arrays(ustrip(positions[1, :]),
+                 ustrip(positions[2, :]),
+                 ustrip(positions[3, :]),
+                 sites_file)
+
+    println("---Computing neighbours---")
+    # compute neigbours
+    run(`./voro.sh $sites_file $neighbours_file
+            $(bounds[2,1]) $(bounds[2,2])
+            $(bounds[1,1]) $(bounds[1,2])
+            $(bounds[3,1]) $(bounds[3,2])`)
+
+
+    # Creates neighbour matrix
+    positions, neighbours, layers = read_cell(neighbours_file, n_sites, positions)
+
+    npzwrite("../python/p_test.npy", positions)
+    npzwrite("../python/layer_test.npy", layers)
+
+    # Voronoi grid
+    sites = VoronoiSites(positions, neighbours,
+                         temperature, electron_density, hydrogen_populations,
+                         bounds[1,1], bounds[1,2],
+                         bounds[2,1], bounds[2,2],
+                         bounds[3,1], bounds[3,2],
+                         n_sites)
+
+
+    S_0 = zeros(n_sites)
+    α = zeros(n_sites)
+
+    I_light = 1
+
+    I_0 = zeros(nx, ny)
+    I_0[trunc(Int,nx/2)-1:trunc(Int,nx/2)+1,
+        trunc(Int,ny/2)-1:trunc(Int,ny/2)+1] .= I_light
+
+    θ = 170
+    ϕ = 10
+
+    println("---Ray-tracing---")
+    I = irregular_SC_up(sites, layers, I_0, S_0, α)
+
+    top_x = collect(0:0.001:1)
+    top_y = collect(0:0.001:1)
+    top_z = 1
+
+    top_I = zeros(length(top_x), length(top_y))
+
+    top_layer_idx = searchsortedfirst(layers, maximum(layers))
+    sort_sites = Matrix{Float64}(undef, (3, top_layer_idx))
+
+    # top_intensity = I[end-top_layer_idx:end]
+
+    #=
+    tree = KDTree(sort_sites)
+
+    for i in 1:length(top_x)
+        for j in 1:length(top_y)
+            position = [top_z, top_x[i], top_y[j]]
+            idx, dist = nn(tree, position)
+            top_I[i, j] = top_intensity[idx]
+        end
+    end
+
+    gr()
+    heatmap(top_x, top_y, top_I)
+    savefig("../img/irregular_SL")
+    =#
+end
+
+
+# main()
+searchlight_irregular()
 print("")
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-#

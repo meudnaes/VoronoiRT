@@ -251,6 +251,83 @@ function rejection_sampling(n_sites::Int, atmos::Atmosphere, quantity::AbstractA
     return p_vec
 end
 
+function rejection_sampling(n_sites::Int, boundaries::Matrix, quantity::AbstractArray)
+    # Find max and min to convert random number between 0 and 1 to coordinate
+    println("---Sampling new sites---")
+    z_min = boundaries[1,1]; z_max = boundaries[1,2]
+    x_min = boundaries[2,1]; x_max = boundaries[2,2]
+    y_min = boundaries[3,1]; y_max = boundaries[3,2]
+
+    Δz = z_max - z_min
+    Δx = x_max - x_min
+    Δy = y_max - y_min
+
+    nz = length(quantity[:,1,1])
+    nx = length(quantity[1,:,1])
+    ny = length(quantity[1,1,:])
+
+    z = Vector{Float64}(undef, nz)
+    x = Vector{Float64}(undef, nx)
+    y = Vector{Float64}(undef, ny)
+
+    δz = (z_max - z_min)/(nz + 1)
+    δx = (x_max - x_min)/(nx + 1)
+    δy = (y_max - y_min)/(ny + 1)
+
+    z[1] = z_min
+    x[1] = x_min
+    y[1] = y_min
+
+    for i in 2:nz
+        z[i] = z[i-1] + δz
+    end
+
+    for i in 2:nx
+        x[i] = x[i-1] + δx
+    end
+
+    for i in 2:ny
+        y[i] = y[i-1] + δy
+    end
+
+    z[end] = z_max
+    x[end] = x_max
+    y[end] = y_max
+
+    # Find max and min populations to scale uniform distribution
+    q_min = minimum(quantity)
+    q_max = maximum(quantity)
+
+    Δq = q_max - q_min
+
+    # allocate arrays for new sites
+    p_vec = Matrix{Unitful.Length}(undef, (3, n_sites))
+
+    for i in 1:n_sites
+        print("site $i/$n_sites \r")
+        while true
+            ref_vec = rand(Float64, 3)
+            z_ref = ref_vec[1]*Δz + z_min
+            x_ref = ref_vec[2]*Δx + x_min
+            y_ref = ref_vec[3]*Δy + y_min
+
+            # acceptance criterion, "reference"
+            density_ref = trilinear(z_ref, x_ref, y_ref, z, x, y, quantity)
+            # random sample, compare to reference
+            density_ran = rand(Float64)*Δq + q_min
+            if density_ref > density_ran
+                # a point is accepted, store position and move on
+                p_vec[:, i] .= (z_ref, x_ref, y_ref)
+                # break to find next site
+                break
+            end
+        end
+    end
+    print("                                                                 \r")
+    return p_vec
+end
+
+
 """
     find_sites_sorted(z_new::Array, x_new::Array, y_new::Array,
                       z_bounds::Tuple{Float64, Float64},
@@ -355,6 +432,49 @@ function trilinear(z_mrk, x_mrk, y_mrk,
     return c
 end
 
+function trilinear(z_mrk::AbstractFloat, x_mrk::AbstractFloat, y_mrk::AbstractFloat,
+                   x::AbstractVector, y::AbstractVector, z::AbstractVector, vals::AbstractArray)
+    # Returns the index of the first value in a greater than or equal to x
+    # Subtract by 1 to get coordinate of lower corner
+    idz = searchsortedfirst(z, z_mrk) - 1
+    idx = searchsortedfirst(x, x_mrk) - 1
+    idy = searchsortedfirst(y, y_mrk) - 1
+
+    # bounding corner coordinates
+    z0 = z[idz]; z1 = z[idz+1]
+    x0 = x[idx]; x1 = x[idx+1]
+    y0 = y[idy]; y1 = y[idy+1]
+
+    # difference between coordinates and interpolation point
+    x_d = (x_mrk - x0)/(x1 - x0)
+    y_d = (y_mrk - y0)/(y1 - y0)
+    z_d = (z_mrk - z0)/(z1 - z0)
+
+    # values at each corner (z is first index in data array)
+    c000 = vals[idz, idx, idy]
+    c010 = vals[idz, idx, idy+1]
+    c100 = vals[idz, idx+1, idy]
+    c110 = vals[idz, idx+1, idy+1]
+    c001 = vals[idz+1, idx, idy]
+    c011 = vals[idz+1, idx, idy+1]
+    c101 = vals[idz+1, idx+1, idy]
+    c111 = vals[idz+1, idx+1, idy+1]
+
+    # interpolate in x direction
+    c00 = c000*(1 - x_d) + c100*x_d
+    c01 = c001*(1 - x_d) + c101*x_d
+    c10 = c010*(1 - x_d) + c100*x_d
+    c11 = c011*(1 - x_d) + c111*x_d
+
+    # interpolate in y direction
+    c0 = c00*(1 - y_d) + c10*y_d
+    c1 = c01*(1 - y_d) + c11*y_d
+
+    # intepolate in z direction
+    c = c0*(1 - z_d) + c1*z_d
+    return c
+end
+
 @doc raw"""
     bilinear(x_mrk, y_mrk, x_bounds, y_bounds, vals)
 
@@ -386,7 +506,6 @@ function bilinear(x_mrk, y_mrk, x_bounds, y_bounds, vals)
 
     # Interpolate in y-direction
     f = ((y2 - y_mrk)*f1 + (y_mrk - y1)*f2)/dy
-
     return f
 end
 
@@ -612,9 +731,9 @@ function smallestNonNegative(arr::AbstractArray)
     index = 0
     for i in 1:length(arr)
         if 0 < arr[i] < minVal
-            minVal = s[i]
+            minVal = arr[i]
             index = i
         end
     end
-    return index::Int, minVal::Float
+    return index::Int, minVal::Float64
 end
