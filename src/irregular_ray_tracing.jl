@@ -4,15 +4,16 @@ include("functions.jl")
 using Distances
 using LinearAlgebra
 
-function irregular_SC_up(sites::VoronoiSites, cells::AbstractArray{VoronoiCell}, layers::Vector,
-                         I_0::AbstractArray, S_0::AbstractArray, α_cont::AbstractArray)
+function irregular_SC_up(sites::VoronoiSites,
+                         I_0::AbstractMatrix, S_0::AbstractMatrix, α_0::AbstractMatrix,
+                         S::AbstractVector, α_cont::AbstractVector)
 
     # Inverse distance power law parameter
     p = 3.0
 
     # Traces rays through an irregular grid
-    θ = 10
-    ϕ = 170
+    θ = 10*π/180
+    ϕ = 30*π/180
 
     # start at the bottom
     # shoot rays through every grid cell
@@ -28,7 +29,7 @@ function irregular_SC_up(sites::VoronoiSites, cells::AbstractArray{VoronoiCell},
     k = -[cosθ, cosϕ*sinθ, sinϕ*sinθ]
 
     # Allocate space for intensity
-    I = zero(S_0)
+    I = zero(S)
 
     x_min = sites.x_min
     x_max = sites.x_max
@@ -41,20 +42,18 @@ function irregular_SC_up(sites::VoronoiSites, cells::AbstractArray{VoronoiCell},
     Δx = (x_max - x_min)/(nx - 1)
     Δy = (y_max - y_min)/(ny - 1)
 
-    max_layer = maximum(layers)
+    max_layer = maximum(sites.layers)
 
     for layer in 1:max_layer
-        lower_idx = searchsortedfirst(layers, layer)
-        upper_idx = searchsortedfirst(layers, layer+1)
+        lower_idx = searchsortedfirst(sites.layers, layer)
+        upper_idx = searchsortedfirst(sites.layers, layer+1)
         if layer == 1
+            z_upwind = sites.z_min
             for i in lower_idx:upper_idx-1
-                cell = cells[i]
                 # coordinate
-                position = cell.position
+                position = sites.positions[:,i]
 
                 # 1st layer
-                z_upwind = sites.z_min
-
                 Δz = position[1] - z_upwind
                 r = abs(Δz/cosθ)
 
@@ -74,32 +73,10 @@ function irregular_SC_up(sites::VoronoiSites, cells::AbstractArray{VoronoiCell},
 
                 upwind_position = [z_upwind, x_upwind, y_upwind]
 
-                distances = Vector{Float64}(undef, cell.n)
-                # This has length = cell.n - 1
-                neighbours = cell.neighbours[cell.neighbours .> 0]
+                # Find distance between border and cell centre
+                r = euclidean(upwind_position, position)
 
-                for (j, neighbour) in enumerate(neighbours)
-                    distances[j] = euclidean(upwind_position, sites.positions[:,neighbour])
-                end
-
-                distances[cell.n] = euclidean(upwind_position, position)
-
-                # Pass α as an array
-                α_centre = α_cont[cell.ID]
-                α_upwind = inv_dist_itp_test([neighbours..., cell.ID],
-                                             distances, p, α_cont)
-
-                # Find the Δτ optical path from upwind to grid point
-                Δτ_upwind = trapezoidal(r, α_centre, α_upwind)
-
-                S_centre = S_0[cell.ID]
-                S_upwind = inv_dist_itp_test([neighbours..., cell.ID],
-                                             distances, p, S_0)
-
-                w1, w2 =  weights(Δτ_upwind)
-                a_ijk, b_ijk, c_ijk = coefficients(w1, w2, Δτ_upwind)
-
-                # Interpolate I_0
+                # Interpolate boundary values
                 # find x and y on the I_0 values...
                 idx_0 = floor(Int, abs(x_upwind/Δx)) + 1
                 idy_0 = floor(Int, abs(y_upwind/Δy)) + 1
@@ -107,74 +84,87 @@ function irregular_SC_up(sites::VoronoiSites, cells::AbstractArray{VoronoiCell},
                 x_bounds = Δx .* [idx_0-1, idx_0]
                 y_bounds = Δy .* [idy_0-1, idy_0]
 
+                # Pass α as an array
+                α_centre = α_cont[i]
+                α_vals = [α_0[idx_0, idy_0]     α_0[idx_0, idy_0+1]
+                          α_0[idx_0+1, idy_0]   α_0[idx_0+1, idy_0+1]]
+                α_upwind = bilinear(x_upwind, y_upwind, x_bounds, y_bounds, α_vals)
+
+                # Find the Δτ optical path from upwind to grid point
+                Δτ_upwind = trapezoidal(r, α_centre, α_upwind)
+
+                S_centre = S[i]
+                S_vals = [S_0[idx_0, idy_0]     S_0[idx_0, idy_0+1]
+                          S_0[idx_0+1, idy_0]   S_0[idx_0+1, idy_0+1]]
+                S_upwind = bilinear(x_upwind, y_upwind, x_bounds, y_bounds, S_vals)
+
+                w1, w2 =  weights(Δτ_upwind)
+                a_ijk, b_ijk, c_ijk = coefficients(w1, w2, Δτ_upwind)
+
+
                 I_vals = [I_0[idx_0, idy_0]     I_0[idx_0, idy_0+1]
                           I_0[idx_0+1, idy_0]   I_0[idx_0+1, idy_0+1]]
 
                 I_upwind = bilinear(x_upwind, y_upwind, x_bounds, y_bounds, I_vals)
 
-                I[cell.ID] = a_ijk*S_upwind + b_ijk*S_centre + c_ijk*I_upwind
+                I[i] = a_ijk*S_upwind + b_ijk*S_centre + c_ijk*I_upwind
             end
 
         elseif 1 < layer <= max_layer
             for i in lower_idx:upper_idx-1
-                cell = cells[i]
-
                 # coordinate
-                position = cell.position
+                position = sites.positions[:,i]
+
+                # number of neighbours
+                n_neighbours = sites.neighbours[i,1]
+                neighbours = sites.neighbours[i, 2:n_neighbours+1]
 
                 # Find the intersection and the neighbour the ray is coming from
-                upwind_index, upwind_position = _rayIntersection(k, cell, sites)
+                upwind_position = _rayIntersection(k, neighbours, position, sites, i)
 
-                distances = Vector{Float64}(undef, cell.n+1)
+                distances = Vector{Float64}(undef, n_neighbours+1)
+                distances[1:n_neighbours] = upwind_distances(neighbours, n_neighbours, i,
+                                                             upwind_position, sites)
 
-                # Control for periodic boundaries, fix !!
-                for (j, neighbour) in enumerate(cell.neighbours)
-                    if neighbour > 0
-                        distances[j] = euclidean(upwind_position, sites.positions[:,neighbour])
-                    elseif neighbour == -6
-                        # Boundary
-                        z_upwind = sites.z_max
-                        z = position[1]
-                        distances[j] = abs(k[1]/(z_upwind - z))
-                    end
-                end
-
-                distances[cell.n+1] = euclidean(upwind_position, position)
+                distances[n_neighbours+1] = euclidean(upwind_position, position)
 
                 # Pass α as an array
-                α_centre = α_cont[cell.ID]
-                α_upwind = inv_dist_itp_test([cell.neighbours..., cell.ID],
-                                             distances, p, α_cont)
+                α_centre = α_cont[i]
+                α_upwind = inv_dist_itp([neighbours..., i],
+                                        distances, p, α_cont)
 
                 # Find the Δτ optical path from upwind to grid point
-                Δτ_upwind = trapezoidal(distances[cell.n], α_centre, α_upwind)
+                Δτ_upwind = trapezoidal(distances[n_neighbours+1], α_centre, α_upwind)
 
-                S_centre = S_0[cell.ID]
-                S_upwind = inv_dist_itp_test([cell.neighbours..., cell.ID],
-                                             distances, p, S_0)
+                S_centre = S[i]
+                S_upwind = inv_dist_itp([neighbours..., i],
+                                        distances, p, S)
 
                 w1, w2 =  weights(Δτ_upwind)
                 a_ijk, b_ijk, c_ijk = coefficients(w1, w2, Δτ_upwind)
 
-                indices = greater_than(I[cell.neighbours[cell.neighbours .> 0]], 0)
-                I_vals = I[cell.neighbours[cell.neighbours .> 0][indices]]
+                indices = greater_than(I[neighbours[neighbours .> 0]], 0)
+                I_vals = I[neighbours[neighbours .> 0][indices]]
                 I_distances = distances[indices]
 
-                I_upwind = inv_dist_itp_test(Vector(1:length(I_vals)), I_distances, p, I_vals)
+                I_upwind = inv_dist_itp(Vector(1:length(I_vals)), I_distances, p, I_vals)
 
-                I[cell.ID] = a_ijk*S_upwind + b_ijk*S_centre + c_ijk*I_upwind
+                I[i] = a_ijk*S_upwind + b_ijk*S_centre + c_ijk*I_upwind
             end
         end
     end
-
     return I
 end
 
+function upwind_distances(neighbours::Vector{Int}, n_neighbours::Integer, id::Integer,
+                upwind_position::Vector{Float64}, sites::VoronoiSites)
 
-function _rayIntersection(k::AbstractArray, cell::VoronoiCell, sites::VoronoiSites)
-    # k is unit vector towards upwind direction of the ray
+    p_r = sites.positions[:, id]
 
-    p_r = cell.position
+    distances = Vector{Float64}(undef, n_neighbours)
+
+    # This has length = cell.n - 1
+    cell_neighbours = neighbours[neighbours .> 0]
 
     x_r_r = sites.x_max - p_r[2]
     x_r_l = p_r[2] - sites.x_min
@@ -182,14 +172,63 @@ function _rayIntersection(k::AbstractArray, cell::VoronoiCell, sites::VoronoiSit
     y_r_r = sites.y_max - p_r[3]
     y_r_l = p_r[3] - sites.y_min
 
-    s = Vector{Float64}(undef, cell.n)
-    for (i, neighbour) in enumerate(cell.neighbours)
+    for (j, neighbour) in enumerate(cell_neighbours)
+        if neighbour > 0
+            p_n = sites.positions[:, neighbour]
+
+            x_n_r = sites.x_max - p_n[2]
+            x_n_l = p_n[2] - sites.x_min
+
+            # Test for periodic
+            if x_r_r + x_n_l < p_r[2] - p_n[2]
+                p_n[2] = sites.x_max + p_n[2] - sites.x_min
+            elseif x_r_l + x_n_r < p_n[2] - p_r[2]
+                p_n[2] = sites.x_min + sites.x_max - p_n[2]
+            end
+
+            y_n_r = sites.y_max - p_n[3]
+            y_n_l = p_n[3] - sites.y_min
+
+            # Test for periodic
+            if y_r_r + y_n_l < p_r[3] - p_n[3]
+                p_n[3] = sites.y_max + p_n[3] - sites.y_min
+            elseif y_r_l + y_n_r < p_n[3] - p_r[3]
+                p_n[3] = sites.y_min + sites.y_max - p_n[3]
+            end
+            distances[j] = euclidean(upwind_position, p_n)
+        elseif neighbour == -5
+            continue
+        elseif neighbour == -6
+            continue
+        end
+    end
+
+    distances[n_neighbours] = euclidean(upwind_position, p_r)
+    return distances
+end
+
+function _rayIntersection(k::AbstractArray, neighbours::Vector{Int}, position::Vector{Float64},
+                          sites::VoronoiSites, ID)
+    # k is unit vector towards upwind direction of the ray
+
+    p_r = position
+
+    n_neighbours = length(neighbours)
+
+    x_r_r = abs(sites.x_max - p_r[2])
+    x_r_l = abs(p_r[2] - sites.x_min)
+
+    y_r_r = abs(sites.y_max - p_r[3])
+    y_r_l = abs(p_r[3] - sites.y_min)
+
+    s = Vector{Float64}(undef, n_neighbours)
+    for (i, neighbour) in enumerate(neighbours)
         if neighbour > 0
             # Natural neighbor position
-            p_i = sites.positions[:,neighbour]
+            p_i = sites.positions[:, neighbour]
 
-            x_i_r = sites.x_max - p_i[2]
-            x_i_l = p_i[2] - sites.x_min
+            x_i_r = abs(sites.x_max - p_i[2])
+            x_i_l = abs(p_i[2] - sites.x_min)
 
             # Test for periodic
             if x_r_r + x_i_l < p_r[2] - p_i[2]
@@ -198,8 +237,8 @@ function _rayIntersection(k::AbstractArray, cell::VoronoiCell, sites::VoronoiSit
                 p_i[2] = sites.x_min + sites.x_max - p_i[2]
             end
 
-            y_i_r = sites.y_max - p_i[3]
-            y_i_l = p_i[3] - sites.y_min
+            y_i_r = abs(sites.y_max - p_i[3])
+            y_i_l = abs(p_i[3] - sites.y_min)
 
             # Test for periodic
             if y_r_r + y_i_l < p_r[3] - p_i[3]
@@ -208,33 +247,33 @@ function _rayIntersection(k::AbstractArray, cell::VoronoiCell, sites::VoronoiSit
                 p_i[3] = sites.y_min + sites.y_max - p_i[3]
             end
 
-            # Calculate plane biseting site and neighbor
+            # Calculate plane bisecting site and neighbor
             # Normal vector
             n = p_i - p_r
 
             # Point on the plane
             p = (p_i + p_r)/2
-
             s[i] = dot(n, p - p_r)/dot(n, k)
         elseif neighbour == -6
             # Boundary
             z_upwind = sites.z_max
             z = p_r[1]
-            s[i] = abs(k[1]/(z_upwind - z))
+            s[i] = abs((z_upwind - z)/k[1])
         elseif neighbour == -5
             # Boundary
             z_upwind = sites.z_min
             z = p_r[1]
-            s[i] = abs(k[1]/(z_upwind - z))
+            s[i] = abs((z_upwind - z)/k[1])
         end
     end
 
+
+
     # Find the smallst non-negative s
     index, s_q = smallestNonNegative(s)
-
     q = p_r + s_q*k
 
-    return index, q
+    return q
 end
 
 function greater_than(arr::AbstractArray, treshold)

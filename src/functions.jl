@@ -532,13 +532,13 @@ function mass_function(k::Int64, i::Int64, j::Int64, atmos::Atmosphere)
 end
 
 """
-    function write_arrays(z::AbstractArray, x::AbstractArray, y::AbstractArray,
+    function write_arrays(x::AbstractArray, y::AbstractArray, z::AbstractArray,
                           fname::String)
 
 Writes the arrays z, x, and y to a file with filename fname.
 Arrays are written in columns [ row number ] [ x ] [ y ] [ z ]
 """
-function write_arrays(z::AbstractArray, x::AbstractArray, y::AbstractArray,
+function write_arrays(x::AbstractArray, y::AbstractArray, z::AbstractArray,
                       fname::String)
 
     if length(z) != length(y) || length(y) != length(x)

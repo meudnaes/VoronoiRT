@@ -165,7 +165,7 @@ function main()
 end
 
 function searchlight_irregular()
-    nx = ny = nz = 11
+    nx = ny = nz = 51
 
     n_sites = nz*nx*ny
 
@@ -179,34 +179,31 @@ function searchlight_irregular()
 
     sample_quantity = ones(nz, nx, ny)
 
-    positions = rand(3, n_sites).*1
+    println("---Computing grid---")
+    positions = rand(3, n_sites)
     #rejection_sampling(n_sites, bounds, sample_quantity)
 
     sites_file = "../data/searchlight_sites.txt"
     neighbours_file = "../data/searchlight_neighbours.txt"
 
     # write sites to file
-    write_arrays(ustrip(positions[1, :]),
-                 ustrip(positions[2, :]),
+    write_arrays(ustrip(positions[2, :]),
                  ustrip(positions[3, :]),
+                 ustrip(positions[1, :]),
                  sites_file)
 
-    println("---Computing neighbours---")
     # compute neigbours
+    @time begin
     run(`./voro.sh $sites_file $neighbours_file
             $(bounds[2,1]) $(bounds[2,2])
-            $(bounds[1,1]) $(bounds[1,2])
-            $(bounds[3,1]) $(bounds[3,2])`)
-
-
-    # Creates neighbour matrix
-    positions, neighbours, layers = read_cell(neighbours_file, n_sites, positions)
-
-    npzwrite("../python/p_test.npy", positions)
-    npzwrite("../python/layer_test.npy", layers)
+            $(bounds[3,1]) $(bounds[3,2])
+            $(bounds[1,1]) $(bounds[1,2])`)
+    end
 
     # Voronoi grid
-    sites = VoronoiSites(positions, neighbours,
+    global sites
+    # Fix the sorting of the quantities, make a function inside the structure?
+    sites = VoronoiSites(read_cell(neighbours_file, n_sites, positions)...,
                          temperature, electron_density, hydrogen_populations,
                          bounds[1,1], bounds[1,2],
                          bounds[2,1], bounds[2,2],
@@ -214,7 +211,13 @@ function searchlight_irregular()
                          n_sites)
 
 
-    S_0 = zeros(n_sites)
+    npzwrite("../python/p_test.npy", sites.positions)
+    npzwrite("../python/layer_test.npy", sites.layers)
+    npzwrite("../python/neighbours_test.npy", sites.neighbours)
+
+
+
+    S = zeros(n_sites)
     α = zeros(n_sites)
 
     I_light = 1
@@ -223,38 +226,64 @@ function searchlight_irregular()
     I_0[trunc(Int,nx/2)-1:trunc(Int,nx/2)+1,
         trunc(Int,ny/2)-1:trunc(Int,ny/2)+1] .= I_light
 
+    S_0 = zero(I_0)
+    α_0 = zero(I_0)
+
     θ = 170
     ϕ = 10
 
     println("---Ray-tracing---")
-    I = irregular_SC_up(sites, layers, I_0, S_0, α)
+    global I
+    I = irregular_SC_up(sites, I_0, S_0, α_0,
+                        S, α)
+
+    bottom_x = collect(0:0.001:1)
+    bottom_y = collect(0:0.001:1)
+    bottom_z = 0
+
+    bottom_I = zeros(length(bottom_x), length(bottom_y))
+    tree = KDTree(sites.positions)
+
+    stop_1st_layer = searchsortedfirst(sites.layers, 2) - 1
+
+    s=0
+    for i in 1:length(bottom_x)
+        for j in 1:length(bottom_y)
+            position = [bottom_z, bottom_x[i], bottom_y[j]]
+            idx, dist = nn(tree, position)
+            if idx > stop_1st_layer
+                s+=1
+            end
+            bottom_I[i, j] = I[idx]
+        end
+    end
+
+    println("Accessed wrong index $s times")
+
+    gr()
+    heatmap(bottom_x, bottom_y, bottom_I,
+            dpi=500)
+    savefig("../img/irregular_SL_bottom")
 
     top_x = collect(0:0.001:1)
     top_y = collect(0:0.001:1)
-    top_z = 1
+    top_z = 0.1
 
     top_I = zeros(length(top_x), length(top_y))
-
-    top_layer_idx = searchsortedfirst(layers, maximum(layers))
-    sort_sites = Matrix{Float64}(undef, (3, top_layer_idx))
-
-    # top_intensity = I[end-top_layer_idx:end]
-
-    #=
-    tree = KDTree(sort_sites)
+    tree = KDTree(sites.positions)
 
     for i in 1:length(top_x)
         for j in 1:length(top_y)
             position = [top_z, top_x[i], top_y[j]]
             idx, dist = nn(tree, position)
-            top_I[i, j] = top_intensity[idx]
+            top_I[i, j] = I[idx]
         end
     end
 
     gr()
-    heatmap(top_x, top_y, top_I)
-    savefig("../img/irregular_SL")
-    =#
+    heatmap(top_x, top_y, top_I,
+            dpi=500)
+    savefig("../img/irregular_SL_top")
 end
 
 

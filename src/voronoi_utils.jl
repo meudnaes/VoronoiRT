@@ -5,6 +5,7 @@ include("functions.jl")
 struct VoronoiSites
     positions::Matrix{Float64}
     neighbours::Matrix{Int}
+    layers::Vector{Int}
     temperature::Vector{Float64}
     electron_density::Vector{Float64}
     hydrogen_populations::Vector{Float64}
@@ -33,7 +34,6 @@ Reads a file containing neighbouring cells for each grid point in the voronoi
 tesselation.
 """
 function read_cell(fname::String, n_sites::Int, positions::AbstractMatrix)
-    ID = Vector{Int64}(undef, n_sites)
     # Guess (overshoot), maybe do exact later?
     max_guess = 100
     NeighbourMatrix = zeros(Int, n_sites, max_guess+1)
@@ -64,8 +64,12 @@ function read_cell(fname::String, n_sites::Int, positions::AbstractMatrix)
     NeighbourMatrix = NeighbourMatrix[:,1:max_neighbours+1]
     layers = _sort_by_layer(NeighbourMatrix, n_sites)
 
+    # Sorting works for layers and sites, but loses neighbour information!
     p = sortperm(layers)
-    return positions[:,p], NeighbourMatrix[p,:], layers[p]
+    positions = positions[:,p]
+    layers = layers[p]
+    NeighbourMatrix = _sort_neighbours(NeighbourMatrix, p)
+    return positions, NeighbourMatrix, layers
 end
 
 function _sort_by_layer(neighbours::AbstractMatrix, n_sites::Int)
@@ -106,7 +110,26 @@ function _sort_by_layer(neighbours::AbstractMatrix, n_sites::Int)
     return layers
 end
 
-function inv_dist_itp(idxs, dists, p, sites::VoronoiSites)
+function _sort_neighbours(NeighbourMatrix::AbstractMatrix, permVec::AbstractVector)
+
+    sortedNeighbours = zero(NeighbourMatrix)
+    sortedIdx = sortperm(permVec)
+    for (i, idp) in enumerate(permVec)
+        n = NeighbourMatrix[idp, 1]
+        neighbours = NeighbourMatrix[idp, 2:n+1]
+        for j in 1:n
+            neighbour = neighbours[j]
+            if neighbour > 0
+                neighbours[j] = sortedIdx[neighbour]
+            end
+        end
+        sortedNeighbours[i, 1] = n
+        sortedNeighbours[i, 2:n+1] = neighbours
+    end
+    return sortedNeighbours
+end
+
+function inv_dist_itp_test(idxs, dists, p, sites::VoronoiSites)
     avg_inv_dist = 0
     f = 0
     for i in 1:length(idxs)
@@ -118,8 +141,8 @@ function inv_dist_itp(idxs, dists, p, sites::VoronoiSites)
     f = f/avg_inv_dist
 end
 
-function inv_dist_itp_test(idxs::AbstractVector, dists::AbstractVector,
-                            p::AbstractFloat, values::AbstractVector)
+function inv_dist_itp(idxs::AbstractVector, dists::AbstractVector,
+                      p::AbstractFloat, values::AbstractVector)
     avg_inv_dist = 0
     f = 0
     for i in 1:length(idxs)
@@ -128,7 +151,11 @@ function inv_dist_itp_test(idxs::AbstractVector, dists::AbstractVector,
             inv_dist = 1/dists[i]^p
             avg_inv_dist += inv_dist
             f += values[idx]*inv_dist
-        else
+        elseif idx == -5
+            # lower boundary
+            f+=0
+        elseif idx == -6
+            # upper boundary
             f+=0
         end
     end
