@@ -11,9 +11,12 @@ function irregular_SC_up(sites::VoronoiSites,
     # Inverse distance power law parameter
     p = 3.0
 
+    # Sweeeeeps
+    n_sweeps = 3
+
     # Traces rays through an irregular grid
     θ = 10*π/180
-    ϕ = 30*π/180
+    ϕ = 10*π/180
 
     # start at the bottom
     # shoot rays through every grid cell
@@ -110,46 +113,53 @@ function irregular_SC_up(sites::VoronoiSites,
                 I[i] = a_ijk*S_upwind + b_ijk*S_centre + c_ijk*I_upwind
             end
 
-        elseif 1 < layer <= max_layer
-            for i in lower_idx:upper_idx-1
-                # coordinate
-                position = sites.positions[:,i]
+        elseif 1 < layer < max_layer
+            for sweep in 1:n_sweeps
+                for i in lower_idx:upper_idx-1
+                    # coordinate
+                    position = sites.positions[:,i]
 
-                # number of neighbours
-                n_neighbours = sites.neighbours[i,1]
-                neighbours = sites.neighbours[i, 2:n_neighbours+1]
+                    # number of neighbours
+                    n_neighbours = sites.neighbours[i,1]
+                    neighbours = sites.neighbours[i, 2:n_neighbours+1]
+                    cell_neighbours = neighbours[neighbours .> 0]
+                    neighbour_height = sites.positions[1, cell_neighbours]
 
-                # Find the intersection and the neighbour the ray is coming from
-                upwind_position = _rayIntersection(k, neighbours, position, sites, i)
+                    # Find the intersection and the neighbour the ray is coming from
+                    upwind_position, upwind_index = _rayIntersection(k, neighbours, position, sites, i)
 
-                distances = Vector{Float64}(undef, n_neighbours+1)
-                distances[1:n_neighbours] = upwind_distances(neighbours, n_neighbours, i,
-                                                             upwind_position, sites)
+                    distances = Vector{Float64}(undef, n_neighbours+1)
+                    distances[1:n_neighbours] = upwind_distances(neighbours, n_neighbours, i,
+                                                                 upwind_position, sites)
 
-                distances[n_neighbours+1] = euclidean(upwind_position, position)
+                    distances[n_neighbours+1] = euclidean(upwind_position, position)
 
-                # Pass α as an array
-                α_centre = α_cont[i]
-                α_upwind = inv_dist_itp([neighbours..., i],
-                                        distances, p, α_cont)
+                    # Pass α as an array
+                    α_centre = α_cont[i]
+                    α_upwind = inv_dist_itp([neighbours..., i],
+                                            distances, p, α_cont)
 
-                # Find the Δτ optical path from upwind to grid point
-                Δτ_upwind = trapezoidal(distances[n_neighbours+1], α_centre, α_upwind)
+                    # Find the Δτ optical path from upwind to grid point
+                    Δτ_upwind = trapezoidal(distances[n_neighbours+1], α_centre, α_upwind)
 
-                S_centre = S[i]
-                S_upwind = inv_dist_itp([neighbours..., i],
-                                        distances, p, S)
+                    S_centre = S[i]
+                    S_upwind = inv_dist_itp([neighbours..., i],
+                                            distances, p, S)
 
-                w1, w2 =  weights(Δτ_upwind)
-                a_ijk, b_ijk, c_ijk = coefficients(w1, w2, Δτ_upwind)
+                    w1, w2 =  weights(Δτ_upwind)
+                    a_ijk, b_ijk, c_ijk = coefficients(w1, w2, Δτ_upwind)
 
-                indices = greater_than(I[neighbours[neighbours .> 0]], 0)
-                I_vals = I[neighbours[neighbours .> 0][indices]]
-                I_distances = distances[indices]
+                    indices = less_than(neighbour_height, position[1])
+                    I_vals = I[cell_neighbours[indices]]
+                    I_distances = distances[indices]
+                    if sweep == 1
+                        I_upwind = inv_dist_itp(Vector(1:length(I_vals)), I_distances, p, I_vals)
+                    else
+                        I_upwind = I[upwind_index]
+                    end
 
-                I_upwind = inv_dist_itp(Vector(1:length(I_vals)), I_distances, p, I_vals)
-
-                I[i] = a_ijk*S_upwind + b_ijk*S_centre + c_ijk*I_upwind
+                    I[i] = a_ijk*S_upwind + b_ijk*S_centre + c_ijk*I_upwind
+                end
             end
         end
     end
@@ -258,12 +268,12 @@ function _rayIntersection(k::AbstractArray, neighbours::Vector{Int}, position::V
             # Boundary
             z_upwind = sites.z_max
             z = p_r[1]
-            s[i] = abs((z_upwind - z)/k[1])
+            s[i] = (z_upwind - z)/k[1]
         elseif neighbour == -5
             # Boundary
             z_upwind = sites.z_min
             z = p_r[1]
-            s[i] = abs((z_upwind - z)/k[1])
+            s[i] = (z_upwind - z)/k[1]
         end
     end
 
@@ -273,14 +283,14 @@ function _rayIntersection(k::AbstractArray, neighbours::Vector{Int}, position::V
     index, s_q = smallestNonNegative(s)
     q = p_r + s_q*k
 
-    return q
+    return q, neighbours[index]
 end
 
-function greater_than(arr::AbstractArray, treshold)
+function less_than(arr::AbstractArray, treshold)
     indices = Vector{Int}(undef, length(arr))
     j = 0
     for i in 1:length(arr)
-        if arr[i] > treshold
+        if arr[i] < treshold
             j += 1
             indices[j] = i
         end

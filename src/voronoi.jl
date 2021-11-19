@@ -180,7 +180,7 @@ function searchlight_irregular()
     sample_quantity = ones(nz, nx, ny)
 
     println("---Computing grid---")
-    positions = rand(3, n_sites)
+    positions = rand(3, n_sites) #.*20 .- 10
     #rejection_sampling(n_sites, bounds, sample_quantity)
 
     sites_file = "../data/searchlight_sites.txt"
@@ -222,9 +222,8 @@ function searchlight_irregular()
 
     I_light = 1
 
-    I_0 = zeros(nx, ny)
-    I_0[trunc(Int,nx/2)-1:trunc(Int,nx/2)+1,
-        trunc(Int,ny/2)-1:trunc(Int,ny/2)+1] .= I_light
+    I_0 = zeros(100, 100)
+    I_0[45:54,45:54] .= I_light
 
     S_0 = zero(I_0)
     α_0 = zero(I_0)
@@ -244,16 +243,11 @@ function searchlight_irregular()
     bottom_I = zeros(length(bottom_x), length(bottom_y))
     tree = KDTree(sites.positions)
 
-    stop_1st_layer = searchsortedfirst(sites.layers, 2) - 1
-
     s=0
     for i in 1:length(bottom_x)
         for j in 1:length(bottom_y)
             position = [bottom_z, bottom_x[i], bottom_y[j]]
             idx, dist = nn(tree, position)
-            if idx > stop_1st_layer
-                s+=1
-            end
             bottom_I[i, j] = I[idx]
         end
     end
@@ -262,12 +256,12 @@ function searchlight_irregular()
 
     gr()
     heatmap(bottom_x, bottom_y, bottom_I,
-            dpi=500)
+            dpi=500, title="Beam at the Bottom", xaxis="x", yaxis="y")
     savefig("../img/irregular_SL_bottom")
 
     top_x = collect(0:0.001:1)
     top_y = collect(0:0.001:1)
-    top_z = 0.1
+    top_z = 1
 
     top_I = zeros(length(top_x), length(top_y))
     tree = KDTree(sites.positions)
@@ -282,7 +276,8 @@ function searchlight_irregular()
 
     gr()
     heatmap(top_x, top_y, top_I,
-            dpi=500)
+            dpi=500, title="Beam at the Top", xaxis="x", yaxis="y",
+             right_margin = 12Plots.mm)
     savefig("../img/irregular_SL_top")
 end
 
