@@ -113,7 +113,7 @@ function irregular_SC_up(sites::VoronoiSites,
                 I[i] = a_ijk*S_upwind + b_ijk*S_centre + c_ijk*I_upwind
             end
 
-        elseif 1 < layer < max_layer
+        else
             for sweep in 1:n_sweeps
                 for i in lower_idx:upper_idx-1
                     # coordinate
@@ -127,6 +127,7 @@ function irregular_SC_up(sites::VoronoiSites,
 
                     # Find the intersection and the neighbour the ray is coming from
                     upwind_position, upwind_index = _rayIntersection(k, neighbours, position, sites, i)
+
 
                     distances = Vector{Float64}(undef, n_neighbours+1)
                     distances[1:n_neighbours] = upwind_distances(neighbours, n_neighbours, i,
@@ -152,12 +153,9 @@ function irregular_SC_up(sites::VoronoiSites,
                     indices = less_than(neighbour_height, position[1])
                     I_vals = I[cell_neighbours[indices]]
                     I_distances = distances[indices]
-                    if sweep == 1
-                        I_upwind = inv_dist_itp(Vector(1:length(I_vals)), I_distances, p, I_vals)
-                    else
-                        I_upwind = I[upwind_index]
-                    end
-
+                    I_neighbours = inv_dist_itp(collect(1:length(indices)), I_distances, p, I_vals)
+                    I_voronoi = I[upwind_index]
+                    I_upwind = 0.9*I_voronoi + 0.1*I_neighbours
                     I[i] = a_ijk*S_upwind + b_ijk*S_centre + c_ijk*I_upwind
                 end
             end
@@ -259,11 +257,11 @@ function _rayIntersection(k::AbstractArray, neighbours::Vector{Int}, position::V
 
             # Calculate plane bisecting site and neighbor
             # Normal vector
-            n = p_i - p_r
+            n = p_i .- p_r
 
             # Point on the plane
-            p = (p_i + p_r)/2
-            s[i] = dot(n, p - p_r)/dot(n, k)
+            p = (p_i .+ p_r) ./ 2
+            s[i] = dot(n, p .- p_r)/dot(n, k)
         elseif neighbour == -6
             # Boundary
             z_upwind = sites.z_max
@@ -281,7 +279,7 @@ function _rayIntersection(k::AbstractArray, neighbours::Vector{Int}, position::V
 
     # Find the smallst non-negative s
     index, s_q = smallestNonNegative(s)
-    q = p_r + s_q*k
+    q = p_r .+ s_q .* k
 
     return q, neighbours[index]
 end

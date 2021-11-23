@@ -183,6 +183,29 @@ function searchlight_irregular()
     positions = rand(3, n_sites) #.*20 .- 10
     #rejection_sampling(n_sites, bounds, sample_quantity)
 
+    # Traces rays through an irregular grid
+    θ = 10*π/180
+    ϕ = 10*π/180
+
+    # start at the bottom
+    # shoot rays through every grid cell
+
+    # precalculate trigonometric functions
+    cosθ = cos(θ)
+    sinθ = sin(θ)
+
+    cosϕ = cos(ϕ)
+    sinϕ = sin(ϕ)
+
+    # Unit vector towards upwind direction of the ray
+    k = -[cosθ, cosϕ*sinθ, sinϕ*sinθ]
+
+    v0 = [0, 0.5, 0.5]
+    R0 = 0.1
+
+
+    # positions = sample_beam(n_sites, bounds, beam, v0, R0, -k)
+
     sites_file = "../data/searchlight_sites.txt"
     neighbours_file = "../data/searchlight_neighbours.txt"
 
@@ -223,7 +246,15 @@ function searchlight_irregular()
     I_light = 1
 
     I_0 = zeros(100, 100)
-    I_0[45:54,45:54] .= I_light
+    for i in 1:100
+        for j in 1:100
+            xi = i/100
+            yi = j/100
+            if sqrt((xi - 0.5)^2 + (yi - 0.5)^2) < R0
+                I_0[i, j] = I_light
+            end
+        end
+    end
 
     S_0 = zero(I_0)
     α_0 = zero(I_0)
@@ -233,7 +264,7 @@ function searchlight_irregular()
 
     println("---Ray-tracing---")
     global I
-    I = irregular_SC_up(sites, I_0, S_0, α_0,
+    @time I = irregular_SC_up(sites, I_0, S_0, α_0,
                         S, α)
 
     bottom_x = collect(0:0.001:1)
@@ -243,7 +274,6 @@ function searchlight_irregular()
     bottom_I = zeros(length(bottom_x), length(bottom_y))
     tree = KDTree(sites.positions)
 
-    s=0
     for i in 1:length(bottom_x)
         for j in 1:length(bottom_y)
             position = [bottom_z, bottom_x[i], bottom_y[j]]
@@ -252,11 +282,14 @@ function searchlight_irregular()
         end
     end
 
-    println("Accessed wrong index $s times")
-
-    gr()
+    plotly()
     heatmap(bottom_x, bottom_y, bottom_I,
-            dpi=500, title="Beam at the Bottom", xaxis="x", yaxis="y")
+            dpi=500, title="Beam at the Bottom", xaxis="x", yaxis="y",
+            aspect_ratio= :equal)
+    plot!(circle_shape(0.5, 0.5, 0.1),
+          aspect_ratio = :equal,
+          linecolor=:red,
+          lw=2)
     savefig("../img/irregular_SL_bottom")
 
     top_x = collect(0:0.001:1)
@@ -275,9 +308,13 @@ function searchlight_irregular()
     end
 
     gr()
-    heatmap(top_x, top_y, top_I,
+    heatmap(top_x, top_y, transpose(top_I),
             dpi=500, title="Beam at the Top", xaxis="x", yaxis="y",
-             right_margin = 12Plots.mm)
+            right_margin = 12Plots.mm, aspect_ratio = :equal)
+    plot!(circle_shape(0.5+k[2]/k[1], 0.5+k[3]/k[1], 0.1),
+          aspect_ratio = :equal,
+          linecolor=:red,
+          lw=2)
     savefig("../img/irregular_SL_top")
 end
 

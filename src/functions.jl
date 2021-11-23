@@ -737,3 +737,8 @@ function smallestNonNegative(arr::AbstractArray)
     end
     return index::Int, minVal::Float64
 end
+
+function circle_shape(x, y, r)
+    θ = LinRange(0, 2π, 500)
+    x .+ r*cos.(θ), y .+ r*sin.(θ)
+end

@@ -38,8 +38,8 @@ function short_characteristics_up(θ, ϕ, S_0, α, atmos; degrees=true, I_0=fals
 
     # Convert to radians if input angle is in degrees...
     if degrees == true
-        θ = θ*pi/180
-        ϕ = ϕ*pi/180
+        θ = θ*π/180
+        ϕ = ϕ*π/180
     end
 
     # Allocate array for new intensity
