@@ -71,7 +71,7 @@ function main()
 end
 
 function searchlight()
-    nx = ny = nz = 33
+    nx = ny = nz = 50
 
     z = collect(LinRange(0,1,nx))u"m"
     x = collect(LinRange(0,1,ny))u"m"
@@ -102,7 +102,7 @@ function searchlight()
             xi = i/nx
             yi = j/ny
             if sqrt((xi - 0.5)^2 + (yi - 0.5)^2) < R0
-                I_0[i, j] = I_light
+                @inbounds I_0[i, j] = I_light
             end
         end
     end

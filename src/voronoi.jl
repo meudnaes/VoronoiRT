@@ -165,7 +165,7 @@ function main()
 end
 
 function searchlight_irregular()
-    nx = ny = nz = 51
+    nx = ny = nz = 44
 
     n_sites = nz*nx*ny
 
@@ -204,7 +204,7 @@ function searchlight_irregular()
     R0 = 0.1
 
 
-    # positions = sample_beam(n_sites, bounds, beam, v0, R0, -k)
+    # positions = sample_beam(n_sites, bounds, beam, v0, R0, k)
 
     sites_file = "../data/searchlight_sites.txt"
     neighbours_file = "../data/searchlight_neighbours.txt"
@@ -224,8 +224,6 @@ function searchlight_irregular()
     end
 
     # Voronoi grid
-    global sites
-    # Fix the sorting of the quantities, make a function inside the structure?
     sites = VoronoiSites(read_cell(neighbours_file, n_sites, positions)...,
                          temperature, electron_density, hydrogen_populations,
                          bounds[1,1], bounds[1,2],
@@ -264,7 +262,7 @@ function searchlight_irregular()
 
     println("---Ray-tracing---")
     global I
-    @time I = irregular_SC_up(sites, I_0, S_0, α_0,
+    @time I = voronoi_SC(sites, I_0, S_0, α_0,
                         S, α)
 
     bottom_x = collect(0:0.001:1)
@@ -282,14 +280,15 @@ function searchlight_irregular()
         end
     end
 
-    plotly()
+    gr()
     heatmap(bottom_x, bottom_y, bottom_I,
             dpi=500, title="Beam at the Bottom", xaxis="x", yaxis="y",
             aspect_ratio= :equal)
     plot!(circle_shape(0.5, 0.5, 0.1),
           aspect_ratio = :equal,
           linecolor=:red,
-          lw=2)
+          lw=2,
+          label="")
     savefig("../img/irregular_SL_bottom")
 
     top_x = collect(0:0.001:1)
@@ -307,14 +306,14 @@ function searchlight_irregular()
         end
     end
 
-    gr()
     heatmap(top_x, top_y, transpose(top_I),
             dpi=500, title="Beam at the Top", xaxis="x", yaxis="y",
             right_margin = 12Plots.mm, aspect_ratio = :equal)
     plot!(circle_shape(0.5+k[2]/k[1], 0.5+k[3]/k[1], 0.1),
           aspect_ratio = :equal,
           linecolor=:red,
-          lw=2)
+          lw=2,
+          label="")
     savefig("../img/irregular_SL_top")
 end
 
