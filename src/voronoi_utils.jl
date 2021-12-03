@@ -211,3 +211,156 @@ function sample_beam(n_sites::Int, boundaries::Matrix, func, v0::AbstractVector,
     print("                                                                 \r")
     return p_vec
 end
+
+function upwind_distances(neighbours::Vector{Int}, n_neighbours::Integer, id::Integer,
+                upwind_position::Vector{Float64}, sites::VoronoiSites)
+
+    p_r = sites.positions[:, id]
+
+    distances = Vector{Float64}(undef, n_neighbours)
+
+    # This has length = cell.n - 1
+    cell_neighbours = neighbours[neighbours .> 0]
+
+    x_r_r = sites.x_max - p_r[2]
+    x_r_l = p_r[2] - sites.x_min
+
+    y_r_r = sites.y_max - p_r[3]
+    y_r_l = p_r[3] - sites.y_min
+
+    for (j, neighbour) in enumerate(cell_neighbours)
+        if neighbour > 0
+            p_n = sites.positions[:, neighbour]
+
+            x_n_r = sites.x_max - p_n[2]
+            x_n_l = p_n[2] - sites.x_min
+
+            # Test for periodic
+            if x_r_r + x_n_l < p_r[2] - p_n[2]
+                p_n[2] = sites.x_max + p_n[2] - sites.x_min
+            elseif x_r_l + x_n_r < p_n[2] - p_r[2]
+                p_n[2] = sites.x_min + sites.x_max - p_n[2]
+            end
+
+            y_n_r = sites.y_max - p_n[3]
+            y_n_l = p_n[3] - sites.y_min
+
+            # Test for periodic
+            if y_r_r + y_n_l < p_r[3] - p_n[3]
+                p_n[3] = sites.y_max + p_n[3] - sites.y_min
+            elseif y_r_l + y_n_r < p_n[3] - p_r[3]
+                p_n[3] = sites.y_min + sites.y_max - p_n[3]
+            end
+            distances[j] = euclidean(upwind_position, p_n)
+        elseif neighbour == -5
+            continue
+        elseif neighbour == -6
+            continue
+        end
+    end
+
+    distances[n_neighbours] = euclidean(upwind_position, p_r)
+    return distances
+end
+
+function ray_intersection(k::AbstractArray, neighbours::Vector{Int}, position::Vector{Float64},
+                          sites::VoronoiSites, ID)
+    # k is unit vector towards upwind direction of the ray
+
+    p_r = position
+
+    n_neighbours = length(neighbours)
+
+    x_r_r = abs(sites.x_max - p_r[2])
+    x_r_l = abs(p_r[2] - sites.x_min)
+
+    y_r_r = abs(sites.y_max - p_r[3])
+    y_r_l = abs(p_r[3] - sites.y_min)
+
+    s = Vector{Float64}(undef, n_neighbours)
+    for (i, neighbour) in enumerate(neighbours)
+        if neighbour > 0
+            # Natural neighbor position
+            p_i = sites.positions[:, neighbour]
+
+            x_i_r = abs(sites.x_max - p_i[2])
+            x_i_l = abs(p_i[2] - sites.x_min)
+
+            # Test for periodic
+            if x_r_r + x_i_l < p_r[2] - p_i[2]
+                p_i[2] = sites.x_max + p_i[2] - sites.x_min
+            elseif x_r_l + x_i_r < p_i[2] - p_r[2]
+                p_i[2] = sites.x_min + sites.x_max - p_i[2]
+            end
+
+            y_i_r = abs(sites.y_max - p_i[3])
+            y_i_l = abs(p_i[3] - sites.y_min)
+
+            # Test for periodic
+            if y_r_r + y_i_l < p_r[3] - p_i[3]
+                p_i[3] = sites.y_max + p_i[3] - sites.y_min
+            elseif y_r_l + y_i_r < p_i[3] - p_r[3]
+                p_i[3] = sites.y_min + sites.y_max - p_i[3]
+            end
+
+            # Calculate plane bisecting site and neighbor
+            # Normal vector
+            n = p_i .- p_r
+
+            # Point on the plane
+            p = (p_i .+ p_r) ./ 2
+            s[i] = dot(n, p .- p_r)/dot(n, k)
+        elseif neighbour == -6
+            # Boundary
+            z_upwind = sites.z_max
+            z = p_r[1]
+            s[i] = (z_upwind - z)/k[1]
+        elseif neighbour == -5
+            # Boundary
+            z_upwind = sites.z_min
+            z = p_r[1]
+            s[i] = (z_upwind - z)/k[1]
+        end
+    end
+
+
+
+    # Find the smallst non-negative s
+    index, s_q = smallest_non_negative(s)
+    q = p_r .+ s_q .* k
+
+    return q, neighbours[index]
+end
+
+function smallest_angle(position::AbstractVector, neighbours::AbstractVector, k::AbstractVector, sites::VoronoiSites, n::Int)
+
+    dots = Vector{Float64}(undef, length(neighbours))
+
+    for i in 1:length(neighbours)
+        neighbour = neighbours[i]
+        if neighbour > 0
+            neighbour_position = sites.positions[:, neighbour]
+            direction = position .- neighbour_position
+            norm_dir = direction/(norm(direction))
+            # Two normalized direction vectors, denominator is 1
+            dots[i] = dot(k, norm_dir)
+        else
+            dots[i] = -1
+        end
+    end
+
+    p=sortperm(dots)
+    dots = dots[p]
+
+    return dots[end-(n-1):end], p[end-(n-1):end]
+end
+
+function choose_random(angles::AbstractVector, indices::AbstractVector)
+    ref_angle = rand()
+    ratio = angles[1]/angles[2]
+    if ref_angle > ratio
+       return indices[1]
+    else
+       return indices[2]
+    end
+end

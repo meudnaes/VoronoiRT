@@ -726,7 +726,7 @@ function coefficients(w1, w2, Δτ_upwind)
     return a, b, c
 end
 
-function smallestNonNegative(arr::AbstractArray)
+function smallest_non_negative(arr::AbstractArray)
     minVal = Inf
     index = 0
     for i in 1:length(arr)
@@ -741,4 +741,16 @@ end
 function circle_shape(x, y, r)
     θ = LinRange(0, 2π, 500)
     x .+ r*cos.(θ), y .+ r*sin.(θ)
+end
+
+function less_than(arr::AbstractArray, treshold)
+    indices = Vector{Int}(undef, length(arr))
+    j = 0
+    for i in 1:length(arr)
+        if arr[i] < treshold
+            j += 1
+            indices[j] = i
+        end
+    end
+    return indices[1:j]
 end

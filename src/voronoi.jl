@@ -261,8 +261,7 @@ function searchlight_irregular()
     ϕ = 10
 
     println("---Ray-tracing---")
-    global I
-    @time I = voronoi_SC(sites, I_0, S_0, α_0,
+    @time I = SC_Delaunay_up(sites, I_0, S_0, α_0,
                         S, α)
 
     bottom_x = collect(0:0.001:1)
@@ -281,15 +280,15 @@ function searchlight_irregular()
     end
 
     gr()
-    heatmap(bottom_x, bottom_y, bottom_I,
+    heatmap(bottom_x, bottom_y, transpose(bottom_I),
             dpi=500, title="Beam at the Bottom", xaxis="x", yaxis="y",
             aspect_ratio= :equal)
-    plot!(circle_shape(0.5, 0.5, 0.1),
+    plot!(circle_shape(0.5, 0.5, R0),
           aspect_ratio = :equal,
           linecolor=:red,
           lw=2,
           label="")
-    savefig("../img/irregular_SL_bottom")
+    savefig("../img/voronoi/irregular_SL_bottom")
 
     top_x = collect(0:0.001:1)
     top_y = collect(0:0.001:1)
@@ -309,13 +308,66 @@ function searchlight_irregular()
     heatmap(top_x, top_y, transpose(top_I),
             dpi=500, title="Beam at the Top", xaxis="x", yaxis="y",
             right_margin = 12Plots.mm, aspect_ratio = :equal)
-    plot!(circle_shape(0.5+k[2]/k[1], 0.5+k[3]/k[1], 0.1),
+    plot!(circle_shape(0.5+k[2]/k[1], 0.5+k[3]/k[1], R0),
           aspect_ratio = :equal,
           linecolor=:red,
           lw=2,
           label="")
-    savefig("../img/irregular_SL_top")
+    savefig("../img/voronoi/irregular_SL_top")
+
+    # Top to bottom
+    @time I = SC_Delaunay_down(sites, I_0, S_0, α_0,
+                               S, α)
+
+    bottom_I = zeros(length(bottom_x), length(bottom_y))
+
+    for i in 1:length(bottom_x)
+        for j in 1:length(bottom_y)
+            position = [bottom_z, bottom_x[i], bottom_y[j]]
+            idx, dist = nn(tree, position)
+            bottom_I[i, j] = I[idx]
+        end
+    end
+
+    gr()
+    heatmap(bottom_x, bottom_y, transpose(bottom_I),
+            dpi=500, title="Beam at the Bottom, going down", xaxis="x", yaxis="y",
+            aspect_ratio= :equal)
+    plot!(circle_shape(0.5, 0.5, R0),
+          aspect_ratio = :equal,
+          linecolor=:red,
+          lw=2,
+          label="")
+    savefig("../img/voronoi/irregular_SL_bdonw")
+
+    top_x = collect(0:0.001:1)
+    top_y = collect(0:0.001:1)
+    top_z = 1
+
+    top_I = zeros(length(top_x), length(top_y))
+    tree = KDTree(sites.positions)
+
+    for i in 1:length(top_x)
+        for j in 1:length(top_y)
+            position = [top_z, top_x[i], top_y[j]]
+            idx, dist = nn(tree, position)
+            top_I[i, j] = I[idx]
+        end
+    end
+
+    heatmap(top_x, top_y, transpose(top_I),
+            dpi=500, title="Beam at the Top, going down", xaxis="x", yaxis="y",
+            right_margin = 12Plots.mm, aspect_ratio = :equal)
+    plot!(circle_shape(0.5+k[2]/k[1], 0.5+k[3]/k[1], R0),
+          aspect_ratio = :equal,
+          linecolor=:red,
+          lw=2,
+          label="")
+    savefig("../img/voronoi/irregular_SL_tdown")
+
+
 end
+
 
 
 # main()
