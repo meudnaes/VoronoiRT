@@ -178,6 +178,9 @@ function voronoi_SC(sites::VoronoiSites,
     # Inverse distance power law parameter
     p = 3.0
 
+    #
+    Nran = 3
+
     # Weights for interpolation
     ω = [1, 1]
 
@@ -293,8 +296,9 @@ function voronoi_SC(sites::VoronoiSites,
                     neighbours = sites.neighbours[i, 2:n_neighbours+1]
 
                     smallest∠, ∠_indices = smallest_angle(position, neighbours, -k, sites, 2)
+                    # ∠_index = smallest_angle(position, neighbours, -k, sites, 2)
                     I[i] = 0
-                    for rn in 1:5
+                    for rn in 1:Nran
                         ∠_index = choose_random(smallest∠, ∠_indices)
                         upwind_index = neighbours[∠_index]
                         upwind_position = sites.positions[:, upwind_index]
@@ -318,7 +322,7 @@ function voronoi_SC(sites::VoronoiSites,
                         a_ijk, b_ijk, c_ijk = coefficients(w1, w2, Δτ_upwind)
 
                         I_upwind = I[upwind_index]
-                        I[i] += (a_ijk*S_upwind + b_ijk*S_centre + c_ijk*I_upwind)/5
+                        I[i] += (a_ijk*S_upwind + b_ijk*S_centre + c_ijk*I_upwind)/Nran
                         # maybe try a mix of this and the ray intersection?
                         # Need to think more
                     end
@@ -479,17 +483,17 @@ function smallest_angle(position::AbstractVector, neighbours::AbstractVector, k:
     end
 
     p=sortperm(dots)
+    dots = dots[p]
 
-    return dots[end-n:end], p[end-n:end]
+    return dots[end-(n-1):end], p[end-(n-1):end]
 end
 
 function choose_random(angles::AbstractVector, indices::AbstractVector)
     ref_angle = rand()
-    # ratio < 1
     ratio = angles[1]/angles[2]
     if ref_angle > ratio
-        return indices[1]
+       return indices[1]
     else
-        return indices[2]
+       return indices[2]
     end
 end

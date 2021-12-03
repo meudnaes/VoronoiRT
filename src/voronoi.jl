@@ -165,7 +165,7 @@ function main()
 end
 
 function searchlight_irregular()
-    nx = ny = nz = 44
+    nx = ny = nz = 61
 
     n_sites = nz*nx*ny
 
