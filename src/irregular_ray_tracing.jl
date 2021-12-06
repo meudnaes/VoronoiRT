@@ -172,7 +172,7 @@ end
 
 function SC_Delaunay_up(sites::VoronoiSites,
                     I_0::AbstractMatrix, S_0::AbstractMatrix, α_0::AbstractMatrix,
-                    S::AbstractVector, α_cont::AbstractVector)
+                    S::AbstractVector, α_cont::AbstractVector, k::AbstractVector)
 
     #
     # Inverse distance power law parameter
@@ -183,23 +183,6 @@ function SC_Delaunay_up(sites::VoronoiSites,
 
     # Sweeeeeps
     n_sweeps = 3
-
-    # Traces rays through an irregular grid
-    θ = 10*π/180
-    ϕ = 10*π/180
-
-    # start at the bottom
-    # shoot rays through every grid cell
-
-    # precalculate trigonometric functions
-    cosθ = cos(θ)
-    sinθ = sin(θ)
-
-    cosϕ = cos(ϕ)
-    sinϕ = sin(ϕ)
-
-    # Unit vector towards upwind direction of the ray
-    k = -[cosθ, cosϕ*sinθ, sinϕ*sinθ]
 
     # Allocate space for intensity
     I = zero(S)
@@ -215,8 +198,8 @@ function SC_Delaunay_up(sites::VoronoiSites,
     Δx = (x_max - x_min)/(nx - 1)
     Δy = (y_max - y_min)/(ny - 1)
 
-    p = sortperm(sites.layers_up)
-    layers_sorted = sites.layers_up[p]
+    perm = sortperm(sites.layers_up)
+    layers_sorted = sites.layers_up[perm]
     max_layer = layers_sorted[end]
 
     for layer in 1:max_layer
@@ -226,21 +209,21 @@ function SC_Delaunay_up(sites::VoronoiSites,
             z_upwind = sites.z_min
             for i in lower_idx:upper_idx-1
                 # coordinate
-                idx = p[i]
+                idx = perm[i]
                 position = sites.positions[:,idx]
 
                 # 1st layer
                 Δz = position[1] - z_upwind
-                r = abs(Δz/cosθ)
+                r = abs(Δz/k[1])
 
-                x_upwind = position[2] + r*cosϕ*sinθ
+                x_upwind = position[2] - r*k[2]
                 if x_upwind > sites.x_max
                     x_upwind = sites.x_min + (x_upwind - sites.x_max)
                 elseif x_upwind < sites.x_min
                     x_upwind = sites.x_max + (x_upwind - sites.x_min)
                 end
 
-                y_upwind = position[3] + r*sinϕ*sinθ
+                y_upwind = position[3] - r*k[3]
                 if y_upwind > sites.y_max
                     y_upwind = sites.y_min + (y_upwind - sites.y_max)
                 elseif y_upwind < sites.y_min
@@ -282,14 +265,14 @@ function SC_Delaunay_up(sites::VoronoiSites,
                           I_0[idx_0+1, idy_0]   I_0[idx_0+1, idy_0+1]]
 
                 I_upwind = bilinear(x_upwind, y_upwind, x_bounds, y_bounds, I_vals)
-                I[i] = a_ijk*S_upwind + b_ijk*S_centre + c_ijk*I_upwind
+                I[idx] = a_ijk*S_upwind + b_ijk*S_centre + c_ijk*I_upwind
             end
 
         else
             for sweep in 1:n_sweeps
                 for i in lower_idx:upper_idx-1
                     # coordinate
-                    idx = p[i]
+                    idx = perm[i]
                     position = sites.positions[:,idx]
 
                     # number of neighbours
@@ -335,7 +318,7 @@ end
 
 function SC_Delaunay_down(sites::VoronoiSites,
                     I_0::AbstractMatrix, S_0::AbstractMatrix, α_0::AbstractMatrix,
-                    S::AbstractVector, α_cont::AbstractVector)
+                    S::AbstractVector, α_cont::AbstractVector, k::AbstractVector)
 
     #
     # Inverse distance power law parameter
@@ -346,23 +329,6 @@ function SC_Delaunay_down(sites::VoronoiSites,
 
     # Sweeeeeps
     n_sweeps = 3
-
-    # Traces rays through an irregular grid
-    θ = 170*π/180
-    ϕ = 10*π/180
-
-    # start at the bottom
-    # shoot rays through every grid cell
-
-    # precalculate trigonometric functions
-    cosθ = cos(θ)
-    sinθ = sin(θ)
-
-    cosϕ = cos(ϕ)
-    sinϕ = sin(ϕ)
-
-    # Unit vector towards upwind direction of the ray
-    k = -[cosθ, cosϕ*sinθ, sinϕ*sinθ]
 
     # Allocate space for intensity
     I = zero(S)
@@ -378,32 +344,32 @@ function SC_Delaunay_down(sites::VoronoiSites,
     Δx = (x_max - x_min)/(nx - 1)
     Δy = (y_max - y_min)/(ny - 1)
 
-    p = sortperm(sites.layers_down, rev=true)
-    layers_sorted = sites.layers_down[p]
+    perm = sortperm(sites.layers_down)
+    layers_sorted = sites.layers_down[perm]
     max_layer = layers_sorted[end]
 
-    for layer in max_layer:-1:1
+    for layer in 1:max_layer
         lower_idx = searchsortedfirst(layers_sorted, layer)
         upper_idx = searchsortedfirst(layers_sorted, layer+1)
-        if layer == max_layer
+        if layer == 1
             z_upwind = sites.z_max
-            for i in upper_idx-1:-1:lower_idx
+            for i in lower_idx:upper_idx-1
                 # coordinate
-                idx=p[i]
+                idx=perm[i]
                 position = sites.positions[:,idx]
 
                 # 1st layer
                 Δz = z_upwind - position[1]
-                r = abs(Δz/cosθ)
+                r = abs(Δz/k[1])
 
-                x_upwind = position[2] + r*cosϕ*sinθ
+                x_upwind = position[2] - r*k[2]
                 if x_upwind > sites.x_max
                     x_upwind = sites.x_min + (x_upwind - sites.x_max)
                 elseif x_upwind < sites.x_min
                     x_upwind = sites.x_max + (x_upwind - sites.x_min)
                 end
 
-                y_upwind = position[3] + r*sinϕ*sinθ
+                y_upwind = position[3] - r*k[3]
                 if y_upwind > sites.y_max
                     y_upwind = sites.y_min + (y_upwind - sites.y_max)
                 elseif y_upwind < sites.y_min
@@ -445,13 +411,14 @@ function SC_Delaunay_down(sites::VoronoiSites,
                           I_0[idx_0+1, idy_0]   I_0[idx_0+1, idy_0+1]]
 
                 I_upwind = bilinear(x_upwind, y_upwind, x_bounds, y_bounds, I_vals)
-                I[i] = a_ijk*S_upwind + b_ijk*S_centre + c_ijk*I_upwind
+                I[idx] = a_ijk*S_upwind + b_ijk*S_centre + c_ijk*I_upwind
             end
 
         else
             for sweep in 1:n_sweeps
                 for i in upper_idx-1:-1:lower_idx
                     # coordinate
+                    idx=perm[i]
                     position = sites.positions[:,idx]
 
                     # number of neighbours
@@ -460,7 +427,7 @@ function SC_Delaunay_down(sites::VoronoiSites,
 
                     smallest∠, ∠_indices = smallest_angle(position, neighbours, -k, sites, 2)
                     # ∠_index = smallest_angle(position, neighbours, -k, sites, 2)
-                    I[i] = 0
+                    I[idx] = 0
                     for rn in 1:Nran
                         ∠_index = choose_random(smallest∠, ∠_indices)
                         upwind_index = neighbours[∠_index]
