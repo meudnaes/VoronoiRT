@@ -5,7 +5,8 @@ include("functions.jl")
 struct VoronoiSites
     positions::Matrix{Float64}
     neighbours::Matrix{Int}
-    layers::Vector{Int}
+    order_up::Vector{Int}
+    order_down::Vector{Int}
     temperature::Vector{Float64}
     electron_density::Vector{Float64}
     hydrogen_populations::Vector{Float64}
@@ -62,17 +63,16 @@ function read_cell(fname::String, n_sites::Int, positions::AbstractMatrix)
         println("Guess too low!")
     end
     NeighbourMatrix = NeighbourMatrix[:,1:max_neighbours+1]
-    layers = _sort_by_layer(NeighbourMatrix, n_sites)
+    layers_up = _sort_by_layer_up(NeighbourMatrix, n_sites)
+    layers_down = _sort_by_layer_down(NeighbourMatrix, n_sites)
 
     # Sorting works for layers and sites, but loses neighbour information!
-    p = sortperm(layers)
-    positions = positions[:,p]
-    layers = layers[p]
-    NeighbourMatrix = _sort_neighbours(NeighbourMatrix, p)
-    return positions, NeighbourMatrix, layers
+    order_up = sortperm(layers_up)
+    order_down = sortperm(layers_down)
+    return positions, NeighbourMatrix, order_up, order_down
 end
 
-function _sort_by_layer(neighbours::AbstractMatrix, n_sites::Int)
+function _sort_by_layer_up(neighbours::AbstractMatrix, n_sites::Int)
 
     layers = zeros(Int, n_sites)
 
@@ -107,6 +107,45 @@ function _sort_by_layer(neighbours::AbstractMatrix, n_sites::Int)
 
         lower_layer += 1
     end
+
+    return layers
+end
+
+function _sort_by_layer_down(neighbours::AbstractMatrix, n_sites::Int)
+    layers = zeros(Int, n_sites)
+
+    upper_boundary = -6
+    for i in 1:n_sites
+        n_neighbours = neighbours[i,1]
+        for j in 1:n_neighbours
+            if neighbours[i,j+1] == upper_boundary
+                layers[i] = 1
+            end
+        end
+    end
+
+    upper_layer=1
+    while true
+        for i in 1:n_sites
+            if layers[i] == 0
+                n_neighbours = neighbours[i,1]
+                for j in 1:n_neighbours
+                    neighbour = neighbours[i,j+1]
+                    if neighbour > 0 && layers[neighbour] == upper_layer
+                        layers[i] = upper_layer+1
+                        break
+                    end
+                end
+            end
+        end
+
+        if !any(i -> i==0, layers)
+            break
+        end
+
+        upper_layer += 1
+    end
+
     return layers
 end
 
