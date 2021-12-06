@@ -5,8 +5,8 @@ include("functions.jl")
 struct VoronoiSites
     positions::Matrix{Float64}
     neighbours::Matrix{Int}
-    order_up::Vector{Int}
-    order_down::Vector{Int}
+    layers_up::Vector{Int}
+    layers_down::Vector{Int}
     temperature::Vector{Float64}
     electron_density::Vector{Float64}
     hydrogen_populations::Vector{Float64}
@@ -58,18 +58,18 @@ function read_cell(fname::String, n_sites::Int, positions::AbstractMatrix)
             NeighbourMatrix[ID, 2:N+1] = neighbours
         end
     end
+    
     max_neighbours = maximum(NeighbourMatrix[:,1])
     if max_neighbours == max_guess
         println("Guess too low!")
     end
+
     NeighbourMatrix = NeighbourMatrix[:,1:max_neighbours+1]
     layers_up = _sort_by_layer_up(NeighbourMatrix, n_sites)
     layers_down = _sort_by_layer_down(NeighbourMatrix, n_sites)
 
     # Sorting works for layers and sites, but loses neighbour information!
-    order_up = sortperm(layers_up)
-    order_down = sortperm(layers_down)
-    return positions, NeighbourMatrix, order_up, order_down
+    return positions, NeighbourMatrix, layers_up, layers_down
 end
 
 function _sort_by_layer_up(neighbours::AbstractMatrix, n_sites::Int)

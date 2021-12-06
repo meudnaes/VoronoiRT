@@ -165,7 +165,7 @@ function main()
 end
 
 function searchlight_irregular()
-    nx = ny = nz = 61
+    nx = ny = nz = 33
 
     n_sites = nz*nx*ny
 
@@ -233,7 +233,7 @@ function searchlight_irregular()
 
 
     npzwrite("../python/p_test.npy", sites.positions)
-    npzwrite("../python/layer_test.npy", sites.layers)
+    npzwrite("../python/layer_test.npy", sites.layers_up)
     npzwrite("../python/neighbours_test.npy", sites.neighbours)
 
 
