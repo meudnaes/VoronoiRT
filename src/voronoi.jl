@@ -199,12 +199,13 @@ function searchlight_irregular()
                  sites_file)
 
     # compute neigbours
-    @time begin
+    #=@time begin
     run(`./voro.sh $sites_file $neighbours_file
             $(bounds[2,1]) $(bounds[2,2])
             $(bounds[3,1]) $(bounds[3,2])
             $(bounds[1,1]) $(bounds[1,2])`)
     end
+    =#
 
     # Voronoi grid
     global sites = VoronoiSites(read_cell(neighbours_file, n_sites, positions)...,
@@ -297,10 +298,25 @@ function searchlight_irregular()
         end
     end
 
+    x_r = 0.5 + k[2]/k[1]
+    if x_r < 0
+        x_r = 1 - (ceil(x_r) - x_r)
+    elseif x_r > 1
+        x_r = x_r - floor(x_r)
+    end
+
+    y_r = 0.5 + k[3]/k[1]
+    if y_r < 0
+        y_r = 1 - (ceil(y_r) - y_r)
+    elseif y_r > 1
+        y_r = y_r - floor(y_r)
+    end
+
     heatmap(top_x, top_y, transpose(top_I),
             dpi=RES, title="Beam at the Top", xaxis="x", yaxis="y",
-            right_margin = 12Plots.mm, aspect_ratio = :equal)
-    plot!(circle_shape(0.5+k[2]/k[1], 0.5+k[3]/k[1], R0),
+            right_margin = 12Plots.mm, aspect_ratio = :equal,
+            clim=(0., 1.))
+    plot!(circle_shape(x_r, y_r, R0),
           aspect_ratio = :equal,
           linecolor=:red,
           lw=2,
@@ -309,7 +325,7 @@ function searchlight_irregular()
 
     # Top to bottom
     # Traces rays through an irregular grid
-    θ = 120*π/180
+    θ = 160*π/180
     ϕ = 225*π/180
 
     # Unit vector towards upwind direction of the ray
@@ -327,11 +343,29 @@ function searchlight_irregular()
         end
     end
 
+    x_r = 0.5 - k[2]/k[1]
+    if x_r < 0
+        x_r = 1 - (ceil(x_r) - x_r)
+    elseif x_r > 1
+        x_r = x_r - floor(x_r)
+    end
+
+    y_r = 0.5 - k[3]/k[1]
+    if y_r < 0
+        y_r = 1 - (ceil(y_r) - y_r)
+    elseif y_r > 1
+        y_r = y_r - floor(y_r)
+    end
+    plot!(circle_shape(x_r, y_r, 0.1),
+          aspect_ratio = :equal,
+          linecolor=:red,
+          lw=2)
+
     gr()
     heatmap(bottom_x, bottom_y, transpose(bottom_I),
             dpi=RES, title="Beam at the Bottom, going down", xaxis="x", yaxis="y",
-            aspect_ratio= :equal)
-    plot!(circle_shape(0.5-k[2]/k[1], 0.5-k[3]/k[1], R0),
+            aspect_ratio= :equal, clim=(0.,1.))
+    plot!(circle_shape(x_r, y_r, R0),
           aspect_ratio = :equal,
           linecolor=:red,
           lw=2,

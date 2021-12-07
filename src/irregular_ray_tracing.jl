@@ -279,13 +279,13 @@ function SC_Delaunay_up(sites::VoronoiSites,
                     n_neighbours = sites.neighbours[idx, 1]
                     neighbours = sites.neighbours[idx, 2:n_neighbours+1]
 
-                    smallest∠, ∠_indices = smallest_angle(position, neighbours, -k, sites, 2)
+                    smallest∠, ∠_indices, upwind_positions = smallest_angle(position, neighbours, -k, sites, 2)
                     # ∠_index = smallest_angle(position, neighbours, -k, sites, 2)
                     I[idx] = 0
                     for rn in 1:Nran
                         ∠_index = choose_random(smallest∠, ∠_indices)
-                        upwind_index = neighbours[∠_index]
-                        upwind_position = sites.positions[:, upwind_index]
+                        upwind_index = neighbours[∠_indices[∠_index]]
+                        upwind_position = upwind_positions[:, ∠_index]
 
 
                         # Find the intersection and the neighbour the ray is coming from
@@ -425,13 +425,13 @@ function SC_Delaunay_down(sites::VoronoiSites,
                     n_neighbours = sites.neighbours[idx, 1]
                     neighbours = sites.neighbours[idx, 2:n_neighbours+1]
 
-                    smallest∠, ∠_indices = smallest_angle(position, neighbours, -k, sites, 2)
+                    smallest∠, ∠_indices, upwind_positions = smallest_angle(position, neighbours, -k, sites, 2)
                     # ∠_index = smallest_angle(position, neighbours, -k, sites, 2)
                     I[idx] = 0
                     for rn in 1:Nran
                         ∠_index = choose_random(smallest∠, ∠_indices)
-                        upwind_index = neighbours[∠_index]
-                        upwind_position = sites.positions[:, upwind_index]
+                        upwind_index = neighbours[∠_indices[∠_index]]
+                        upwind_position = upwind_positions[:, ∠_index]
 
 
                         # Find the intersection and the neighbour the ray is coming from

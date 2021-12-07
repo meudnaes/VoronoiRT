@@ -58,7 +58,7 @@ function read_cell(fname::String, n_sites::Int, positions::AbstractMatrix)
             NeighbourMatrix[ID, 2:N+1] = neighbours
         end
     end
-    
+
     max_neighbours = maximum(NeighbourMatrix[:,1])
     if max_neighbours == max_guess
         println("Guess too low!")
@@ -374,32 +374,65 @@ end
 function smallest_angle(position::AbstractVector, neighbours::AbstractVector, k::AbstractVector, sites::VoronoiSites, n::Int)
 
     dots = Vector{Float64}(undef, length(neighbours))
+    upwind_positions = Matrix{Float64}(undef, (3, length(neighbours)))
+
+    x_r_r = sites.x_max - position[2]
+    x_r_l = position[2] - sites.x_min
+
+    y_r_r = sites.y_max - position[3]
+    y_r_l = position[3] - sites.y_min
 
     for i in 1:length(neighbours)
         neighbour = neighbours[i]
         if neighbour > 0
-            neighbour_position = sites.positions[:, neighbour]
-            direction = position .- neighbour_position
+            p_n = sites.positions[:, neighbour]
+
+            x_i_r = abs(sites.x_max - p_n[2])
+            x_i_l = abs(p_n[2] - sites.x_min)
+
+            # Test for periodic
+            if x_r_r + x_i_l < position[2] - p_n[2]
+                p_n[2] = sites.x_max + p_n[2] - sites.x_min
+            elseif x_r_l + x_i_r < p_n[2] - position[2]
+                p_n[2] = sites.x_min + sites.x_max - p_n[2]
+            end
+
+            y_i_r = abs(sites.y_max - p_n[3])
+            y_i_l = abs(p_n[3] - sites.y_min)
+
+            # Test for periodic
+            if y_r_r + y_i_l < position[3] - p_n[3]
+                p_n[3] = sites.y_max + p_n[3] - sites.y_min
+            elseif y_r_l + y_i_r < p_n[3] - position[3]
+                p_n[3] = sites.y_min + sites.y_max - p_n[3]
+            end
+
+            direction = position .- p_n
             norm_dir = direction/(norm(direction))
             # Two normalized direction vectors, denominator is 1
+            # Save the dot product, don't bother calculating the angle
             dots[i] = dot(k, norm_dir)
+
+            # Save the upwind positions
+            upwind_positions[:, i] = p_n
         else
             dots[i] = -1
         end
     end
 
     p=sortperm(dots)
-    dots = dots[p]
+    dots=dots[p]
+    upwind_positions=upwind_positions[:, p]
 
-    return dots[end-(n-1):end], p[end-(n-1):end]
+    return dots[end-(n-1):end], p[end-(n-1):end], upwind_positions[:, end-(n-1):end]
 end
 
 function choose_random(angles::AbstractVector, indices::AbstractVector)
     ref_angle = rand()
     ratio = angles[1]/angles[2]
     if ref_angle > ratio
-       return indices[1]
+       return 1
     else
-       return indices[2]
+       return 2
     end
 end
