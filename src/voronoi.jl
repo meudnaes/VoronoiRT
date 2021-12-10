@@ -165,7 +165,7 @@ function main()
 end
 
 function searchlight_irregular()
-    nx = ny = nz = 71
+    nx = ny = nz = 41
 
     n_sites = nz*nx*ny
 
@@ -199,13 +199,12 @@ function searchlight_irregular()
                  sites_file)
 
     # compute neigbours
-    #=@time begin
+    @time begin
     run(`./voro.sh $sites_file $neighbours_file
             $(bounds[2,1]) $(bounds[2,2])
             $(bounds[3,1]) $(bounds[3,2])
             $(bounds[1,1]) $(bounds[1,2])`)
     end
-    =#
 
     # Voronoi grid
     global sites = VoronoiSites(read_cell(neighbours_file, n_sites, positions)...,
