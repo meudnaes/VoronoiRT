@@ -245,7 +245,7 @@ function searchlight_irregular()
 
     # Traces rays through an irregular grid
     θ = 30*π/180
-    ϕ = 45*π/180
+    ϕ = 5*π/180
 
     # start at the bottom
     # shoot rays through every grid cell
