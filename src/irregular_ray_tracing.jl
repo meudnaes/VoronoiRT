@@ -111,7 +111,7 @@ end
 
 function SC_Delaunay_up(sites::VoronoiSites,
                     I_0::AbstractMatrix, S_0::AbstractMatrix, α_0::AbstractMatrix,
-                    S::AbstractVector, α::AbstractVector, k::AbstractVector)
+                    S::AbstractVector, α::AbstractVector, k::AbstractVector, n_sweeps::Int)
 
     #
     # Inverse distance power law parameter
@@ -119,9 +119,6 @@ function SC_Delaunay_up(sites::VoronoiSites,
 
     #
     Nran = 3
-
-    # sweeps
-    n_sweeps = 20
 
     # Allocate space for intensity
     I = zero(S)
@@ -194,7 +191,7 @@ end
 
 function SC_Delaunay_down(sites::VoronoiSites,
                     I_0::AbstractMatrix, S_0::AbstractMatrix, α_0::AbstractMatrix,
-                    S::AbstractVector, α::AbstractVector, k::AbstractVector)
+                    S::AbstractVector, α::AbstractVector, k::AbstractVector, n_sweeps::Int)
 
     #
     # Inverse distance power law parameter
@@ -202,9 +199,6 @@ function SC_Delaunay_down(sites::VoronoiSites,
 
     #
     Nran = 3
-
-    # sweeps
-    n_sweeps = 20
 
     # Allocate space for intensity
     I = zero(S)
@@ -278,17 +272,14 @@ end
 
 function Delaunay_ray_up(sites::VoronoiSites,
                     I_0::AbstractMatrix, S_0::AbstractMatrix, α_0::AbstractMatrix,
-                    S::AbstractVector, α::AbstractVector, k::AbstractVector)
+                    S::AbstractVector, α::AbstractVector, k::AbstractVector, n_sweeps::Int)
 
     #
     # Inverse distance power law parameter
     p = 3.0
 
     # Monte Carlo samplings
-    Nran = 5
-
-    # sweeps
-    n_sweeps = 3
+    Nran = 3
 
     # Allocate space for intensity
     I = zero(S)
@@ -313,7 +304,7 @@ function Delaunay_ray_up(sites::VoronoiSites,
 
     # Find out which cells passes radiation to cells not in the same layer... (a good start)
 
-    for layer in 1:max_layer
+    for layer in 2:max_layer
         # Calculate radiation from bottom layer upwards
         lower_idx = searchsortedfirst(layers_sorted, layer)
         upper_idx = searchsortedfirst(layers_sorted, layer+1)
@@ -331,17 +322,17 @@ function Delaunay_ray_up(sites::VoronoiSites,
             neighbours = sites.neighbours[idx, 2:n_neighbours+1]
 
             # Check if lower cells are solved
-            smallest∠, ∠_indices, positions = smallest_angle(position, neighbours, -k, sites, 2)
+            smallest∠, ∠_indices, upwind_positions = smallest_angle(position, neighbours, -k, sites, 2)
 
-            n1 = neighbours[indices[1]]
-            n2 = neighbours[indices[1]]
+            n1 = neighbours[∠_indices[1]]
+            n2 = neighbours[∠_indices[2]]
 
             if layers_sorted[n1] < layer && layers_sorted[n2] < layer
                 # Calculate radiation propagating to neighbouring cells
                 for rn in 1:Nran
                     ∠_index = choose_random(smallest∠, ∠_indices)
-                    idx = neighbours[∠_indices[∠_index]]
-                    position = positions[:, ∠_index]
+                    upwind_position = upwind_positions[:, ∠_index]
+                    upwind_idx = neighbours[∠_indices[∠_index]]
 
 
                     # Find the intersection and the neighbour the ray is coming from
@@ -365,7 +356,7 @@ function Delaunay_ray_up(sites::VoronoiSites,
                     I[idx] += (a_ijk*S_upwind + b_ijk*S_centre + c_ijk*I_upwind)/Nran
 
                 end
-                completed_cells[i] = l+1
+                completed_cells[i - lower_idx + 1] = 1
             end
         end
 
@@ -373,7 +364,7 @@ function Delaunay_ray_up(sites::VoronoiSites,
             break
         end
 
-        for i in arg_where(completed_cells, 0) .+ lower_idx
+        for i in arg_where(completed_cells, 0) .+ lower_idx .- 1
             idx = perm[i]
 
             position = sites.positions[:, idx]
@@ -383,17 +374,91 @@ function Delaunay_ray_up(sites::VoronoiSites,
             neighbours = sites.neighbours[idx, 2:n_neighbours+1]
 
             # Check if lower cells are solved
-            smallest∠, ∠_indices, positions = smallest_angle(position, neighbours, -k, sites, 2)
+            smallest∠, ∠_indices, upwind_positions = smallest_angle(position, neighbours, -k, sites, 2)
 
-            n1 = neighbours[indices[1]]
-            n2 = neighbours[indices[1]]
+            n1 = neighbours[∠_indices[1]]
+            n2 = neighbours[∠_indices[2]]
 
-            if layers_sorted[n1] < layer && layers_sorted[n2] < layer
+            if layers_sorted[n2] < layer && layers_sorted[n1] >= layer
                 # Calculate radiation propagating to neighbouring cells
+                upwind_idx = n2
+                upwind_position = upwind_positions[:, 2]
+
+
+                # Find the intersection and the neighbour the ray is coming from
+                # upwind_position, upwind_index = ray_intersection(k, neighbours, position, sites, i)
+
+                # Pass α as an array
+                α_centre = α[idx]
+                α_upwind = α[upwind_idx]
+
+                r = euclidean(position, upwind_position)
+                # Find the Δτ optical path from upwind to grid point
+                Δτ_upwind = trapezoidal(r, α_centre, α_upwind)
+
+                S_centre = S[idx]
+                S_upwind = S[upwind_idx]
+
+                w1, w2 =  weights(Δτ_upwind)
+                a_ijk, b_ijk, c_ijk = coefficients(w1, w2, Δτ_upwind)
+
+                I_upwind = I[upwind_idx]
+                I[idx] += (a_ijk*S_upwind + b_ijk*S_centre + c_ijk*I_upwind)
+
+                completed_cells[i - lower_idx + 1] = 1
+            elseif layers_sorted[n1] < layer && layers_sorted[n2] >= layer
+                # Calculate radiation propagating to neighbouring cells
+                upwind_idx = n1
+                upwind_position = upwind_positions[:, 1]
+
+
+                # Find the intersection and the neighbour the ray is coming from
+                # upwind_position, upwind_index = ray_intersection(k, neighbours, position, sites, i)
+
+                # Pass α as an array
+                α_centre = α[idx]
+                α_upwind = α[upwind_idx]
+
+                r = euclidean(position, upwind_position)
+                # Find the Δτ optical path from upwind to grid point
+                Δτ_upwind = trapezoidal(r, α_centre, α_upwind)
+
+                S_centre = S[idx]
+                S_upwind = S[upwind_idx]
+
+                w1, w2 =  weights(Δτ_upwind)
+                a_ijk, b_ijk, c_ijk = coefficients(w1, w2, Δτ_upwind)
+
+                I_upwind = I[upwind_idx]
+                I[idx] += (a_ijk*S_upwind + b_ijk*S_centre + c_ijk*I_upwind)
+
+                completed_cells[i - lower_idx + 1] = 1
+            end
+        end
+
+        if sum(completed_cells) == upper_idx - lower_idx
+            break
+        end
+
+        for sweep in n_sweeps
+            for i in arg_where(completed_cells, 0) .+ lower_idx .- 1
+                idx = perm[i]
+
+                I[idx] = 0
+
+                position = sites.positions[:, idx]
+
+                # number of neighbours
+                n_neighbours = sites.neighbours[idx, 1]
+                neighbours = sites.neighbours[idx, 2:n_neighbours+1]
+
+                # Check if lower cells are solved
+                smallest∠, ∠_indices, upwind_positions = smallest_angle(position, neighbours, -k, sites, 2)
+
                 for rn in 1:Nran
                     ∠_index = choose_random(smallest∠, ∠_indices)
-                    idx = neighbours[∠_indices[∠_index]]
-                    position = positions[:, ∠_index]
+                    upwind_position = upwind_positions[:, ∠_index]
+                    upwind_idx = neighbours[∠_indices[∠_index]]
 
 
                     # Find the intersection and the neighbour the ray is coming from
@@ -415,12 +480,9 @@ function Delaunay_ray_up(sites::VoronoiSites,
 
                     I_upwind = I[upwind_idx]
                     I[idx] += (a_ijk*S_upwind + b_ijk*S_centre + c_ijk*I_upwind)/Nran
-
                 end
-                completed_cells[i] = l+1
             end
         end
-
     end
 
     return I
@@ -456,6 +518,93 @@ function lower_boundary(I, sites::VoronoiSites,
 
         # 1st layer
         Δz = position[1] - z_upwind
+        r = abs(Δz/k[1])
+
+        x_upwind = position[2] - r*k[2]
+        if x_upwind > sites.x_max
+            x_upwind = sites.x_min + (x_upwind - sites.x_max)
+        elseif x_upwind < sites.x_min
+            x_upwind = sites.x_max + (x_upwind - sites.x_min)
+        end
+
+        y_upwind = position[3] - r*k[3]
+        if y_upwind > sites.y_max
+            y_upwind = sites.y_min + (y_upwind - sites.y_max)
+        elseif y_upwind < sites.y_min
+            y_upwind = sites.y_max + (y_upwind - sites.y_min)
+        end
+
+        upwind_position = [z_upwind, x_upwind, y_upwind]
+
+        # Find distance between border and cell centre
+        r = euclidean(upwind_position, position)
+
+        # Interpolate boundary values
+        # find x and y on the I_0 values...
+        idx_0 = floor(Int, abs(x_upwind/Δx)) + 1
+        idy_0 = floor(Int, abs(y_upwind/Δy)) + 1
+
+        x_bounds = Δx .* [idx_0-1, idx_0]
+        y_bounds = Δy .* [idy_0-1, idy_0]
+
+        # Pass α as an array
+        α_centre = α[idx]
+        α_vals = [α_0[idx_0, idy_0]     α_0[idx_0, idy_0+1]
+                  α_0[idx_0+1, idy_0]   α_0[idx_0+1, idy_0+1]]
+        α_upwind = bilinear(x_upwind, y_upwind, x_bounds, y_bounds, α_vals)
+
+        # Find the Δτ optical path from upwind to grid point
+        Δτ_upwind = trapezoidal(r, α_centre, α_upwind)
+
+        S_centre = S[idx]
+        S_vals = [S_0[idx_0, idy_0]     S_0[idx_0, idy_0+1]
+                  S_0[idx_0+1, idy_0]   S_0[idx_0+1, idy_0+1]]
+        S_upwind = bilinear(x_upwind, y_upwind, x_bounds, y_bounds, S_vals)
+
+        w1, w2 =  weights(Δτ_upwind)
+        a_ijk, b_ijk, c_ijk = coefficients(w1, w2, Δτ_upwind)
+
+
+        I_vals = [I_0[idx_0, idy_0]     I_0[idx_0, idy_0+1]
+                  I_0[idx_0+1, idy_0]   I_0[idx_0+1, idy_0+1]]
+
+        I_upwind = bilinear(x_upwind, y_upwind, x_bounds, y_bounds, I_vals)
+        I[idx] = a_ijk*S_upwind + b_ijk*S_centre + c_ijk*I_upwind
+    end
+end
+
+function upper_boundary(I, sites::VoronoiSites,
+                    I_0::AbstractMatrix, S_0::AbstractMatrix, α_0::AbstractMatrix,
+                    S::AbstractVector, α::AbstractVector, k::AbstractVector)
+
+
+    #
+    x_min = sites.x_min
+    x_max = sites.x_max
+    y_min = sites.y_min
+    y_max = sites.y_max
+
+    nx = length(I_0[:,1])
+    ny = length(I_0[1,:])
+
+    Δx = (x_max - x_min)/(nx - 1)
+    Δy = (y_max - y_min)/(ny - 1)
+
+    perm = sortperm(sites.layers_down)
+    layers_sorted = sites.layers_down[perm]
+    max_layer = layers_sorted[end]
+
+    z_upwind = sites.z_max
+
+    lower_idx = searchsortedfirst(layers_sorted, 1)
+    upper_idx = searchsortedfirst(layers_sorted, 2)
+    for i in lower_idx:upper_idx-1
+        # coordinate
+        idx=perm[i]
+        position = sites.positions[:,idx]
+
+        # 1st layer
+        Δz = z_upwind - position[1]
         r = abs(Δz/k[1])
 
         x_upwind = position[2] - r*k[2]
