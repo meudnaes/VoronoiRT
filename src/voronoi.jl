@@ -165,7 +165,7 @@ function main()
 end
 
 function searchlight_irregular()
-    nx = ny = nz = 31
+    nx = ny = nz = 71
 
     n_sites = nz*nx*ny
 
@@ -187,6 +187,7 @@ function searchlight_irregular()
     R0 = 0.1
 
     n_sweeps = 3
+    Nran = 3
     # positions = sample_beam(n_sites, bounds, beam, v0, R0, k)
 
     sites_file = "../data/searchlight_sites.txt"
@@ -253,8 +254,8 @@ function searchlight_irregular()
     k = -[cos(θ), cos(ϕ)*sin(θ), sin(ϕ)*sin(θ)]
 
     println("---Ray-tracing---")
-    @time I = Delaunay_ray_up(sites, I_0, S_0, α_0,
-                        S, α, k, n_sweeps)
+    @time I = SC_Delaunay_up(sites, I_0, S_0, α_0,
+                        S, α, k, n_sweeps, Nran)
 
     bottom_x = collect(0:0.001:1)
     bottom_y = collect(0:0.001:1)
@@ -330,7 +331,7 @@ function searchlight_irregular()
     # Unit vector towards upwind direction of the ray
     k = -[cos(θ), cos(ϕ)*sin(θ), sin(ϕ)*sin(θ)]
     @time I = SC_Delaunay_down(sites, I_0, S_0, α_0,
-                               S, α, k, n_sweeps)
+                               S, α, k, n_sweeps, Nran)
 
     bottom_I = zeros(length(bottom_x), length(bottom_y))
 

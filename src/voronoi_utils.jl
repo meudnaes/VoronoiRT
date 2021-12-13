@@ -428,11 +428,11 @@ function smallest_angle(position::AbstractVector, neighbours::AbstractVector, k:
 end
 
 function choose_random(angles::AbstractVector, indices::AbstractVector)
-    ref_angle = rand()
-    ratio = angles[1]/angles[2]
-    if ref_angle > ratio
-       return 1
-    else
-       return 2
-    end
+
+    p2 = rand()
+
+    r1 = acos(angles[2])/acos(angles[1])
+    p1 = r1*rand()
+
+    return argmax([p1, p2])
 end

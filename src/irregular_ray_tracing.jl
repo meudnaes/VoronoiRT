@@ -111,14 +111,11 @@ end
 
 function SC_Delaunay_up(sites::VoronoiSites,
                     I_0::AbstractMatrix, S_0::AbstractMatrix, α_0::AbstractMatrix,
-                    S::AbstractVector, α::AbstractVector, k::AbstractVector, n_sweeps::Int)
+                    S::AbstractVector, α::AbstractVector, k::AbstractVector, n_sweeps::Int, Nran::Int)
 
     #
     # Inverse distance power law parameter
     p = 3.0
-
-    #
-    Nran = 3
 
     # Allocate space for intensity
     I = zero(S)
@@ -191,14 +188,11 @@ end
 
 function SC_Delaunay_down(sites::VoronoiSites,
                     I_0::AbstractMatrix, S_0::AbstractMatrix, α_0::AbstractMatrix,
-                    S::AbstractVector, α::AbstractVector, k::AbstractVector, n_sweeps::Int)
+                    S::AbstractVector, α::AbstractVector, k::AbstractVector, n_sweeps::Int, Nran::Int)
 
     #
     # Inverse distance power law parameter
     p = 3.0
-
-    #
-    Nran = 3
 
     # Allocate space for intensity
     I = zero(S)
@@ -272,14 +266,11 @@ end
 
 function Delaunay_ray_up(sites::VoronoiSites,
                     I_0::AbstractMatrix, S_0::AbstractMatrix, α_0::AbstractMatrix,
-                    S::AbstractVector, α::AbstractVector, k::AbstractVector, n_sweeps::Int)
+                    S::AbstractVector, α::AbstractVector, k::AbstractVector, n_sweeps::Int, Nran::Int)
 
     #
     # Inverse distance power law parameter
     p = 3.0
-
-    # Monte Carlo samplings
-    Nran = 3
 
     # Allocate space for intensity
     I = zero(S)
@@ -310,10 +301,10 @@ function Delaunay_ray_up(sites::VoronoiSites,
         upper_idx = searchsortedfirst(layers_sorted, layer+1)
 
         # Keep track of completed sites
-        completed_cells = zeros(upper_idx - lower_idx)
+        completed_cells = zeros(upper_idx - lower_idx - 1)
 
-        for i in lower_idx:upper_idx-1
-            idx = perm[i]
+        for i in 1:upper_idx - lower_idx - 1
+            idx = perm[i + lower_idx]
 
             position = sites.positions[:, idx]
 
@@ -333,7 +324,6 @@ function Delaunay_ray_up(sites::VoronoiSites,
                     ∠_index = choose_random(smallest∠, ∠_indices)
                     upwind_position = upwind_positions[:, ∠_index]
                     upwind_idx = neighbours[∠_indices[∠_index]]
-
 
                     # Find the intersection and the neighbour the ray is coming from
                     # upwind_position, upwind_index = ray_intersection(k, neighbours, position, sites, i)
@@ -356,7 +346,7 @@ function Delaunay_ray_up(sites::VoronoiSites,
                     I[idx] += (a_ijk*S_upwind + b_ijk*S_centre + c_ijk*I_upwind)/Nran
 
                 end
-                completed_cells[i - lower_idx + 1] = 1
+                completed_cells[i] = 1
             end
         end
 
@@ -364,8 +354,8 @@ function Delaunay_ray_up(sites::VoronoiSites,
             break
         end
 
-        for i in arg_where(completed_cells, 0) .+ lower_idx .- 1
-            idx = perm[i]
+        for i in arg_where(completed_cells, 0)
+            idx = perm[i + lower_idx]
 
             position = sites.positions[:, idx]
 
@@ -384,7 +374,6 @@ function Delaunay_ray_up(sites::VoronoiSites,
                 upwind_idx = n2
                 upwind_position = upwind_positions[:, 2]
 
-
                 # Find the intersection and the neighbour the ray is coming from
                 # upwind_position, upwind_index = ray_intersection(k, neighbours, position, sites, i)
 
@@ -405,13 +394,12 @@ function Delaunay_ray_up(sites::VoronoiSites,
                 I_upwind = I[upwind_idx]
                 I[idx] += (a_ijk*S_upwind + b_ijk*S_centre + c_ijk*I_upwind)
 
-                completed_cells[i - lower_idx + 1] = 1
+                completed_cells[i] = 1
             elseif layers_sorted[n1] < layer && layers_sorted[n2] >= layer
                 # Calculate radiation propagating to neighbouring cells
                 upwind_idx = n1
                 upwind_position = upwind_positions[:, 1]
 
-
                 # Find the intersection and the neighbour the ray is coming from
                 # upwind_position, upwind_index = ray_intersection(k, neighbours, position, sites, i)
 
@@ -432,7 +420,7 @@ function Delaunay_ray_up(sites::VoronoiSites,
                 I_upwind = I[upwind_idx]
                 I[idx] += (a_ijk*S_upwind + b_ijk*S_centre + c_ijk*I_upwind)
 
-                completed_cells[i - lower_idx + 1] = 1
+                completed_cells[i] = 1
             end
         end
 
@@ -441,8 +429,8 @@ function Delaunay_ray_up(sites::VoronoiSites,
         end
 
         for sweep in n_sweeps
-            for i in arg_where(completed_cells, 0) .+ lower_idx .- 1
-                idx = perm[i]
+            for i in arg_where(completed_cells, 0)
+                idx = perm[i + lower_idx]
 
                 I[idx] = 0
 
