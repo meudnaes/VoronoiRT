@@ -570,8 +570,7 @@ function α_cont(λ::Unitful.Length, temperature::Unitful.Temperature,
                proton_density::NumberDensity)
 
     α = Transparency.hminus_ff_stilley(λ, temperature, h_ground_density, electron_density)
-    # Wait with this
-    #α = Transparency.hminus_bf_geltman(λ, temperature, h_ground_density, electron_density)
+    α += Transparency.hminus_wbr(λ, temperature, h_ground_density, electron_density)
     α += hydrogenic_ff(c_0 / λ, temperature, electron_density, proton_density, 1)
     α += h2plus_ff(λ, temperature, h_ground_density, proton_density)
     α += h2plus_bf(λ, temperature, h_ground_density, proton_density)
@@ -594,8 +593,7 @@ function α_absorption(λ::Unitful.Length, temperature::Unitful.Temperature,
                proton_density::NumberDensity)
 
     α = Transparency.hminus_ff_stilley(λ, temperature, h_ground_density, electron_density)
-    # Wait with this
-    #α = Transparency.hminus_bf_geltman(λ, temperature, h_ground_density, electron_density)
+    α += Transparency.hminus_wbr(λ, temperature, h_ground_density, electron_density)
     α += hydrogenic_ff(c_0 / λ, temperature, electron_density, proton_density, 1)
     α += h2plus_ff(λ, temperature, h_ground_density, proton_density)
     α += h2plus_bf(λ, temperature, h_ground_density, proton_density)
@@ -748,6 +746,18 @@ function less_than(arr::AbstractArray, treshold)
     j = 0
     for i in 1:length(arr)
         if arr[i] < treshold
+            j += 1
+            indices[j] = i
+        end
+    end
+    return indices[1:j]
+end
+
+function arg_where(arr, num)
+    indices = Vector{Int}(undef, length(arr))
+    j = 0
+    for i in eachindex(arr)
+        if arr[i] == num
             j += 1
             indices[j] = i
         end

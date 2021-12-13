@@ -21,7 +21,6 @@ function J_λ(S_λ, α_tot, atmos; quadrature)
 end
 
 function Λ_iteration(ϵ, maxiter, atmos; quadrature)
-
     # choose a wavelength
     λ = 500u"nm"  # nm
 
@@ -47,6 +46,7 @@ function Λ_iteration(ϵ, maxiter, atmos; quadrature)
     i=0
 
     local J_new
+    # check where ε < 1e-2, cut above heights
     while criterion(S_new, S_old, ϵ, i, maxiter)
         print("Iteration $(i+1)\r")
         S_old = S_new

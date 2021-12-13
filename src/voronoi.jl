@@ -186,7 +186,8 @@ function searchlight_irregular()
     v0 = [0, 0.5, 0.5]
     R0 = 0.1
 
-
+    n_sweeps = 3
+    Nran = 3
     # positions = sample_beam(n_sites, bounds, beam, v0, R0, k)
 
     sites_file = "../data/searchlight_sites.txt"
@@ -199,13 +200,12 @@ function searchlight_irregular()
                  sites_file)
 
     # compute neigbours
-    #=@time begin
+    @time begin
     run(`./voro.sh $sites_file $neighbours_file
             $(bounds[2,1]) $(bounds[2,2])
             $(bounds[3,1]) $(bounds[3,2])
             $(bounds[1,1]) $(bounds[1,2])`)
     end
-    =#
 
     # Voronoi grid
     global sites = VoronoiSites(read_cell(neighbours_file, n_sites, positions)...,
@@ -255,7 +255,7 @@ function searchlight_irregular()
 
     println("---Ray-tracing---")
     @time I = SC_Delaunay_up(sites, I_0, S_0, α_0,
-                        S, α, k)
+                        S, α, k, n_sweeps, Nran)
 
     bottom_x = collect(0:0.001:1)
     bottom_y = collect(0:0.001:1)
@@ -325,13 +325,13 @@ function searchlight_irregular()
 
     # Top to bottom
     # Traces rays through an irregular grid
-    θ = 160*π/180
-    ϕ = 225*π/180
+    θ = 150*π/180
+    ϕ = 355*π/180
 
     # Unit vector towards upwind direction of the ray
     k = -[cos(θ), cos(ϕ)*sin(θ), sin(ϕ)*sin(θ)]
     @time I = SC_Delaunay_down(sites, I_0, S_0, α_0,
-                               S, α, k)
+                               S, α, k, n_sweeps, Nran)
 
     bottom_I = zeros(length(bottom_x), length(bottom_y))
 
