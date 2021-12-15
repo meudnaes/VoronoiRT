@@ -1,7 +1,7 @@
 include("functions.jl")
 include("characteristics.jl")
 
-function J_λ(S_λ, α_tot, atmos; quadrature)
+function J_λ_regular(S_λ, α_tot, atmos; quadrature)
 
     # Ω = (θ, φ), space angle
     weights, θ_array, ϕ_array, n_points = read_quadrature(quadrature)
@@ -15,6 +15,25 @@ function J_λ(S_λ, α_tot, atmos; quadrature)
         elseif θ_array[i] < 90
             J += weights[i]*short_characteristics_down(θ_array[i], ϕ_array[i], S_λ,
                                                        α_tot, atmos, degrees=true)
+        end
+    end
+    return J
+end
+
+function J_λ_voronoi(S_λ, α_tot, atmos; quadrature)
+
+    # Ω = (θ, φ), space angle
+    weights, θ_array, ϕ_array, n_points = read_quadrature(quadrature)
+
+    J = zero(S_λ)
+
+    for i in 1:n_points
+        if θ_array[i] > 90
+            J += weights[i]*short_characteristics_up(θ_array[i], ϕ_array[i], S_λ,
+                                                     α_tot, atmos)
+        elseif θ_array[i] < 90
+            J += weights[i]*short_characteristics_down(θ_array[i], ϕ_array[i], S_λ,
+                                                       α_tot, atmos)
         end
     end
     return J
