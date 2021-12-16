@@ -16,13 +16,13 @@ import PhysicalConstants.CODATA2018: h, c_0, k_B, m_p
 """
     Structure containing atmospheric grid and physical values at grid point
 """
-struct Atmosphere{T <: AbstractFloat}
-    z::Vector{<:Unitful.Length{T}}
-    x::Vector{<:Unitful.Length{T}}
-    y::Vector{<:Unitful.Length{T}}
-    temperature::Array{<:Unitful.Temperature{T}, 3}
-    electron_density::Array{<:NumberDensity{T}, 3}
-    hydrogen_populations::Array{<:NumberDensity{T}, 3}
+struct Atmosphere
+    z::Vector{<:Unitful.Length}
+    x::Vector{<:Unitful.Length}
+    y::Vector{<:Unitful.Length}
+    temperature::Array{<:Unitful.Temperature, 3}
+    electron_density::Array{<:NumberDensity, 3}
+    hydrogen_populations::Array{<:NumberDensity, 3}
     # nz::Integer
     # nx::Integer
     # ny::Integer
@@ -571,7 +571,7 @@ function α_cont(λ::Unitful.Length, temperature::Unitful.Temperature,
                proton_density::NumberDensity)
 
     α = Transparency.hminus_ff_stilley(λ, temperature, h_ground_density, electron_density)
-    α += Transparency.hminus_wbr(λ, temperature, h_ground_density, electron_density)
+    α += Transparency.hminus_bf_wbr(λ, temperature, h_ground_density, electron_density)
     α += hydrogenic_ff(c_0 / λ, temperature, electron_density, proton_density, 1)
     α += h2plus_ff(λ, temperature, h_ground_density, proton_density)
     α += h2plus_bf(λ, temperature, h_ground_density, proton_density)
@@ -594,7 +594,7 @@ function α_absorption(λ::Unitful.Length, temperature::Unitful.Temperature,
                proton_density::NumberDensity)
 
     α = Transparency.hminus_ff_stilley(λ, temperature, h_ground_density, electron_density)
-    α += Transparency.hminus_wbr(λ, temperature, h_ground_density, electron_density)
+    α += Transparency.hminus_bf_wbr(λ, temperature, h_ground_density, electron_density)
     α += hydrogenic_ff(c_0 / λ, temperature, electron_density, proton_density, 1)
     α += h2plus_ff(λ, temperature, h_ground_density, proton_density)
     α += h2plus_bf(λ, temperature, h_ground_density, proton_density)

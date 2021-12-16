@@ -1,20 +1,20 @@
 using Unitful
 
-struct Atmosphere{T}
-    z::Vector{<:Unitful.Length{T}}
-    x::Vector{<:Unitful.Length{T}}
-    y::Vector{<:Unitful.Length{T}}
-    # temperature::Array{<:Unitful.Temperature{T}, 3}
-    # electron_density::Array{<:NumberDensity{T}, 3}
-    # hydrogen_populations::Array{<:NumberDensity{T}, 3}
+struct Atmosphere_test
+    z::Vector{<:Unitful.Length}
+    x::Vector{<:Unitful.Length}
+    y::Vector{<:Unitful.Length}
+    # temperature::Array{<:Unitful.Temperature, 3}
+    # electron_density::Array{<:NumberDensity, 3}
+    # hydrogen_populations::Array{<:NumberDensity, 3}
     nz::Integer
     nx::Integer
     ny::Integer
     Δx::Unitful.Length
     Δy::Unitful.Length
-    function Atmosphere(z::Vector{<:Unitful.Length{T}},
-                        x::Vector{<:Unitful.Length{T}},
-                        y::Vector{<:Unitful.Length{T}}) where T <: AbstractFloat
+    function Atmosphere_test(z::Vector{<:Unitful.Length{T}},
+                             x::Vector{<:Unitful.Length{T}},
+                             y::Vector{<:Unitful.Length{T}}) where T <: AbstractFloat
                         # temperature::Array{<:Unitful.Temperature{T}, 3},
                         # electron_density::Array{<:NumberDensity{T}, 3},
                         # hydrogen_populations::Array{<:NumberDensity{T}, 3}) where T <: AbstractFloat

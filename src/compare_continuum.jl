@@ -1,14 +1,27 @@
-include("characteristics.jl")
-include("irregular_ray_tracing.jl")
+include("lambda_iteration.jl")
 
-function compare()
+function compare(DATA, quadrature)
 
     function regular()
-        DATA = "../data/bifrost_qs006023_s525_quarter.hdf5"
-        atmos = Atmosphere(get_atmos(DATA; periodic=true, skip=4)...)
+        atmos = Atmosphere(get_atmos(DATA; periodic=true, skip=2)...)
+
+        maxiter = 1000
+        ϵ = 1e-5
+        J_mean, S_λ, α_tot = Λ_regular(ϵ, maxiter, atmos, quadrature)
+
+        return atmos
     end
-    regular()
+    atmos = regular()
+
+    function voronoi(atmos::Atmosphere)
+
+        maxiter = 1000
+        ϵ = 1e-4
+        J_mean, S_λ, α_tot = Λ_voronoi(ϵ, maxiter, atmos, quadrature)
+
+    end
+    #voronoi(atmos)
 
 end
 
-compare()
+compare("../data/bifrost_qs006023_s525_quarter.hdf5", "../quadratures/ul2n3.dat");

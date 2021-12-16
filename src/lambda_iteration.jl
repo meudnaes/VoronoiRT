@@ -3,7 +3,7 @@ include("voronoi_utils.jl")
 include("characteristics.jl")
 include("irregular_ray_tracing.jl")
 
-function J_λ_regular(S_λ::AbstractArray, α_tot::AbstractArray, atmos::Atmosphere; quadrature)
+function J_λ_regular(S_λ::AbstractArray, α_tot::AbstractArray, atmos::Atmosphere, quadrature)
 
     # Ω = (θ, φ), space angle
     weights, θ_array, ϕ_array, n_points = read_quadrature(quadrature)
@@ -61,9 +61,13 @@ function Λ_regular(ϵ::AbstractFloat, maxiter::Integer, atmos::Atmosphere, quad
     # destruction
     ε_λ = α_a ./ α_tot
 
+    println(isnan(ε_λ))
+
+    thin = ε_λ .> 5e-3
+
     # Start with the source function as the Planck function
-    S_new = B_λ.(λ, atmos.temperature)
-    B_0 = S_new
+    B_0 = B_λ.(λ, atmos.temperature)
+    S_new = B_0
 
     S_old = zero(S_new)
 
@@ -74,8 +78,7 @@ function Λ_regular(ϵ::AbstractFloat, maxiter::Integer, atmos::Atmosphere, quad
     while criterion(S_new, S_old, ϵ, i, maxiter)
         print("Iteration $(i+1)\r")
         S_old = S_new
-        J_new = J_λ(S_old, α_tot, atmos, quadrature)
-        J_test = J_new
+        J_new = J_λ_regular(S_old, α_tot, atmos, quadrature)
         S_new = (1 .- ε_λ).*J_new .+ ε_λ.*B_0
         i+=1
     end
