@@ -64,6 +64,7 @@ function read_cell(fname::String, n_sites::Int, positions::AbstractMatrix)
         println("Guess too low!")
     end
 
+    global NeighbourMatrix
     NeighbourMatrix = NeighbourMatrix[:,1:max_neighbours+1]
     layers_up = _sort_by_layer_up(NeighbourMatrix, n_sites)
     layers_down = _sort_by_layer_down(NeighbourMatrix, n_sites)
