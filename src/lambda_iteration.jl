@@ -1,7 +1,7 @@
 include("functions.jl")
 include("characteristics.jl")
 
-function J_λ_regular(S_λ, α_tot, atmos; quadrature)
+function J_λ(S_λ, α_tot, atmos; quadrature)
 
     # Ω = (θ, φ), space angle
     weights, θ_array, ϕ_array, n_points = read_quadrature(quadrature)
@@ -20,25 +20,6 @@ function J_λ_regular(S_λ, α_tot, atmos; quadrature)
     return J
 end
 
-function J_λ_voronoi(S_λ, α_tot, atmos; quadrature)
-
-    # Ω = (θ, φ), space angle
-    weights, θ_array, ϕ_array, n_points = read_quadrature(quadrature)
-
-    J = zero(S_λ)
-
-    for i in 1:n_points
-        if θ_array[i] > 90
-            J += weights[i]*short_characteristics_up(θ_array[i], ϕ_array[i], S_λ,
-                                                     α_tot, atmos)
-        elseif θ_array[i] < 90
-            J += weights[i]*short_characteristics_down(θ_array[i], ϕ_array[i], S_λ,
-                                                       α_tot, atmos)
-        end
-    end
-    return J
-end
-
 function Λ_iteration(ϵ, maxiter, atmos; quadrature)
     # choose a wavelength
     λ = 500u"nm"  # nm
@@ -48,13 +29,15 @@ function Λ_iteration(ϵ, maxiter, atmos; quadrature)
 
     # Find continuum extinction (only with Thomson and Rayleigh)
     α_tot = α_cont.(λ, atmos.temperature, atmos.electron_density,
-                atmos.hydrogen_populations, atmos.hydrogen_populations)
+                    atmos.hydrogen_populations, atmos.hydrogen_populations)
 
     α_a = α_absorption.(λ, atmos.temperature, atmos.electron_density,
-                     atmos.hydrogen_populations, atmos.hydrogen_populations)
+                        atmos.hydrogen_populations, atmos.hydrogen_populations)
 
     # destruction
     ε_λ = α_a ./ α_tot
+
+    println(sum(isnan.(ε_λ[:, 2:end-1, 2:end-1])))
 
     # Start with the source function as the Planck function
     S_new = B_λ.(λ, atmos.temperature)
@@ -77,7 +60,7 @@ function Λ_iteration(ϵ, maxiter, atmos; quadrature)
 
     if i == maxiter
         println("Did not converge inside scope")
-        return J_new, S_new
+        return J_new, S_new, α_tot
     end
 
     println("Converged in $i iterations")

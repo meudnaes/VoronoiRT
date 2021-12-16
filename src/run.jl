@@ -24,10 +24,12 @@ function main()
     maxiter = 100
     J_mean, S_λ, α_tot = Λ_iteration(ϵ, maxiter, atmos; quadrature="../quadratures/ul2n3.dat")
 
+    println(sum(isnan.(S_λ[:, 2:end-1, 2:end-1])))
+
     # calculate intensity at top for a small inclination
     ϕ = 170
     θ = 10
-    global I_top
+
     I_top = short_characteristics_up(θ, ϕ, S_λ, α_tot, atmos; degrees=true)
     pyplot()
     heatmap(ustrip(atmos.x[2:end-1]),
@@ -188,5 +190,5 @@ function searchlight()
     print("")
 end
 
-searchlight()
-# main()
+# searchlight()
+main()
