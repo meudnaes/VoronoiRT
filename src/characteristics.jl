@@ -57,7 +57,7 @@ function short_characteristics_up(θ, ϕ, S_0, α, atmos; degrees=true, I_0=fals
     sign_x, sign_y = xy_intersect(ϕ)
 
     if I_0 == false
-        # Boundary condition
+        # Boundary condition, planck function...
         I[1,:,:] = S_0[1,:,:]
     else
         I[1,:,:] = I_0
