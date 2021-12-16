@@ -68,7 +68,7 @@ function _initialise(p_vec, atmos::Atmosphere)
         N_e_new[k] = trilinear(p_vec[1, k], p_vec[2, k], p_vec[3, k], atmos, atmos.electron_density)
         N_H_new[k] = trilinear(p_vec[1, k], p_vec[2, k], p_vec[3, k], atmos, atmos.hydrogen_populations)
     end
-    return ustrip(p_vec), ustrip(temperature_new), ustrip(N_e_new), ustrip(N_H_new)
+    return ustrip(temperature_new), ustrip(N_e_new), ustrip(N_H_new)
 end
 
 function main()

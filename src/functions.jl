@@ -76,20 +76,22 @@ Original author: Ida Risnes Hansen
 """
 function get_atmos(file_path; periodic=true, skip=1)
     println("---Extracting atmospheric data---")
-    local x, y, z, hydrogen_populations
+    local x, y, z, temperature, electron_density, hydrogen_populations
+
     h5open(file_path, "r") do atmos
         z = read(atmos, "z")[1:skip:end]*u"m"
         x = read(atmos, "x")[1:skip:end]*u"m"
         y = read(atmos, "y")[1:skip:end]*u"m"
 
-        velocity_x = read(atmos, "velocity_x")[1:skip:end, 1:skip:end, 1:skip:end]*u"m/s"
-        velocity_y = read(atmos, "velocity_y")[1:skip:end, 1:skip:end, 1:skip:end]*u"m/s"
-        velocity_z = read(atmos, "velocity_z")[1:skip:end, 1:skip:end, 1:skip:end]*u"m/s"
+        velocity_x = read(atmos, "velocity_x")[1:skip:end, 1:skip:end, 1:skip:end]
+        velocity_y = read(atmos, "velocity_y")[1:skip:end, 1:skip:end, 1:skip:end]
+        velocity_z = read(atmos, "velocity_z")[1:skip:end, 1:skip:end, 1:skip:end]
 
-        temperature = read(atmos, "temperature")[1:skip:end, 1:skip:end, 1:skip:end]*u"K"
-        electron_density = read(atmos, "electron_density")[1:skip:end, 1:skip:end, 1:skip:end]*u"m^-3"
-        hydrogen_populations = read(atmos, "hydrogen_populations")[1:skip:end, 1:skip:end, 1:skip:end]*u"m^-3"
+        temperature = read(atmos, "temperature")[1:skip:end, 1:skip:end, 1:skip:end]u"K"
+        electron_density = read(atmos, "electron_density")[1:skip:end, 1:skip:end, 1:skip:end]u"m^-3"
+        hydrogen_populations = read(atmos, "hydrogen_populations")[1:skip:end, 1:skip:end, 1:skip:end]u"m^-3"
     end
+
 
     if length(size(z)) == 2
         z = z[:,1]
@@ -764,4 +766,20 @@ function arg_where(arr, num)
         end
     end
     return indices[1:j]
+end
+
+function _initialise(p_vec, atmos::Atmosphere)
+    println("---Interpolating quantities to new grid---")
+    n_sites = length(atmos.x)*length(atmos.z)*length(atmos.y)
+
+    temperature_new = Vector{Unitful.Temperature}(undef, n_sites)
+    N_e_new = Vector{NumberDensity}(undef, n_sites)
+    N_H_new = Vector{NumberDensity}(undef, n_sites)
+
+    for k in 1:n_sites
+        temperature_new[k] = trilinear(p_vec[1, k], p_vec[2, k], p_vec[3, k], atmos, atmos.temperature)
+        N_e_new[k] = trilinear(p_vec[1, k], p_vec[2, k], p_vec[3, k], atmos, atmos.electron_density)
+        N_H_new[k] = trilinear(p_vec[1, k], p_vec[2, k], p_vec[3, k], atmos, atmos.hydrogen_populations)
+    end
+    return ustrip(temperature_new), ustrip(N_e_new), ustrip(N_H_new)
 end

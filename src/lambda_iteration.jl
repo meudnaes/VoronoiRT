@@ -52,16 +52,14 @@ function Λ_regular(ϵ::AbstractFloat, maxiter::Integer, atmos::Atmosphere, quad
     η_ν = 0
 
     # Find continuum extinction (only with Thomson and Rayleigh)
-    α_tot = α_cont.(λ, atmos.temperature, atmos.electron_density,
-                atmos.hydrogen_populations, atmos.hydrogen_populations)
+    α_tot = α_cont.(λ, atmos.temperature, atmos.electron_density*1.0,
+                    atmos.hydrogen_populations, atmos.hydrogen_populations)
 
-    α_a = α_absorption.(λ, atmos.temperature, atmos.electron_density,
-                     atmos.hydrogen_populations, atmos.hydrogen_populations)
+    α_a = α_absorption.(λ, atmos.temperature, atmos.electron_density*1.0,
+                        atmos.hydrogen_populations, atmos.hydrogen_populations)
 
     # destruction
     ε_λ = α_a ./ α_tot
-
-    println(isnan(ε_λ))
 
     thin = ε_λ .> 5e-3
 
@@ -85,7 +83,7 @@ function Λ_regular(ϵ::AbstractFloat, maxiter::Integer, atmos::Atmosphere, quad
 
     if i == maxiter
         println("Did not converge inside scope")
-        return J_new, S_new
+        return J_new, S_new, α_tot
     end
 
     println("Converged in $i iterations")
@@ -94,6 +92,7 @@ function Λ_regular(ϵ::AbstractFloat, maxiter::Integer, atmos::Atmosphere, quad
 end
 
 function Λ_voronoi(ϵ::AbstractFloat, maxiter::Integer, sites::VoronoiSites, quadrature)
+    prinltn("---Iterating---")
     # choose a wavelength
     λ = 500u"nm"  # nm
 
@@ -101,17 +100,17 @@ function Λ_voronoi(ϵ::AbstractFloat, maxiter::Integer, sites::VoronoiSites, qu
     η_ν = 0
 
     # Find continuum extinction (only with Thomson and Rayleigh)
-    α_tot = α_cont.(λ, atmos.temperature, atmos.electron_density,
-                atmos.hydrogen_populations, atmos.hydrogen_populations)
+    α_tot = α_cont.(λ, sites.temperature, sites.electron_density,
+                    sites.hydrogen_populations, sites.hydrogen_populations)
 
-    α_a = α_absorption.(λ, atmos.temperature, atmos.electron_density,
-                     atmos.hydrogen_populations, atmos.hydrogen_populations)
+    α_a = α_absorption.(λ, sites.temperature, sites.electron_density,
+                        sites.hydrogen_populations, sites.hydrogen_populations)
 
     # destruction
     ε_λ = α_a ./ α_tot
 
     # Start with the source function as the Planck function
-    S_new = B_λ.(λ, atmos.temperature)
+    S_new = B_λ.(λ, sites.temperature)
     B_0 = S_new
 
     S_old = zero(S_new)

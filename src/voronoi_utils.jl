@@ -35,6 +35,7 @@ Reads a file containing neighbouring cells for each grid point in the voronoi
 tesselation.
 """
 function read_cell(fname::String, n_sites::Int, positions::AbstractMatrix)
+    println("---Reading neighbour information---")
     # Guess (overshoot), maybe do exact later?
     max_guess = 100
     NeighbourMatrix = zeros(Int, n_sites, max_guess+1)
@@ -59,15 +60,18 @@ function read_cell(fname::String, n_sites::Int, positions::AbstractMatrix)
         end
     end
 
+    println("---1---")
+
     max_neighbours = maximum(NeighbourMatrix[:,1])
     if max_neighbours == max_guess
-        println("Guess too low!")
+        println("===================Guess was too low!=======================")
     end
 
     NeighbourMatrix = NeighbourMatrix[:,1:max_neighbours+1]
     layers_up = _sort_by_layer_up(NeighbourMatrix, n_sites)
+    println("---2---")
     layers_down = _sort_by_layer_down(NeighbourMatrix, n_sites)
-
+    println("---3---")
     # Sorting works for layers and sites, but loses neighbour information!
     return positions, NeighbourMatrix, layers_up, layers_down
 end
