@@ -8,6 +8,7 @@ using NumericalIntegration
 
 import PhysicalConstants.CODATA2018: h, c_0, k_B, m_p
 
+@derived_dimension PerLength Unitful.𝐋^-1
 @derived_dimension NumberDensity Unitful.𝐋^-3
 @derived_dimension ColumnDensity Unitful.𝐋^-2
 @derived_dimension Volume Unitful.𝐋^3
@@ -20,29 +21,30 @@ struct Atmosphere
     z::Vector{<:Unitful.Length}
     x::Vector{<:Unitful.Length}
     y::Vector{<:Unitful.Length}
-    # nz::Int
-    # nx::Int
-    # ny::Int
-    # Δx::AbstractFloat
-    # Δy::AbstractFloat
     temperature::Array{<:Unitful.Temperature, 3}
     electron_density::Array{<:NumberDensity, 3}
     hydrogen_populations::Array{<:NumberDensity, 3}
-    #=function Atmosphere(z::Vector{<:Unitful.Length},
-                        x::Vector{<:Unitful.Length},
-                        y::Vector{<:Unitful.Length},
-                        temperature::Array{<:Unitful.Temperature, 3},
-                        electron_density::Array{<:NumberDensity, 3},
-                        hydrogen_populations::Array{<:NumberDensity, 3}) where T <: AbstractFloat
-        #Funcy func
-        nz = length(z)
-        nx = length(x)
-        ny = length(y)
-        Δx = x[2] - x[1]
-        Δy = y[2] - y[1]
-        new{T}(z, x, y, nz, nx, ny, Δx, Δy,
-               temperature, electron_density, hydrogen_populations)
-    end=#
+    # nz::Integer
+    # nx::Integer
+    # ny::Integer
+    # Δx::Unitful.Length
+    # Δy::Unitful.Length
+    # function Atmosphere(z::Vector{<:Unitful.Length{T}},
+    #                     x::Vector{<:Unitful.Length{T}},
+    #                     y::Vector{<:Unitful.Length{T}}) where T <: AbstractFloat
+    #                     # temperature::Array{<:Unitful.Temperature{T}, 3},
+    #                     # electron_density::Array{<:NumberDensity{T}, 3},
+    #                     # hydrogen_populations::Array{<:NumberDensity{T}, 3}) where T <: AbstractFloat
+    #     #Funcy func
+    #     nz = length(z)
+    #     nx = length(x)
+    #     ny = length(y)
+    #     Δx = x[2] - x[1]
+    #     Δy = y[2] - y[1]
+    #     new{T}(z, x, y, nz, nx, ny, Δx, Δy)
+    #            # temperature, electron_density, hydrogen_populations,
+    #            # nz, nx, ny, Δx, Δy)
+    # end
 end
 
 """
@@ -75,20 +77,22 @@ Original author: Ida Risnes Hansen
 """
 function get_atmos(file_path; periodic=true, skip=1)
     println("---Extracting atmospheric data---")
-    local x, y, z, hydrogen_populations
+    local x, y, z, temperature, electron_density, hydrogen_populations
+
     h5open(file_path, "r") do atmos
         z = read(atmos, "z")[1:skip:end]*u"m"
         x = read(atmos, "x")[1:skip:end]*u"m"
         y = read(atmos, "y")[1:skip:end]*u"m"
 
-        velocity_x = read(atmos, "velocity_x")[1:skip:end, 1:skip:end, 1:skip:end]*u"m/s"
-        velocity_y = read(atmos, "velocity_y")[1:skip:end, 1:skip:end, 1:skip:end]*u"m/s"
-        velocity_z = read(atmos, "velocity_z")[1:skip:end, 1:skip:end, 1:skip:end]*u"m/s"
+        velocity_x = read(atmos, "velocity_x")[1:skip:end, 1:skip:end, 1:skip:end]
+        velocity_y = read(atmos, "velocity_y")[1:skip:end, 1:skip:end, 1:skip:end]
+        velocity_z = read(atmos, "velocity_z")[1:skip:end, 1:skip:end, 1:skip:end]
 
-        temperature = read(atmos, "temperature")[1:skip:end, 1:skip:end, 1:skip:end]*u"K"
-        electron_density = read(atmos, "electron_density")[1:skip:end, 1:skip:end, 1:skip:end]*u"m^-3"
-        hydrogen_populations = read(atmos, "hydrogen_populations")[1:skip:end, 1:skip:end, 1:skip:end]*u"m^-3"
+        temperature = read(atmos, "temperature")[1:skip:end, 1:skip:end, 1:skip:end]u"K"
+        electron_density = read(atmos, "electron_density")[1:skip:end, 1:skip:end, 1:skip:end]u"m^-3"
+        hydrogen_populations = read(atmos, "hydrogen_populations")[1:skip:end, 1:skip:end, 1:skip:end]u"m^-3"
     end
+
 
     if length(size(z)) == 2
         z = z[:,1]
@@ -569,8 +573,8 @@ function α_cont(λ::Unitful.Length, temperature::Unitful.Temperature,
                electron_density::NumberDensity, h_ground_density::NumberDensity,
                proton_density::NumberDensity)
 
-    α = Transparency.hminus_ff_stilley(λ, temperature, h_ground_density, electron_density)
-    α += Transparency.hminus_wbr(λ, temperature, h_ground_density, electron_density)
+    #α = Transparency.hminus_ff_stilley(λ, temperature, h_ground_density, electron_density)
+    α = Transparency.hminus_bf_wbr(λ, temperature, h_ground_density, electron_density)
     α += hydrogenic_ff(c_0 / λ, temperature, electron_density, proton_density, 1)
     α += h2plus_ff(λ, temperature, h_ground_density, proton_density)
     α += h2plus_bf(λ, temperature, h_ground_density, proton_density)
@@ -592,8 +596,8 @@ function α_absorption(λ::Unitful.Length, temperature::Unitful.Temperature,
                electron_density::NumberDensity, h_ground_density::NumberDensity,
                proton_density::NumberDensity)
 
-    α = Transparency.hminus_ff_stilley(λ, temperature, h_ground_density, electron_density)
-    α += Transparency.hminus_wbr(λ, temperature, h_ground_density, electron_density)
+    #α = Transparency.hminus_ff_stilley(λ, temperature, h_ground_density, electron_density)
+    α = Transparency.hminus_bf_wbr(λ, temperature, h_ground_density, electron_density)
     α += hydrogenic_ff(c_0 / λ, temperature, electron_density, proton_density, 1)
     α += h2plus_ff(λ, temperature, h_ground_density, proton_density)
     α += h2plus_bf(λ, temperature, h_ground_density, proton_density)
@@ -697,7 +701,7 @@ end
 Computes weights for linear integration of source function,
 approximating `exp(-Δτ)` for very small and very large values of `Δτ`.
 """
-function weights(Δτ::T) where T <: AbstractFloat
+function weights2(Δτ::T) where T <: AbstractFloat
     if Δτ < 5e-4
         w1 = Δτ * (1 - Δτ / 2)
         w2 = Δτ^2 * (0.5f0 - Δτ / 3)
@@ -711,14 +715,20 @@ function weights(Δτ::T) where T <: AbstractFloat
     return w1, w2
 end
 
-function coefficients(w1, w2, Δτ_upwind)
+function weights(Δτ)
+    e0 = 1 - exp(-Δτ)
+    e1 = Δτ - e0
+    return e0, e1
+end
+
+function coefficients(e0, e1, Δτ_upwind)
     if Δτ_upwind == 0
         a = 0
         b = 0
         c = 1
     else
-        a = w1 - w2/Δτ_upwind
-        b = w1/Δτ_upwind
+        a = e0 - e1/Δτ_upwind
+        b = e1/Δτ_upwind
         c = exp(-Δτ_upwind)
     end
     return a, b, c

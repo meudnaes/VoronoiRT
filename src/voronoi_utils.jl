@@ -3,20 +3,29 @@ using NearestNeighbors
 include("functions.jl")
 
 struct VoronoiSites
-    positions::Matrix{Float64}
+    positions::Matrix{<:Unitful.Length}
     neighbours::Matrix{Int}
     layers_up::Vector{Int}
     layers_down::Vector{Int}
-    temperature::Vector{Float64}
-    electron_density::Vector{Float64}
-    hydrogen_populations::Vector{Float64}
-    z_min::Float64
-    z_max::Float64
-    x_min::Float64
-    x_max::Float64
-    y_min::Float64
-    y_max::Float64
+    temperature::Vector{<:Unitful.Temperature}
+    electron_density::Vector{<:NumberDensity}
+    hydrogen_populations::Vector{<:NumberDensity}
+    z_min::Unitful.Length
+    z_max::Unitful.Length
+    x_min::Unitful.Length
+    x_max::Unitful.Length
+    y_min::Unitful.Length
+    y_max::Unitful.Length
     n::Int
+end
+
+mutable struct Boundaries
+    I_bottom::Matrix{<:UnitsIntensity_λ}
+    I_top::Matrix{<:UnitsIntensity_λ}
+    S_bottom::Matrix{<:UnitsIntensity_λ}
+    S_top::Matrix{<:UnitsIntensity_λ}
+    α_bottom::Matrix{<:PerLength}
+    α_top::Matrix{<:PerLength}
 end
 
 struct VoronoiCell
@@ -35,6 +44,7 @@ Reads a file containing neighbouring cells for each grid point in the voronoi
 tesselation.
 """
 function read_cell(fname::String, n_sites::Int, positions::AbstractMatrix)
+    println("---Reading neighbour information---")
     # Guess (overshoot), maybe do exact later?
     max_guess = 100
     NeighbourMatrix = zeros(Int, n_sites, max_guess+1)
@@ -61,13 +71,13 @@ function read_cell(fname::String, n_sites::Int, positions::AbstractMatrix)
 
     max_neighbours = maximum(NeighbourMatrix[:,1])
     if max_neighbours == max_guess
-        println("Guess too low!")
+        println("===================Guess was too low!=======================")
     end
 
     NeighbourMatrix = NeighbourMatrix[:,1:max_neighbours+1]
+
     layers_up = _sort_by_layer_up(NeighbourMatrix, n_sites)
     layers_down = _sort_by_layer_down(NeighbourMatrix, n_sites)
-
     # Sorting works for layers and sites, but loses neighbour information!
     return positions, NeighbourMatrix, layers_up, layers_down
 end
@@ -374,7 +384,7 @@ end
 function smallest_angle(position::AbstractVector, neighbours::AbstractVector, k::AbstractVector, sites::VoronoiSites, n::Int)
 
     dots = Vector{Float64}(undef, length(neighbours))
-    upwind_positions = Matrix{Float64}(undef, (3, length(neighbours)))
+    upwind_positions = Matrix{Float64}(undef, (3, length(neighbours)))u"m"
 
     x_r_r = sites.x_max - position[2]
     x_r_l = position[2] - sites.x_min
@@ -422,7 +432,7 @@ function smallest_angle(position::AbstractVector, neighbours::AbstractVector, k:
 
     p=sortperm(dots)
     dots=dots[p]
-    upwind_positions=upwind_positions[:, p]
+    upwind_positions = upwind_positions[:, p]
 
     return dots[end-(n-1):end], p[end-(n-1):end], upwind_positions[:, end-(n-1):end]
 end
@@ -435,4 +445,50 @@ function choose_random(angles::AbstractVector, indices::AbstractVector)
     p1 = r1*rand()
 
     return argmax([p1, p2])
+end
+
+function Voronoi_to_Raster(sites::VoronoiSites, atmos::Atmosphere, S_λ::AbstractVector, α_tot::AbstractVector, r_factor)
+
+    z = collect(LinRange(sites.z_min, sites.z_max, floor(Int, r_factor*length(atmos.z))))
+    x = collect(LinRange(sites.x_min, sites.x_max, floor(Int, r_factor*length(atmos.x))))
+    y = collect(LinRange(sites.y_min, sites.y_max, floor(Int, r_factor*length(atmos.y))))
+
+    temperature = Array{Unitful.Temperature, 3}(undef, (length(z), length(x), length(y)))
+    electron_density = Array{NumberDensity, 3}(undef, (length(z), length(x), length(y)))
+    hydrogen_populations = Array{NumberDensity, 3}(undef, (length(z), length(x), length(y)))
+    S_λ_grid = zeros(length(z), length(x), length(y))u"kW*nm^-1*m^-2"
+    α_grid = zeros(length(z), length(x), length(y))u"m^-1"
+
+    tree = KDTree(ustrip(sites.positions))
+    for k in 1:length(z)
+        for i in 1:length(x)
+            for j in 1:length(y)
+                grid_point = [z[k], x[i], y[j]]
+                idx, dist = nn(tree, ustrip(grid_point))
+                temperature[k, i, j] = sites.temperature[idx]
+                electron_density[k, i, j] = sites.electron_density[idx]
+                hydrogen_populations[k, i, j] = sites.hydrogen_populations[idx]
+                S_λ_grid[k, i, j] = S_λ[idx]
+                α_grid[k, i, j] = α_tot[idx]
+            end
+        end
+    end
+
+    return Atmosphere(z, x, y, temperature, electron_density, hydrogen_populations), S_λ_grid, α_grid
+end
+
+function _initialise(p_vec, atmos::Atmosphere)
+    println("---Interpolating quantities to new grid---")
+    n_sites = length(p_vec[1,:])
+
+    temperature_new = Vector{Unitful.Temperature}(undef, n_sites)
+    N_e_new = Vector{NumberDensity}(undef, n_sites)
+    N_H_new = Vector{NumberDensity}(undef, n_sites)
+
+    for k in 1:n_sites
+        temperature_new[k] = trilinear(p_vec[1, k], p_vec[2, k], p_vec[3, k], atmos, atmos.temperature)
+        N_e_new[k] = trilinear(p_vec[1, k], p_vec[2, k], p_vec[3, k], atmos, atmos.electron_density)
+        N_H_new[k] = trilinear(p_vec[1, k], p_vec[2, k], p_vec[3, k], atmos, atmos.hydrogen_populations)
+    end
+    return temperature_new, N_e_new, N_H_new
 end
