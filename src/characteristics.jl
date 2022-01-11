@@ -186,7 +186,7 @@ function short_characteristics_down(θ, ϕ, S_0, α, atmos; degrees=true, I_0=fa
 end
 
 """
-    function z_up_ray(θ::AbstractFloat, ϕ::AbstractFloat, idz::Int, sign_x::Int,
+    function xy_up_ray(θ::AbstractFloat, ϕ::AbstractFloat, idz::Int, sign_x::Int,
                        sign_y::Int, I_0::AbstractArray, S_0::AbstractArray,
                        α::AbstractArray, atmos::Atmosphere)
 
@@ -266,7 +266,6 @@ function xy_up_ray(θ::AbstractFloat, ϕ::AbstractFloat, idz::Int, sign_x::Int,
 
             w1, w2 =  weights(Δτ_upwind)
             a_ijk, b_ijk, c_ijk = coefficients(w1, w2, Δτ_upwind)
-
 
             # Interpolate to find intensity at upwind point
             I_vals = [I_0[idx_lower, idy_lower] I_0[idx_lower, idy_upper]

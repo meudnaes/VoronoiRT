@@ -8,6 +8,7 @@ using NumericalIntegration
 
 import PhysicalConstants.CODATA2018: h, c_0, k_B, m_p
 
+@derived_dimension PerLength Unitful.𝐋^-1
 @derived_dimension NumberDensity Unitful.𝐋^-3
 @derived_dimension ColumnDensity Unitful.𝐋^-2
 @derived_dimension Volume Unitful.𝐋^3
@@ -572,8 +573,8 @@ function α_cont(λ::Unitful.Length, temperature::Unitful.Temperature,
                electron_density::NumberDensity, h_ground_density::NumberDensity,
                proton_density::NumberDensity)
 
-    α = Transparency.hminus_ff_stilley(λ, temperature, h_ground_density, electron_density)
-    α += Transparency.hminus_bf_wbr(λ, temperature, h_ground_density, electron_density)
+    #α = Transparency.hminus_ff_stilley(λ, temperature, h_ground_density, electron_density)
+    α = Transparency.hminus_bf_wbr(λ, temperature, h_ground_density, electron_density)
     α += hydrogenic_ff(c_0 / λ, temperature, electron_density, proton_density, 1)
     α += h2plus_ff(λ, temperature, h_ground_density, proton_density)
     α += h2plus_bf(λ, temperature, h_ground_density, proton_density)
@@ -595,8 +596,8 @@ function α_absorption(λ::Unitful.Length, temperature::Unitful.Temperature,
                electron_density::NumberDensity, h_ground_density::NumberDensity,
                proton_density::NumberDensity)
 
-    α = Transparency.hminus_ff_stilley(λ, temperature, h_ground_density, electron_density)
-    α += Transparency.hminus_bf_wbr(λ, temperature, h_ground_density, electron_density)
+    #α = Transparency.hminus_ff_stilley(λ, temperature, h_ground_density, electron_density)
+    α = Transparency.hminus_bf_wbr(λ, temperature, h_ground_density, electron_density)
     α += hydrogenic_ff(c_0 / λ, temperature, electron_density, proton_density, 1)
     α += h2plus_ff(λ, temperature, h_ground_density, proton_density)
     α += h2plus_bf(λ, temperature, h_ground_density, proton_density)
@@ -700,7 +701,7 @@ end
 Computes weights for linear integration of source function,
 approximating `exp(-Δτ)` for very small and very large values of `Δτ`.
 """
-function weights(Δτ::T) where T <: AbstractFloat
+function weights2(Δτ::T) where T <: AbstractFloat
     if Δτ < 5e-4
         w1 = Δτ * (1 - Δτ / 2)
         w2 = Δτ^2 * (0.5f0 - Δτ / 3)
@@ -714,14 +715,20 @@ function weights(Δτ::T) where T <: AbstractFloat
     return w1, w2
 end
 
-function coefficients(w1, w2, Δτ_upwind)
+function weights(Δτ)
+    e0 = 1 - exp(-Δτ)
+    e1 = Δτ - e0
+    return e0, e1
+end
+
+function coefficients(e0, e1, Δτ_upwind)
     if Δτ_upwind == 0
         a = 0
         b = 0
         c = 1
     else
-        a = w1 - w2/Δτ_upwind
-        b = w1/Δτ_upwind
+        a = e0 - e1/Δτ_upwind
+        b = e1/Δτ_upwind
         c = exp(-Δτ_upwind)
     end
     return a, b, c
@@ -766,20 +773,4 @@ function arg_where(arr, num)
         end
     end
     return indices[1:j]
-end
-
-function _initialise(p_vec, atmos::Atmosphere)
-    println("---Interpolating quantities to new grid---")
-    n_sites = length(atmos.x)*length(atmos.z)*length(atmos.y)
-
-    temperature_new = Vector{Unitful.Temperature}(undef, n_sites)
-    N_e_new = Vector{NumberDensity}(undef, n_sites)
-    N_H_new = Vector{NumberDensity}(undef, n_sites)
-
-    for k in 1:n_sites
-        temperature_new[k] = trilinear(p_vec[1, k], p_vec[2, k], p_vec[3, k], atmos, atmos.temperature)
-        N_e_new[k] = trilinear(p_vec[1, k], p_vec[2, k], p_vec[3, k], atmos, atmos.electron_density)
-        N_H_new[k] = trilinear(p_vec[1, k], p_vec[2, k], p_vec[3, k], atmos, atmos.hydrogen_populations)
-    end
-    return ustrip(temperature_new), ustrip(N_e_new), ustrip(N_H_new)
 end
