@@ -13,13 +13,6 @@ function main()
     DATA = "../data/bifrost_qs006023_s525_quarter.hdf5"
     atmos = Atmosphere(get_atmos(DATA; periodic=true, skip=4)...)
 
-    global nz = length(atmos.z)
-    global nx = length(atmos.x)
-    global ny = length(atmos.y)
-
-    global Δx = atmos.x[2] - atmos.x[1]
-    global Δy = atmos.y[2] - atmos.y[1]
-
     ϵ = 1e-3
     maxiter = 100
     J_mean, S_λ, α_tot = Λ_iteration(ϵ, maxiter, atmos; quadrature="../quadratures/ul2n3.dat")
@@ -84,13 +77,6 @@ function searchlight()
     hydrogen_populations = zeros(nz, nx, ny)u"m^-3"
 
     atmos = Atmosphere(z, x, y, temperature, electron_density, hydrogen_populations)
-
-    global nz = length(atmos.z)
-    global nx = length(atmos.x)
-    global ny = length(atmos.y)
-
-    global Δx = atmos.x[2] - atmos.x[1]
-    global Δy = atmos.y[2] - atmos.y[1]
 
     S_0 = zeros(nz, nx, ny)u"kW*m^-2*nm^-1"
     α = zeros(nz, nx, ny)u"m^-1"
