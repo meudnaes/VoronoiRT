@@ -1,25 +1,42 @@
 using Plots
 include("lambda_iteration.jl")
 
+global my_seed = 1998
+Random.seed!(my_seed)
+
 function compare(DATA, quadrature)
     maxiter = 50
-    ϵ = 1e-3
+    ϵ = 1e-4
+
+    θ = 10
+    ϕ = 10
 
     function regular()
 
-        atmos = Atmosphere(get_atmos(DATA; periodic=true, skip=4)...)
+        atmos = Atmosphere(get_atmos(DATA; periodic=true, skip=1)...)
         J_mean, S_λ, α_tot = Λ_regular(ϵ, maxiter, atmos, quadrature)
-
-        θ = 10
-        ϕ = 10
 
         I_top = short_characteristics_up(θ, ϕ, S_λ,
                                             α_tot, atmos, degrees=true, I_0=S_λ[1,:,:])
 
-        return atmos
+        I_top = ustrip(uconvert.(u"kW*nm^-1*m^-2", I_top[end, 2:end-1, 2:end-1]))
+
+        heatmap(ustrip(atmos.x[2:end-1]),
+                ustrip(atmos.y[2:end-1]),
+                transpose(I_top),
+                xaxis="x",
+                yaxis="y",
+                dpi=300,
+                rightmargin=10Plots.mm,
+                title="Regular Grid",
+                aspect_ratio=:equal,
+                clim=(1.0,15.0))
+
+        savefig("../img/compare_converged/regular_top")
+
+        return atmos, S_λ
     end
 
-    atmos = regular()
 
     function voronoi(atmos::Atmosphere)
 
@@ -27,7 +44,7 @@ function compare(DATA, quadrature)
         nz = length(atmos.z)
         ny = length(atmos.y)
 
-        n_sites = nz*nx*ny
+        n_sites = floor(Int, nz*nx*ny/8)
         positions = rejection_sampling(n_sites, atmos, log10.(ustrip.(atmos.hydrogen_populations)))
 
         sites_file = "../data/sites_compare.txt"
@@ -65,9 +82,31 @@ function compare(DATA, quadrature)
 
         J_mean, S_λ, α_tot = Λ_voronoi(ϵ, maxiter, sites, quadrature)
 
+        atmos_from_voronoi, S_λ_grid, α_grid = Voronoi_to_Raster(sites, atmos, S_λ, α_tot, 3)
+
+        I_top = short_characteristics_up(θ, ϕ, S_λ_grid,
+                                         α_grid, atmos_from_voronoi, I_0=S_λ_grid[1,:,:])
+
+        I_top = ustrip(uconvert.(u"kW*nm^-1*m^-2", I_top[end, 2:end-1, 2:end-1]))
+
+        heatmap(ustrip(atmos_from_voronoi.x[2:end-1]),
+             ustrip(atmos_from_voronoi.y[2:end-1]),
+             transpose(I_top),
+             xaxis="x",
+             yaxis="y",
+             dpi=300,
+             rightmargin=10Plots.mm,
+             title="Irregular Grid",
+             aspect_ratio=:equal,
+             clim=(1.0,15.0))
+
+        savefig("../img/compare_converged/irregular_top")
+
+        return atmos_from_voronoi, S_λ_grid
     end
 
-    voronoi(atmos);
+    atmos, S_regular = regular()
+    atmos_voronoi, S_voronoi = voronoi(atmos);
 
 end
 
@@ -97,7 +136,8 @@ function compare_top_intensity(DATA)
              dpi=300,
              rightmargin=10Plots.mm,
              title="Top in TE",
-             aspect_ratio=:equal)
+             aspect_ratio=:equal,
+             clim=(1.0,15.0))
 
         savefig("../img/compare/regular_top_TE")
 
@@ -172,7 +212,8 @@ function compare_top_intensity(DATA)
              dpi=300,
              rightmargin=10Plots.mm,
              title="Top in TE",
-             aspect_ratio=:equal)
+             aspect_ratio=:equal,
+             clim=(1.0,15.0))
 
         savefig("../img/compare/fromVoronoi_top_TE")
 
@@ -180,6 +221,21 @@ function compare_top_intensity(DATA)
 
     regular();
     voronoi();
+end
+
+
+function compare_searchlight()
+    ϕ = 10
+    θ = 10
+
+    function regular()
+        a = 0
+    end
+
+    function voronoi()
+        a = 1
+    end
+
 end
 
 compare("../data/bifrost_qs006023_s525_quarter.hdf5", "../quadratures/ul2n3.dat");

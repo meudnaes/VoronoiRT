@@ -153,6 +153,6 @@ function Λ_voronoi(ϵ::AbstractFloat, maxiter::Integer, sites::VoronoiSites, qu
 end
 
 function criterion(S_new, S_old, ϵ, i, maxiter, indcs)
-    println(maximum(abs.(S_new[indcs] .- S_old[indcs])))
+    println(maximum(abs.(S_new[indcs] .- S_old[indcs])./S_old[indcs]) |> Unitful.NoUnits)
     maximum(abs.((S_new[indcs] .- S_old[indcs])./S_new[indcs])) > ϵ && i < maxiter
 end
