@@ -4,7 +4,6 @@ using Unitful
 using Distances
 using Transparency
 using LinearAlgebra
-using NumericalIntegration
 
 import PhysicalConstants.CODATA2018: h, c_0, k_B, m_p
 
@@ -573,7 +572,7 @@ function α_cont(λ::Unitful.Length, temperature::Unitful.Temperature,
                electron_density::NumberDensity, h_ground_density::NumberDensity,
                proton_density::NumberDensity)
 
-    α = max.(0, Transparency.hminus_ff_stilley(λ, temperature, h_ground_density, electron_density))
+    α = max.(0u"m^-1", Transparency.hminus_ff_stilley(λ, temperature, h_ground_density, electron_density))
     α += Transparency.hminus_bf_wbr(λ, temperature, h_ground_density, electron_density)
     α += hydrogenic_ff(c_0 / λ, temperature, electron_density, proton_density, 1)
     α += h2plus_ff(λ, temperature, h_ground_density, proton_density)
