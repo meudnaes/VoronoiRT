@@ -8,6 +8,7 @@ using LinearAlgebra
 import PhysicalConstants.CODATA2018: h, c_0, k_B, m_p
 
 @derived_dimension PerLength Unitful.𝐋^-1
+@derived_dimension PerArea Unitful.𝐋^-2
 @derived_dimension NumberDensity Unitful.𝐋^-3
 @derived_dimension ColumnDensity Unitful.𝐋^-2
 @derived_dimension Volume Unitful.𝐋^3
@@ -23,6 +24,7 @@ struct Atmosphere
     temperature::Array{<:Unitful.Temperature, 3}
     electron_density::Array{<:NumberDensity, 3}
     hydrogen_populations::Array{<:NumberDensity, 3}
+    # Would be nice to include these things in the structure, but I couldn't get it to work
     # nz::Integer
     # nx::Integer
     # ny::Integer
@@ -567,7 +569,13 @@ function write_boundaries(z_min, z_max, x_min, x_max, y_min, y_max, fname::Strin
     end
 end
 
-# Physics functions
+"""
+    function α_cont(λ::Unitful.Length, temperature::Unitful.Temperature,
+               electron_density::NumberDensity, h_ground_density::NumberDensity,
+               proton_density::NumberDensity)
+
+Continuum extinction.
+"""
 function α_cont(λ::Unitful.Length, temperature::Unitful.Temperature,
                electron_density::NumberDensity, h_ground_density::NumberDensity,
                proton_density::NumberDensity)
@@ -582,6 +590,13 @@ function α_cont(λ::Unitful.Length, temperature::Unitful.Temperature,
     return α
 end
 
+"""
+    function α_scattering(λ::Unitful.Length, temperature::Unitful.Temperature,
+               electron_density::NumberDensity, h_ground_density::NumberDensity,
+               proton_density::NumberDensity)
+
+Extinction from scattering processes.
+"""
 function α_scattering(λ::Unitful.Length, temperature::Unitful.Temperature,
                electron_density::NumberDensity, h_ground_density::NumberDensity,
                proton_density::NumberDensity)
@@ -591,12 +606,19 @@ function α_scattering(λ::Unitful.Length, temperature::Unitful.Temperature,
    return α
 end
 
+"""
+    function α_absorption(λ::Unitful.Length, temperature::Unitful.Temperature,
+               electron_density::NumberDensity, h_ground_density::NumberDensity,
+               proton_density::NumberDensity)
+
+Extinction from photon destruction processes.
+"""
 function α_absorption(λ::Unitful.Length, temperature::Unitful.Temperature,
                electron_density::NumberDensity, h_ground_density::NumberDensity,
                proton_density::NumberDensity)
 
-    #α = Transparency.hminus_ff_stilley(λ, temperature, h_ground_density, electron_density)
-    α = Transparency.hminus_bf_wbr(λ, temperature, h_ground_density, electron_density)
+    α = max.(0u"m^-1", Transparency.hminus_ff_stilley(λ, temperature, h_ground_density, electron_density))
+    α += Transparency.hminus_bf_wbr(λ, temperature, h_ground_density, electron_density)
     α += hydrogenic_ff(c_0 / λ, temperature, electron_density, proton_density, 1)
     α += h2plus_ff(λ, temperature, h_ground_density, proton_density)
     α += h2plus_bf(λ, temperature, h_ground_density, proton_density)
@@ -720,6 +742,13 @@ function weights(Δτ)
     return e0, e1
 end
 
+
+"""
+    function coefficients(e0, e1, Δτ_upwind)
+
+Coefficients for integrating the formal solution with a linear interpolation of
+the source function. e0 and e1 are the weights.
+"""
 function coefficients(e0, e1, Δτ_upwind)
     if Δτ_upwind == 0
         a = 0
@@ -745,6 +774,12 @@ function smallest_non_negative(arr::AbstractArray)
     return index::Int, minVal::Float64
 end
 
+"""
+    function circle_shape(x, y, r)
+
+Function for a circle with centre coordinates (x, y) and radius r. Useful for
+plotting purposes.
+"""
 function circle_shape(x, y, r)
     θ = LinRange(0, 2π, 500)
     x .+ r*cos.(θ), y .+ r*sin.(θ)
