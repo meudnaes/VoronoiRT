@@ -6,7 +6,7 @@ using namespace voro;
 // Set up the number of blocks that the container is divided into.
 // For the uniform sampled grid, it seems like this number should be big,
 // larger than 10, or maybe larger than 20
-const int n_x=20, n_y=20, n_z=20;
+const int n_x=6, n_y=6, n_z=6;
 
 int main(int argc, char **argv) {
 

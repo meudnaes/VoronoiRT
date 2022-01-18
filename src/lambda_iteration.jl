@@ -64,6 +64,8 @@ function Λ_regular(ϵ::AbstractFloat, maxiter::Integer, atmos::Atmosphere, quad
     # Only continuum
     η_ν = 0
 
+    initial_populations = LTE_populations()
+
     # Find continuum extinction (only with Thomson and Rayleigh)
     α_tot = α_cont.(λ, atmos.temperature*1.0, atmos.electron_density*1.0,
                     atmos.hydrogen_populations*1.0, atmos.hydrogen_populations*1.0)
