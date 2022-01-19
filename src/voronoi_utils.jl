@@ -10,6 +10,7 @@ struct VoronoiSites
     temperature::Vector{<:Unitful.Temperature}
     electron_density::Vector{<:NumberDensity}
     hydrogen_populations::Vector{<:NumberDensity}
+    velocity::Vector{<:Unitful.Velocity}
     z_min::Unitful.Length
     z_max::Unitful.Length
     x_min::Unitful.Length
@@ -457,6 +458,7 @@ function Voronoi_to_Raster(sites::VoronoiSites, atmos::Atmosphere, S_λ::Abstrac
     temperature = Array{Unitful.Temperature, 3}(undef, (length(z), length(x), length(y)))
     electron_density = Array{NumberDensity, 3}(undef, (length(z), length(x), length(y)))
     hydrogen_populations = Array{NumberDensity, 3}(undef, (length(z), length(x), length(y)))
+    velocity = Array{Unitful.Velocity, 3}(undef, (length(z), length(x), length(y)))
     S_λ_grid = zeros(length(z), length(x), length(y))u"kW*nm^-1*m^-2"
     α_grid = zeros(length(z), length(x), length(y))u"m^-1"
 
@@ -469,13 +471,14 @@ function Voronoi_to_Raster(sites::VoronoiSites, atmos::Atmosphere, S_λ::Abstrac
                 temperature[k, i, j] = sites.temperature[idx]
                 electron_density[k, i, j] = sites.electron_density[idx]
                 hydrogen_populations[k, i, j] = sites.hydrogen_populations[idx]
+                velocity[k, i, j] = sites.velocity[idx]
                 S_λ_grid[k, i, j] = S_λ[idx]
                 α_grid[k, i, j] = α_tot[idx]
             end
         end
     end
 
-    return Atmosphere(z, x, y, temperature, electron_density, hydrogen_populations), S_λ_grid, α_grid
+    return Atmosphere(z, x, y, temperature, electron_density, hydrogen_populations, velocity), S_λ_grid, α_grid
 end
 
 function _initialise(p_vec, atmos::Atmosphere)
@@ -485,11 +488,13 @@ function _initialise(p_vec, atmos::Atmosphere)
     temperature_new = Vector{Unitful.Temperature}(undef, n_sites)
     N_e_new = Vector{NumberDensity}(undef, n_sites)
     N_H_new = Vector{NumberDensity}(undef, n_sites)
+    velocity_new = Vector{Unitful.Velocity}(undef, n_sites)
 
     for k in 1:n_sites
         temperature_new[k] = trilinear(p_vec[1, k], p_vec[2, k], p_vec[3, k], atmos, atmos.temperature)
         N_e_new[k] = trilinear(p_vec[1, k], p_vec[2, k], p_vec[3, k], atmos, atmos.electron_density)
         N_H_new[k] = trilinear(p_vec[1, k], p_vec[2, k], p_vec[3, k], atmos, atmos.hydrogen_populations)
+        velocity_new[k] = trilinear(p_vec[1, k], p_vec[2, k], p_vec[3, k], atmos, atmos.velocity)
     end
-    return temperature_new, N_e_new, N_H_new
+    return temperature_new, N_e_new, N_H_new, velocity_new
 end

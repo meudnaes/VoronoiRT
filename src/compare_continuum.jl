@@ -13,7 +13,7 @@ function compare(DATA, quadrature)
 
     function regular()
 
-        atmos = Atmosphere(get_atmos(DATA; periodic=true, skip=1)...)
+        atmos = Atmosphere(get_atmos(DATA; periodic=true, skip=2)...)
         J_mean, S_λ, α_tot = Λ_regular(ϵ, maxiter, atmos, quadrature)
 
         I_top = short_characteristics_up(θ, ϕ, S_λ,
@@ -238,6 +238,6 @@ function compare_searchlight()
 
 end
 
-compare("../data/bifrost_qs006023_s525_quarter.hdf5", "../quadratures/ul2n3.dat");
+compare("../data/bifrost_qs006023_s525_quarter.hdf5", "../quadratures/ul7n12.dat");
 # compare_top_intensity("../data/bifrost_qs006023_s525_quarter.hdf5");
 print("")

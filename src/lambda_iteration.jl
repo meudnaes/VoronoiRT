@@ -64,8 +64,6 @@ function Λ_regular(ϵ::AbstractFloat, maxiter::Integer, atmos::Atmosphere, quad
     # Only continuum
     η_ν = 0
 
-    initial_populations = LTE_populations()
-
     # Find continuum extinction (only with Thomson and Rayleigh)
     α_tot = α_cont.(λ, atmos.temperature*1.0, atmos.electron_density*1.0,
                     atmos.hydrogen_populations*1.0, atmos.hydrogen_populations*1.0)
@@ -155,6 +153,9 @@ function Λ_voronoi(ϵ::AbstractFloat, maxiter::Integer, sites::VoronoiSites, qu
 end
 
 function criterion(S_new, S_old, ϵ, i, maxiter, indcs)
-    println(maximum(abs.(S_new[indcs] .- S_old[indcs])./S_old[indcs]) |> Unitful.NoUnits)
-    maximum(abs.((S_new[indcs] .- S_old[indcs])./S_new[indcs])) > ϵ && i < maxiter
+    diff = maximum(abs.((S_new[indcs] .- S_old[indcs])./S_new[indcs])) |> Unitful.NoUnits
+    if i > 0
+        println(diff)
+    end
+    diff > ϵ && i < maxiter 
 end
