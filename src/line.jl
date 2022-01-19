@@ -2,6 +2,42 @@ using Plots
 using Transparency
 include("functions.jl")
 
+struct HydrogenicLine{T <: AbstractFloat}
+    Aji::Unitful.Frequency{T}
+    # Units of Bij/Bji defined for J_lambda
+    Bji::Unitful.Quantity{T, Unitful.𝐋 * Unitful.𝐓^2 / Unitful.𝐌}
+    Bij::Unitful.Quantity{T, Unitful.𝐋 * Unitful.𝐓^2 / Unitful.𝐌}
+    λ0::Unitful.Length{T}
+    χi::Unitful.Energy{T}
+    χj::Unitful.Energy{T}
+    # Properties of atom, not line, but keeping here for now
+    χ∞::Unitful.Energy{T}
+    gi::Int
+    gj::Int
+    atom_weight::Unitful.Mass{T}
+    Z::Int
+    function HydrogenicLine(χu::Quantity{T}, χl::Quantity{T}, χ∞::Quantity{T},
+                        gu::Int, gl::Int, f_value::T, atom_weight::Unitful.Mass{T},
+                        Z::Int)  where T <: AbstractFloat
+        χu = Transparency.wavenumber_to_energy(χu)
+        χl = Transparency.wavenumber_to_energy(χl)
+        χ∞ = Transparency.wavenumber_to_energy(χ∞)
+        # Add conversion from cm^-1 to aJ, if type of χu is L^-1
+        @assert χ∞ > χu
+        @assert χu > χl
+        @assert gu > 0
+        @assert gl > 0
+        @assert f_value > 0
+        @assert atom_weight > 0u"kg"
+        @assert Z >= 1
+        λ0 = convert(Quantity{T, Unitful.𝐋}, ((h * c_0) / (χu - χl)) |> u"nm")
+        Aul = convert(Quantity{T, Unitful.𝐓^-1}, calc_Aji(λ0, gl / gu, f_value))
+        Bul = calc_Bji(λ0, Aul)
+        Blu = gu / gl * Bul
+        new{T}(Aul, Bul, Blu, λ0, χl, χu, χ∞, gl, gu, atom_weight, Z)
+    end
+end
+
 """
     LTE_populations(atom::Atom,
                     temperature::Array{<:Unitful.Temperature, 3},
@@ -9,23 +45,23 @@ include("functions.jl")
 Given the atom density, calculate the atom populations according to LTE.
 Tiago
 """
-function LTE_populations(atom::Atom,
-                         temperature::Array{<:Unitful.Temperature, 3},
-                         electron_density::Array{<:NumberDensity, 3})
-    χ = atom.χ
-    g = atom.g
-    atom_density = atom.density
-    nz,nx,ny = size(atom_density)
+function LTE_populations(line::HydrogenicLine,
+                         atmos::Atmosphere)
+    χ = [line.χi, line.χj, line.χ∞]
+    # Ionised hydrogen -> g = 1
+    g = [line.gi, line.gj, 1]
+    atom_density = atmos.hydrogen_populations
+    nz, nx, ny = size(atom_density)
 
-    n_levels = length(χ)
-    n_relative = ones(Float64, nz,nx,ny, n_levels)
+    n_levels = 3
+    n_relative = Array{Float64, 4}(undef, (nz, nx, ny, n_levels))
 
     saha_const = (k_B / h) * (2π * m_e) / h
-    saha_factor = 2 * ((saha_const * temperature).^(3/2) ./ electron_density) .|> u"m/m"
+    saha_factor = 2 * ((saha_const * atmos.temperature).^(3/2) ./ atmos.electron_density) .|> u"m/m"
 
     for i=2:n_levels
         ΔE = χ[i] - χ[1]
-        n_relative[:,:,:,i] = g[i] / g[1] * exp.(-ΔE ./ (k_B * temperature))
+        n_relative[:,:,:,i] = g[i] / g[1] * exp.(-ΔE ./ (k_B * atmos.temperature))
     end
 
     # Last level is ionised stage (H II)
@@ -53,11 +89,9 @@ function test_atom()
     return χu, χl, χ∞, gu, gl, f_value, atom_weight, Z
 end
 
-line = AtomicLine(test_atom()...)
+line = HydrogenicLine(test_atom()...)
 
 DATA = "../data/bifrost_qs006023_s525_quarter.hdf5"
 atmos = Atmosphere(get_atmos(DATA; periodic=true, skip=4)...)
 
-LTE_pops = LTE_populations(atom::Atom,
-                           atmos.temperature,
-                           atmos.electron_density)
+LTE_pops = LTE_populations(line, atmos)
