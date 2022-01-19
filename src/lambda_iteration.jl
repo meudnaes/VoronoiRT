@@ -106,14 +106,18 @@ function Λ_regular(ϵ::AbstractFloat, maxiter::Integer, atmos::Atmosphere, line
     # choose a wavelength
     λ = 500u"nm"  # nm
 
+    LTE_pops = LTE_populations(line, atmos)
+
+    h_ground_density = LTE_pops[:, :, :, 1] .+ LTE_pops[:, :, :, 2]
+    proton_density = LTE_pops[:, :, :, 3]
+
     # Find continuum extinction (only with Thomson and Rayleigh)
     α_tot = α_cont.(λ, atmos.temperature*1.0, atmos.electron_density*1.0,
-                    atmos.hydrogen_populations*1.0, atmos.hydrogen_populations*1.0)
+                    h_ground_density*1.0, proton_density*1.0)
 
     α_a = α_absorption.(λ, atmos.temperature*1.0, atmos.electron_density*1.0,
-                        atmos.hydrogen_populations*1.0, atmos.hydrogen_populations*1.0)
+                        h_ground_density*1.0, proton_density*1.0)
 
-    LTE_pops = LTE_populations(line, atmos)
 
     # destruction
     ε_λ = α_a ./ α_tot

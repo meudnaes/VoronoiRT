@@ -1,7 +1,7 @@
 using Plots
 include("lambda_iteration.jl")
 
-global my_seed = 1998
+global my_seed = 2022
 Random.seed!(my_seed)
 
 function compare(DATA, quadrature)
@@ -14,7 +14,9 @@ function compare(DATA, quadrature)
     function regular()
 
         atmos = Atmosphere(get_atmos(DATA; periodic=true, skip=2)...)
-        J_mean, S_λ, α_tot = Λ_regular(ϵ, maxiter, atmos, quadrature)
+        line = HydrogenicLine(test_atom()...)
+
+        J_mean, S_λ, α_tot = Λ_regular(ϵ, maxiter, atmos, line, quadrature)
 
         I_top = short_characteristics_up(θ, ϕ, S_λ,
                                             α_tot, atmos, degrees=true, I_0=S_λ[1,:,:])
@@ -29,10 +31,10 @@ function compare(DATA, quadrature)
                 dpi=300,
                 rightmargin=10Plots.mm,
                 title="Regular Grid",
-                aspect_ratio=:equal,
-                clim=(1.0,15.0))
+                aspect_ratio=:equal)#,
+                #clim=(1.0,15.0))
 
-        savefig("../img/compare_converged/regular_top")
+        savefig("../img/compare_line/regular_top")
 
         return atmos, S_λ
     end
@@ -105,7 +107,13 @@ function compare(DATA, quadrature)
         return atmos_from_voronoi, S_λ_grid
     end
 
-    atmos, S_regular = regular()
-    atmos_voronoi, S_voronoi = voronoi(atmos);
+    atmos, S_regular = regular();
+    # atmos_voronoi, S_voronoi = voronoi(atmos);
 
 end
+
+DATA = "../data/bifrost_qs006023_s525_quarter.hdf5"
+QUADRATURE = "../quadratures/ul7n12.dat"
+
+compare(DATA, QUADRATURE);
+print("")

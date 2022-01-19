@@ -38,41 +38,6 @@ struct HydrogenicLine{T <: AbstractFloat}
     end
 end
 
-"""
-    LTE_populations(atom::Atom,
-                    temperature::Array{<:Unitful.Temperature, 3},
-                    electron_density::Array{<:NumberDensity, 3})
-Given the atom density, calculate the atom populations according to LTE.
-Tiago
-"""
-function LTE_populations(line::HydrogenicLine,
-                         atmos::Atmosphere)
-                         
-    χ = [line.χi, line.χj, line.χ∞]
-    # Ionised hydrogen -> g = 1
-    g = [line.gi, line.gj, 1]
-    atom_density = atmos.hydrogen_populations
-    nz, nx, ny = size(atom_density)
-
-    n_levels = 3
-    n_relative = Array{Float64, 4}(undef, (nz, nx, ny, n_levels))
-
-    saha_const = (k_B / h) * (2π * m_e) / h
-    saha_factor = 2 * ((saha_const * atmos.temperature).^(3/2) ./ atmos.electron_density) .|> u"m/m"
-
-    for i=2:n_levels
-        ΔE = χ[i] - χ[1]
-        n_relative[:,:,:,i] = g[i] / g[1] * exp.(-ΔE ./ (k_B * atmos.temperature))
-    end
-
-    # Last level is ionised stage (H II)
-    n_relative[:,:,:,n_levels] .*= saha_factor
-    n_relative[:,:,:,1] = 1 ./ sum(n_relative, dims=4)[:,:,:,1]
-    n_relative[:,:,:,2:end] .*= n_relative[:,:,:,1]
-
-    return n_relative .* atom_density
-end
-
 function test_atom()
     χl = 0.0u"cm^-1"
     χu = 82258.211u"cm^-1"

@@ -55,23 +55,24 @@ end
 Given the atom density, calculate the atom populations according to LTE.
 Tiago
 """
-function LTE_populations(atom::Atom,
-                         temperature::Array{<:Unitful.Temperature, 3},
-                         electron_density::Array{<:NumberDensity, 3})
-    χ = atom.χ
-    g = atom.g
-    atom_density = atom.density
+function LTE_populations(line::HydrogenicLine,
+                         atmos::Atmosphere)
+
+    χ = [line.χi, line.χj, line.χ∞]
+    # Ionised hydrogen -> g = 1
+    g = [line.gi, line.gj, 1]
+    atom_density = atmos.hydrogen_populations
     nz, nx, ny = size(atom_density)
 
-    n_levels = length(χ)
+    n_levels = 3
     n_relative = Array{Float64, 4}(undef, (nz, nx, ny, n_levels))
 
     saha_const = (k_B / h) * (2π * m_e) / h
-    saha_factor = 2 * ((saha_const * temperature).^(3/2) ./ electron_density) .|> u"m/m"
+    saha_factor = 2 * ((saha_const * atmos.temperature).^(3/2) ./ atmos.electron_density) .|> u"m/m"
 
     for i=2:n_levels
         ΔE = χ[i] - χ[1]
-        n_relative[:,:,:,i] = g[i] / g[1] * exp.(-ΔE ./ (k_B * temperature))
+        n_relative[:,:,:,i] = g[i] / g[1] * exp.(-ΔE ./ (k_B * atmos.temperature))
     end
 
     # Last level is ionised stage (H II)
