@@ -1,3 +1,4 @@
+include("line.jl")
 include("functions.jl")
 include("voronoi_utils.jl")
 include("characteristics.jl")
@@ -61,10 +62,49 @@ function Λ_regular(ϵ::AbstractFloat, maxiter::Integer, atmos::Atmosphere, quad
     # choose a wavelength
     λ = 500u"nm"  # nm
 
-    # Only continuum
-    η_ν = 0
+    # Find continuum extinction (only with Thomson and Rayleigh)
+    α_tot = α_cont.(λ, atmos.temperature*1.0, atmos.electron_density*1.0,
+                    atmos.hydrogen_populations*1.0, atmos.hydrogen_populations*1.0)
 
-    initial_populations = LTE_populations()
+    α_a = α_absorption.(λ, atmos.temperature*1.0, atmos.electron_density*1.0,
+                        atmos.hydrogen_populations*1.0, atmos.hydrogen_populations*1.0)
+
+    # destruction
+    ε_λ = α_a ./ α_tot
+
+    thick = ε_λ .> 5e-3
+
+    # Start with the source function as the Planck function
+    B_0 = B_λ.(λ, atmos.temperature)
+    S_new = B_0
+
+    S_old = zero(S_new)
+
+    i=0
+
+    local J_new
+    # check where ε < 1e-2, cut above heights
+    while criterion(S_new, S_old, ϵ, i, maxiter, thick)
+        print("Iteration $(i+1)\r")
+        S_old = copy(S_new)
+        J_new = J_λ_regular(S_old, α_tot, atmos, quadrature)
+        S_new = (1 .- ε_λ).*J_new .+ ε_λ.*B_0
+        i+=1
+    end
+
+    if i == maxiter
+        println("Did not converge inside scope")
+        return J_new, S_new, α_tot
+    end
+
+    println("Converged in $i iterations")
+
+    return J_new, S_new, α_tot
+end
+
+function Λ_regular(ϵ::AbstractFloat, maxiter::Integer, atmos::Atmosphere, line::HydrogenicLine, quadrature::String)
+    # choose a wavelength
+    λ = 500u"nm"  # nm
 
     # Find continuum extinction (only with Thomson and Rayleigh)
     α_tot = α_cont.(λ, atmos.temperature*1.0, atmos.electron_density*1.0,
@@ -72,6 +112,8 @@ function Λ_regular(ϵ::AbstractFloat, maxiter::Integer, atmos::Atmosphere, quad
 
     α_a = α_absorption.(λ, atmos.temperature*1.0, atmos.electron_density*1.0,
                         atmos.hydrogen_populations*1.0, atmos.hydrogen_populations*1.0)
+
+    LTE_pops = LTE_populations(line, atmos)
 
     # destruction
     ε_λ = α_a ./ α_tot
@@ -155,6 +197,9 @@ function Λ_voronoi(ϵ::AbstractFloat, maxiter::Integer, sites::VoronoiSites, qu
 end
 
 function criterion(S_new, S_old, ϵ, i, maxiter, indcs)
-    println(maximum(abs.(S_new[indcs] .- S_old[indcs])./S_old[indcs]) |> Unitful.NoUnits)
-    maximum(abs.((S_new[indcs] .- S_old[indcs])./S_new[indcs])) > ϵ && i < maxiter
+    diff = maximum(abs.((S_new[indcs] .- S_old[indcs])./S_new[indcs])) |> Unitful.NoUnits
+    if i > 0
+        println(diff)
+    end
+    diff > ϵ && i < maxiter
 end

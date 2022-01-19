@@ -47,6 +47,7 @@ Tiago
 """
 function LTE_populations(line::HydrogenicLine,
                          atmos::Atmosphere)
+                         
     χ = [line.χi, line.χj, line.χ∞]
     # Ionised hydrogen -> g = 1
     g = [line.gi, line.gj, 1]
