@@ -25,6 +25,28 @@ function J_λ_regular(S_λ::AbstractArray, α_tot::AbstractArray, atmos::Atmosph
     return J
 end
 
+function J_λ_regular(S_λ::AbstractArray, α_cont::AbstractArray, atmos::Atmosphere,
+                     line::HydrogenicLine, quadrature::String)
+
+    # Ω = (θ, φ), space angle
+    weights, θ_array, ϕ_array, n_points = read_quadrature(quadrature)
+
+    J = zero(S_λ)
+
+    for i in 1:n_points
+        if θ_array[i] > 90
+            I_0 =  B_λ.(500u"nm", atmos.temperature[1,:,:])
+            J += weights[i]*short_characteristics_up(θ_array[i], ϕ_array[i], S_λ,
+                                                     α_tot, atmos, degrees=true, I_0=I_0)
+        elseif θ_array[i] < 90
+            I_0 = zero(S_λ[1, :, :])
+            J += weights[i]*short_characteristics_down(θ_array[i], ϕ_array[i], S_λ,
+                                                       α_tot, atmos, degrees=true, I_0=I_0)
+        end
+    end
+    return J
+end
+
 function J_λ_voronoi(S_λ::AbstractArray, α_tot::AbstractArray, sites::VoronoiSites, quadrature::String)
 
     # Ω = (θ, φ), space angle
@@ -63,7 +85,7 @@ function Λ_regular(ϵ::AbstractFloat, maxiter::Integer, atmos::Atmosphere, quad
     λ = 500u"nm"  # nm
 
     # Find continuum extinction (only with Thomson and Rayleigh)
-    α_tot = α_cont.(λ, atmos.temperature*1.0, atmos.electron_density*1.0,
+    α_tot = α_continuum.(λ, atmos.temperature*1.0, atmos.electron_density*1.0,
                     atmos.hydrogen_populations*1.0, atmos.hydrogen_populations*1.0)
 
     α_a = α_absorption.(λ, atmos.temperature*1.0, atmos.electron_density*1.0,
@@ -108,27 +130,28 @@ function Λ_regular(ϵ::AbstractFloat, maxiter::Integer, atmos::Atmosphere, line
 
     LTE_pops = LTE_populations(line, atmos)
 
-    h_ground_density = LTE_pops[:, :, :, 1] .+ LTE_pops[:, :, :, 2]
+    h_ground_density = LTE_pops[:, :, :, 1]
     proton_density = LTE_pops[:, :, :, 3]
 
     # Find continuum extinction (only with Thomson and Rayleigh)
-    α_tot = α_cont.(λ, atmos.temperature*1.0, atmos.electron_density*1.0,
+    α_cont = α_continuum.(λ, atmos.temperature*1.0, atmos.electron_density*1.0,
                     h_ground_density*1.0, proton_density*1.0)
 
     α_a = α_absorption.(λ, atmos.temperature*1.0, atmos.electron_density*1.0,
                         h_ground_density*1.0, proton_density*1.0)
 
-    λ = LinRange(line.λ0-5u"nm", line.λ0+5u"nm", 11)
+    # fix spacing
+    # λ = collect(LinRange(line.λ0-5u"nm", line.λ0+5u"nm", 21))
 
     ΔD = doppler_width.(line.λ0, line.atom_weight, atmosphere.temperature)
 
     # v = (λ .- line.λ0)./ΔD
     # v_los = ???
-     v = (λ - line.λ0 .+ line.λ0.*v_los./c_0)./ΔD
+    v = (λ - line.λ0 .+ line.λ0.*v_los./c_0)./ΔD
 
     profile = voigt_profile(a, v, ΔD)
 
-    α_line = αline_λ(line, profile, LTE_pops[1, LTE_pops[2]])
+    α_line = αline_λ(line, profile, LTE_pops[1], LTE_pops[2])
 
     # destruction
     ε_λ = α_a ./ α_tot
@@ -172,7 +195,7 @@ function Λ_voronoi(ϵ::AbstractFloat, maxiter::Integer, sites::VoronoiSites, qu
     η_ν = 0
 
     # Find continuum extinction (only with Thomson and Rayleigh)
-    α_tot = α_cont.(λ, sites.temperature*1.0, sites.electron_density*1.0,
+    α_tot = α_continuum.(λ, sites.temperature*1.0, sites.electron_density*1.0,
                     sites.hydrogen_populations*1.0, sites.hydrogen_populations*1.0)
 
     α_a = α_absorption.(λ, sites.temperature*1.0, sites.electron_density*1.0,

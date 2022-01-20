@@ -43,6 +43,7 @@ function const_quadratic_stark(line::HydrogenicLine;
     return C^(1/6) * cStark23 * Cm
 end
 
+@.
 function γ(line::HydrogenicLine,
            temperature::Array{<:Unitful.Temperature, 3},
            neutral_hydrogen_density::Array{<:NumberDensity, 3},
@@ -51,10 +52,29 @@ function γ(line::HydrogenicLine,
     unsold_const = const_unsold(line)
     quad_stark_const = const_quadratic_stark(line)
 
-    γ = γ_unsold.(unsold_const, temperature, neutral_hydrogen_density)
-    γ .+= line.Aji
-    γ .+= γ_linear_stark.(electron_density, u, l)
-    γ .+= γ_quadratic_stark.(electron_density, temperature, stark_constant=quad_stark_const)
+    γ = γ_unsold(unsold_const, temperature, neutral_hydrogen_density)
+    # γ .+= line.Aji
+    γ += 4.70E+08u"s^-1" # check
+    γ += γ_linear_stark(electron_density, u, l)
+    γ += γ_quadratic_stark(electron_density, temperature, stark_constant=quad_stark_const)
+
+    return γ
+
+end
+
+function γ(line::HydrogenicLine,
+           temperature::Unitful.Temperature,
+           neutral_hydrogen_density::NumberDensity,
+           electron_density::NumberDensity)
+
+    unsold_const = const_unsold(line)
+    quad_stark_const = const_quadratic_stark(line)
+
+    γ = γ_unsold(unsold_const, temperature, neutral_hydrogen_density)
+    # γ .+= line.Aji
+    γ += 4.70E+08u"s^-1" # check
+    γ += γ_linear_stark(electron_density, u, l)
+    γ += γ_quadratic_stark(electron_density, temperature, stark_constant=quad_stark_const)
 
     return γ
 
