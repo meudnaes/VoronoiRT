@@ -118,6 +118,17 @@ function Λ_regular(ϵ::AbstractFloat, maxiter::Integer, atmos::Atmosphere, line
     α_a = α_absorption.(λ, atmos.temperature*1.0, atmos.electron_density*1.0,
                         h_ground_density*1.0, proton_density*1.0)
 
+    λ = LinRange(line.λ0-5u"nm", line.λ0+5u"nm", 11)
+
+    ΔD = doppler_width.(line.λ0, line.atom_weight, atmosphere.temperature)
+
+    # v = (λ .- line.λ0)./ΔD
+    # v_los = ???
+     v = (λ - line.λ0 .+ line.λ0.*v_los./c_0)./ΔD
+
+    profile = voigt_profile(a, v, ΔD)
+
+    α_line = αline_λ(line, profile, LTE_pops[1, LTE_pops[2]])
 
     # destruction
     ε_λ = α_a ./ α_tot
