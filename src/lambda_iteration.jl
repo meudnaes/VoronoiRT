@@ -25,23 +25,41 @@ function J_λ_regular(S_λ::AbstractArray, α_tot::AbstractArray, atmos::Atmosph
     return J
 end
 
-function J_λ_regular(S_λ::AbstractArray, α_cont::AbstractArray, atmos::Atmosphere,
+function J_λ_regular(S_λ::AbstractArray, α_cont::AbstractArray, populations::AbstractArray, atmos::Atmosphere,
                      line::HydrogenicLine, quadrature::String)
 
     # Ω = (θ, φ), space angle
-    weights, θ_array, ϕ_array, n_points = read_quadrature(quadrature)
+    weights, θ_array, ϕ_array, n_angles = read_quadrature(quadrature)
 
     J = zero(S_λ)
 
-    for i in 1:n_points
-        if θ_array[i] > 90
-            I_0 =  B_λ.(500u"nm", atmos.temperature[1,:,:])
-            J += weights[i]*short_characteristics_up(θ_array[i], ϕ_array[i], S_λ,
-                                                     α_tot, atmos, degrees=true, I_0=I_0)
-        elseif θ_array[i] < 90
-            I_0 = zero(S_λ[1, :, :])
-            J += weights[i]*short_characteristics_down(θ_array[i], ϕ_array[i], S_λ,
-                                                       α_tot, atmos, degrees=true, I_0=I_0)
+    for i in 1:n_angles
+
+        k = -[cos(θ), cos(ϕ)*sin(θ), sin(ϕ)*sin(θ)]
+
+        # v = (λ .- line.λ0)./ΔD
+        ΔD = doppler_width.(line.λ0, line.atom_weight, atmos.temperature)
+        γ = γ_constant(line, temperature, populations[1].+populations[2], atmos.electron_density)
+        a = damping_constant.(γ, ΔD)
+        v_los = line_of_sight_velocity(atmos, k)
+        v = (line.λ - line.λ0 .+ line.λ0.*v_los./c_0)./ΔD
+
+        profile = voigt_profile(a, v, ΔD)
+
+        α_line = αline_λ(line, profile, LTE_pops[1], LTE_pops[2])
+
+        α_tot = α_line .+ α_cont
+
+        for l in 1:length(line.λ)
+            if θ_array[i] > 90
+                I_0 =  B_λ.(line.λ[l], atmos.temperature[1,:,:])
+                J[l] += weights[i]*short_characteristics_up(θ_array[i], ϕ_array[i], S_λ[l, :, :, :],
+                                                         α_tot[l], atmos, degrees=true, I_0=I_0)
+            elseif θ_array[i] < 90
+                I_0 = zero(S_λ[l, 1, :, :])
+                J[l] += weights[i]*short_characteristics_down(θ_array[i], ϕ_array[i], S_λ[l, :, :, :],
+                                                           α_tot[l], atmos, degrees=true, I_0=I_0)
+            end
         end
     end
     return J
@@ -125,8 +143,8 @@ function Λ_regular(ϵ::AbstractFloat, maxiter::Integer, atmos::Atmosphere, quad
 end
 
 function Λ_regular(ϵ::AbstractFloat, maxiter::Integer, atmos::Atmosphere, line::HydrogenicLine, quadrature::String)
-    # choose a wavelength
-    λ = 500u"nm"  # nm
+
+    # Start in LTE
 
     LTE_pops = LTE_populations(line, atmos)
 
@@ -134,32 +152,28 @@ function Λ_regular(ϵ::AbstractFloat, maxiter::Integer, atmos::Atmosphere, line
     proton_density = LTE_pops[:, :, :, 3]
 
     # Find continuum extinction (only with Thomson and Rayleigh)
-    α_cont = α_continuum.(λ, atmos.temperature*1.0, atmos.electron_density*1.0,
+    α_cont = α_continuum.(line.λ0, atmos.temperature*1.0, atmos.electron_density*1.0,
                     h_ground_density*1.0, proton_density*1.0)
 
-    α_a = α_absorption.(λ, atmos.temperature*1.0, atmos.electron_density*1.0,
+    α_a = α_absorption.(line.λ0, atmos.temperature*1.0, atmos.electron_density*1.0,
                         h_ground_density*1.0, proton_density*1.0)
 
     # fix spacing
     # λ = collect(LinRange(line.λ0-5u"nm", line.λ0+5u"nm", 21))
 
-    ΔD = doppler_width.(line.λ0, line.atom_weight, atmosphere.temperature)
-
-    # v = (λ .- line.λ0)./ΔD
-    # v_los = ???
-    v = (λ - line.λ0 .+ line.λ0.*v_los./c_0)./ΔD
-
-    profile = voigt_profile(a, v, ΔD)
-
-    α_line = αline_λ(line, profile, LTE_pops[1], LTE_pops[2])
-
-    # destruction
+    # destruction ?? (Also witb line?)
     ε_λ = α_a ./ α_tot
 
     thick = ε_λ .> 5e-3
 
     # Start with the source function as the Planck function
-    B_0 = B_λ.(λ, atmos.temperature)
+    # Start with the source function as the Planck function
+    B_0 = Array{UnitsIntensity_λ, 4}(undef, (length(line.λ), length(z), length(x), length(y)))
+
+    for l in eachindex(line.λ)
+        B_0[l, :, :, :] = B_λ.(line.λ[l], atmos.temperature)
+    end
+
     S_new = B_0
 
     S_old = zero(S_new)

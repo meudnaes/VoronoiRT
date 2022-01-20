@@ -44,7 +44,7 @@ function const_quadratic_stark(line::HydrogenicLine;
 end
 
 @.
-function γ(line::HydrogenicLine,
+function γ_constant(line::HydrogenicLine,
            temperature::Array{<:Unitful.Temperature, 3},
            neutral_hydrogen_density::Array{<:NumberDensity, 3},
            electron_density::Array{<:NumberDensity, 3})
@@ -62,7 +62,7 @@ function γ(line::HydrogenicLine,
 
 end
 
-function γ(line::HydrogenicLine,
+function γ_constant(line::HydrogenicLine,
            temperature::Unitful.Temperature,
            neutral_hydrogen_density::NumberDensity,
            electron_density::NumberDensity)
