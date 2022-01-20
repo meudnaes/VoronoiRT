@@ -72,6 +72,14 @@ function LTE_populations(line::HydrogenicLine,
     return n_relative .* atom_density
 end
 
+"""
+Compute line extinction given an `AtomicLine` struct, `profile` defined per wavelength,
+and upper and lower population densities `n_u` and `n_l`.
+"""
+function αline_λ(line::HydrogenicLine, profile::PerLength, n_u::NumberDensity, n_l::NumberDensity)
+    (h * c_0 / (4 * π * line.λ0) * profile * (n_l * line.Bij - n_u * line.Bji)) |> u"m^-1"
+end
+
 function test_atom()
     χl = 0.0u"cm^-1"
     χu = 82258.211u"cm^-1"

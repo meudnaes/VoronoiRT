@@ -471,7 +471,9 @@ function Voronoi_to_Raster(sites::VoronoiSites, atmos::Atmosphere, S_λ::Abstrac
                 temperature[k, i, j] = sites.temperature[idx]
                 electron_density[k, i, j] = sites.electron_density[idx]
                 hydrogen_populations[k, i, j] = sites.hydrogen_populations[idx]
-                velocity[k, i, j] = sites.velocity[idx]
+                velocity_z[k, i, j] = sites.velocity_z[idx]
+                velocity_x[k, i, j] = sites.velocity_x[idx]
+                velocity_y[k, i, j] = sites.velocity_y[idx]
                 S_λ_grid[k, i, j] = S_λ[idx]
                 α_grid[k, i, j] = α_tot[idx]
             end
@@ -494,7 +496,9 @@ function _initialise(p_vec, atmos::Atmosphere)
         temperature_new[k] = trilinear(p_vec[1, k], p_vec[2, k], p_vec[3, k], atmos, atmos.temperature)
         N_e_new[k] = trilinear(p_vec[1, k], p_vec[2, k], p_vec[3, k], atmos, atmos.electron_density)
         N_H_new[k] = trilinear(p_vec[1, k], p_vec[2, k], p_vec[3, k], atmos, atmos.hydrogen_populations)
-        velocity_new[k] = trilinear(p_vec[1, k], p_vec[2, k], p_vec[3, k], atmos, atmos.velocity)
+        velocity_z_new[k] = trilinear(p_vec[1, k], p_vec[2, k], p_vec[3, k], atmos, atmos.velocity_z)
+        velocity_x_new[k] = trilinear(p_vec[1, k], p_vec[2, k], p_vec[3, k], atmos, atmos.velocity_x)
+        velocity_y_new[k] = trilinear(p_vec[1, k], p_vec[2, k], p_vec[3, k], atmos, atmos.velocity_y)
     end
-    return temperature_new, N_e_new, N_H_new, velocity_new
+    return temperature_new, N_e_new, N_H_new, velocity_z_new, velocity_x_new, velocity_y_new
 end
