@@ -103,3 +103,7 @@ DATA = "../data/bifrost_qs006023_s525_quarter.hdf5"
 atmos = Atmosphere(get_atmos(DATA; periodic=true, skip=4)...)
 
 LTE_pops = LTE_populations(line, atmos)
+
+λ = collect(LinRange(line.λ0-10u"nm", line.λ0+10u"nm", 50))
+
+doppler_v = atmos.velocity

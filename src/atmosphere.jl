@@ -47,6 +47,7 @@ Original author: Ida Risnes Hansen
 """
 function get_atmos(file_path; periodic=true, skip=1)
     println("---Extracting atmospheric data---")
+
     local x, y, z, temperature, electron_density, hydrogen_populations, velocity_z, velocity_x, velocity_y
 
     h5open(file_path, "r") do atmos

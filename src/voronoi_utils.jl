@@ -10,6 +10,7 @@ struct VoronoiSites
     temperature::Vector{<:Unitful.Temperature}
     electron_density::Vector{<:NumberDensity}
     hydrogen_populations::Vector{<:NumberDensity}
+    velocity::Vector{<:Unitful.Velocity}
     z_min::Unitful.Length
     z_max::Unitful.Length
     x_min::Unitful.Length
