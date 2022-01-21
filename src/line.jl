@@ -8,6 +8,7 @@ struct HydrogenicLine{T <: AbstractFloat}
     Bji::Unitful.Quantity{T, Unitful.𝐋 * Unitful.𝐓^2 / Unitful.𝐌}
     Bij::Unitful.Quantity{T, Unitful.𝐋 * Unitful.𝐓^2 / Unitful.𝐌}
     λ0::Unitful.Length{T}
+    λline::Vector{Unitful.Length}
     χi::Unitful.Energy{T}
     χj::Unitful.Energy{T}
     # Properties of atom, not line, but keeping here for now
@@ -30,11 +31,14 @@ struct HydrogenicLine{T <: AbstractFloat}
         @assert f_value > 0
         @assert atom_weight > 0u"kg"
         @assert Z >= 1
+        qwing = 600.0
+        qcore = 15.0
         λ0 = convert(Quantity{T, Unitful.𝐋}, ((h * c_0) / (χu - χl)) |> u"nm")
+        λline = sample_λ_line(nλ, λ0, qwing, qcore)
         Aul = convert(Quantity{T, Unitful.𝐓^-1}, calc_Aji(λ0, gl / gu, f_value))
         Bul = calc_Bji(λ0, Aul)
         Blu = gu / gl * Bul
-        new{T}(Aul, Bul, Blu, λ0, χl, χu, χ∞, gl, gu, atom_weight, Z)
+        new{T}(Aul, Bul, Blu, λ0, λline, χl, χu, χ∞, gl, gu, atom_weight, Z)
     end
 end
 

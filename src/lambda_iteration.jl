@@ -50,7 +50,7 @@ function J_λ_regular(S_λ::AbstractArray,
         γ = γ_constant(line, temperature, populations[1].+populations[2], atmos.electron_density)
         a = damping_constant.(γ, ΔD)
         v_los = line_of_sight_velocity(atmos, k)
-        v = (line.λ - line.λ0 .+ line.λ0.*v_los./c_0)./ΔD
+        v = (line.λline - line.λ0 .+ line.λ0.*v_los./c_0)./ΔD
 
         profile = voigt_profile(a, v, ΔD)
 
@@ -58,9 +58,9 @@ function J_λ_regular(S_λ::AbstractArray,
 
         α_tot = α_line .+ α_cont
 
-        for l in 1:length(line.λ)
+        for l in 1:length(line.λline)
             if θ_array[i] > 90
-                I_0 =  B_λ.(line.λ[l], atmos.temperature[1,:,:])
+                I_0 =  B_λ.(line.λline[l], atmos.temperature[1,:,:])
                 J[l] += weights[i]*short_characteristics_up(θ_array[i], ϕ_array[i], S_λ[l, :, :, :],
                                                          α_tot[l], atmos, degrees=true, I_0=I_0)
             elseif θ_array[i] < 90

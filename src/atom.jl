@@ -228,16 +228,16 @@ end
 
 
 """
-    sample_λ(nλ_bb::Int64, nλ_bf::Int64,
-             χl::Unitful.Energy, χu::Unitful.Energy, χ∞::Unitful.Energy)
+    sample_λ_line(nλ::Int64, χl::Unitful.Energy, χu::Unitful.Energy,
+                            qwing::Float64, qcore::Float64)
+
 
 Get sampling wavelengths. Bound free wavelengths are
-linearly sampled, while th bound-bound follow the
+linearly sampled, while the bound-bound follow the
 log-sampling from github.com/ITA-Solar/rh.
 """
 function sample_λ_line(nλ::Int64,
-                       χl::Unitful.Energy,
-                       χu::Unitful.Energy,
+                       λ0::Unitful.Length,
                        qwing::Float64,
                        qcore::Float64)
 
@@ -291,7 +291,7 @@ end
              χl::Unitful.Energy, χu::Unitful.Energy, χ∞::Unitful.Energy)
 
 Get sampling wavelengths. Bound free wavelengths are
-linearly sampled, while th bound-bound follow the
+linearly sampled, while the bound-bound follow the
 log-sampling from github.com/ITA-Solar/rh.
 """
 function sample_λ_boundfree(nλ::Int64,
