@@ -16,28 +16,13 @@ Given the radiation field, calculate all transition rates for
 the excitation, de-excitation, ionisations and re-combiantions
 of a single atom.
 """
-function calculate_transition_rates(atmosphere::Atmosphere,
-                                    atom::Atom,
-                                    lines,
-                                    J::Array{<:UnitsIntensity_λ,4})
+function calculate_transition_rates(atmos::Atmosphere,
+                                    line::HydrogenicLine,
+                                    J_λ::Array{<:UnitsIntensity_λ,4})
+    LTE_pops = LTE_populations(line, atmos)
 
-    # ==================================================================
-    # LOAD ATMOSPHERE PARAMETERS
-    # ==================================================================
-    temperature = atmosphere.temperature
-    electron_density = atmosphere.electron_density
-    hydrogen_populations = atmosphere.hydrogen_populations
-
-    LTE_pops = LTE_populations(atom, temperature, electron_density)
-
-    nz,nx,ny,nl = size(LTE_pops)
+    nz, nx, ny, nl = size(LTE_pops)
     n_levels = nl - 1
-    # ==================================================================
-    # LOAD WAVELENGTHS
-    # ==================================================================
-    λ = atom.λ
-    iλbf = atom.iλbf
-    iλbb = atom.iλbb
 
     # ==================================================================
     # CALCULATE RADIATIVE RATES
@@ -53,8 +38,8 @@ function calculate_transition_rates(atmosphere::Atmosphere,
         R[level,n_levels+1,:,:,:] = Rij(J[start:stop,:,:,:], σ, λ[start:stop])
         R[n_levels+1,level,:,:,:] = Rji(J[start:stop,:,:,:], σ, G, λ[start:stop])
 
-        C[level,n_levels+1,:,:,:] = Cij(level, n_levels+1, electron_density, temperature, LTE_pops)
-        C[n_levels+1,level,:,:,:] = Cij(n_levels+1, level, electron_density, temperature, LTE_pops)
+        C[level,n_levels+1,:,:,:] = Cij(level, n_levels+1, atmos.electron_density, atmos.temperature, LTE_pops)
+        C[n_levels+1,level,:,:,:] = Cij(n_levels+1, level, atmos.electron_density, atmos.temperature, LTE_pops)
     end
 
     for l=1:n_levels-1

@@ -25,8 +25,12 @@ function J_λ_regular(S_λ::AbstractArray, α_tot::AbstractArray, atmos::Atmosph
     return J
 end
 
-function J_λ_regular(S_λ::AbstractArray, α_cont::AbstractArray, populations::AbstractArray, atmos::Atmosphere,
-                     line::HydrogenicLine, quadrature::String)
+function J_λ_regular(S_λ::AbstractArray,
+                     α_cont::AbstractArray,
+                     populations::AbstractArray,
+                     atmos::Atmosphere,
+                     line::HydrogenicLine,
+                     quadrature::String)
 
     # Ω = (θ, φ), space angle
     weights, θ_array, ϕ_array, n_angles = read_quadrature(quadrature)
@@ -146,17 +150,14 @@ function Λ_regular(ϵ::AbstractFloat, maxiter::Integer, atmos::Atmosphere, line
 
     # Start in LTE
 
-    LTE_pops = LTE_populations(line, atmos)
-
-    h_ground_density = LTE_pops[:, :, :, 1]
-    proton_density = LTE_pops[:, :, :, 3]
+    populations = LTE_populations(line, atmos)
 
     # Find continuum extinction (only with Thomson and Rayleigh)
     α_cont = α_continuum.(line.λ0, atmos.temperature*1.0, atmos.electron_density*1.0,
-                    h_ground_density*1.0, proton_density*1.0)
+                    populations[:, :, :, 1]*1.0, populations[:, :, :, 3]*1.0)
 
     α_a = α_absorption.(line.λ0, atmos.temperature*1.0, atmos.electron_density*1.0,
-                        h_ground_density*1.0, proton_density*1.0)
+                        populations[:, :, :, 1]*1.0, populations[:, :, :, 3]*1.0)
 
     # fix spacing
     # λ = collect(LinRange(line.λ0-5u"nm", line.λ0+5u"nm", 21))
@@ -185,7 +186,7 @@ function Λ_regular(ϵ::AbstractFloat, maxiter::Integer, atmos::Atmosphere, line
     while criterion(S_new, S_old, ϵ, i, maxiter, thick)
         print("Iteration $(i+1)\r")
         S_old = copy(S_new)
-        J_new = J_λ_regular(S_old, α_tot, atmos, quadrature)
+        J_new = J_λ_regular(S_old, α_cont, populations, atmos, line, quadrature)
         S_new = (1 .- ε_λ).*J_new .+ ε_λ.*B_0
         i+=1
     end
