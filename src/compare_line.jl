@@ -1,4 +1,8 @@
 using Plots
+
+include("line.jl")
+include("functions.jl")
+include("atmosphere.jl")
 include("lambda_iteration.jl")
 
 global my_seed = 2022

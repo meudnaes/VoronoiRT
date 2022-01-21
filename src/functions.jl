@@ -5,7 +5,9 @@ using Distances
 using Transparency
 using LinearAlgebra
 
-import PhysicalConstants.CODATA2018: h, c_0, k_B, m_p
+include("atmosphere.jl")
+
+import PhysicalConstants.CODATA2018: h, c_0, k_B, m_p, m_e
 
 @derived_dimension PerLength Unitful.𝐋^-1
 @derived_dimension PerArea Unitful.𝐋^-2
