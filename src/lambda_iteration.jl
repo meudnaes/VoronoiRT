@@ -163,7 +163,7 @@ function Λ_regular(ϵ::AbstractFloat, maxiter::Integer, atmos::Atmosphere, line
     # λ = collect(LinRange(line.λ0-5u"nm", line.λ0+5u"nm", 21))
 
     # destruction ?? (Also witb line?)
-    ε_λ = α_a ./ α_tot
+    ε_λ = α_a ./ α_cont
 
     thick = ε_λ .> 5e-3
 
