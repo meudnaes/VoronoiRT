@@ -7,15 +7,6 @@ using LinearAlgebra
 
 include("atmosphere.jl")
 
-import PhysicalConstants.CODATA2018: h, c_0, k_B, m_p, m_e
-
-@derived_dimension PerLength Unitful.𝐋^-1
-@derived_dimension PerArea Unitful.𝐋^-2
-@derived_dimension NumberDensity Unitful.𝐋^-3
-@derived_dimension ColumnDensity Unitful.𝐋^-2
-@derived_dimension Volume Unitful.𝐋^3
-@derived_dimension UnitsIntensity_λ Unitful.P * Unitful.L^-3
-
 """
     function B_ν(ν, T)
 

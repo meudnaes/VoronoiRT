@@ -1,3 +1,4 @@
+include("atom.jl")
 include("line.jl")
 include("functions.jl")
 include("voronoi_utils.jl")
@@ -163,20 +164,17 @@ function Λ_regular(ϵ::AbstractFloat, maxiter::Integer, atmos::Atmosphere, line
     α_a = α_absorption.(line.λ0, atmos.temperature*1.0, atmos.electron_density*1.0,
                         populations[:, :, :, 1]*1.0, populations[:, :, :, 3]*1.0)
 
-    # fix spacing
-    # λ = collect(LinRange(line.λ0-5u"nm", line.λ0+5u"nm", 21))
-
-    # destruction ?? (Also witb line?)
+    # destruction ?? (Also with line?)
     ε_λ = α_a ./ α_cont
 
     thick = ε_λ .> 5e-3
 
     # Start with the source function as the Planck function
     # Start with the source function as the Planck function
-    B_0 = Array{UnitsIntensity_λ, 4}(undef, (length(line.λ), length(z), length(x), length(y)))
+    B_0 = Array{Float64, 4}(undef, (length(line.λline), length(atmos.z), length(atmos.x), length(atmos.y)))u"kW*m^-2*nm^-1"
 
-    for l in eachindex(line.λ)
-        B_0[l, :, :, :] = B_λ.(line.λ[l], atmos.temperature)
+    for l in eachindex(line.λline)
+        B_0[l, :, :, :] = B_λ.(line.λline[l], atmos.temperature)
     end
 
     S_new = B_0
