@@ -37,6 +37,10 @@ function J_λ_regular(S_λ::AbstractArray,
 
     J = zero(S_λ)
 
+    ΔD = doppler_width.(line.λ0, line.atom_weight, atmos.temperature)
+    γ = γ_constant(line, temperature, populations[1].+populations[2], atmos.electron_density)
+    a = damping_constant.(γ, ΔD)
+
     for i in 1:n_angles
 
         k = -[cos(θ), cos(ϕ)*sin(θ), sin(ϕ)*sin(θ)]
