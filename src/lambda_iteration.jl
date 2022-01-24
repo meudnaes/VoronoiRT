@@ -1,6 +1,7 @@
 include("atom.jl")
 include("line.jl")
 include("functions.jl")
+include("broadening.jl")
 include("voronoi_utils.jl")
 include("characteristics.jl")
 include("irregular_ray_tracing.jl")
@@ -39,35 +40,49 @@ function J_λ_regular(S_λ::AbstractArray,
     J = zero(S_λ)
 
     ΔD = doppler_width.(line.λ0, line.atom_weight, atmos.temperature)
-    γ = γ_constant(line, temperature, populations[1].+populations[2], atmos.electron_density)
+    γ = γ_constant(line,
+                   atmos.temperature,
+                   (populations[:, :, :, 1].+populations[:, :, :, 2]),
+                   atmos.electron_density)
+
     a = damping_constant.(γ, ΔD)
 
     for i in 1:n_angles
+        θ = θ_array[i]
+        ϕ = ϕ_array[i]
 
         k = -[cos(θ), cos(ϕ)*sin(θ), sin(ϕ)*sin(θ)]
 
-        # v = (λ .- line.λ0)./ΔD
-        ΔD = doppler_width.(line.λ0, line.atom_weight, atmos.temperature)
-        γ = γ_constant(line, temperature, populations[1].+populations[2], atmos.electron_density)
-        a = damping_constant.(γ, ΔD)
         v_los = line_of_sight_velocity(atmos, k)
-        v = (line.λline - line.λ0 .+ line.λ0.*v_los./c_0)./ΔD
+        v = Array{Float64, 4}(undef, (length(line.λline), size(v_los)...))
+        for l in eachindex(line.λline)
+            v[l, :, :, :] = (line.λline[l] .- line.λ0 .+ line.λ0.*v_los./c_0)./ΔD .|> Unitful.NoUnits
+        end
 
-        profile = voigt_profile(a, v, ΔD)
+        profile = Array{PerLength, 4}(undef, (length(line.λline), size(v_los)...))
+        for l in eachindex(line.λline)
+            damping = ustrip(line.λline[l]^2*a)
+            profile[l, :, :, :] = voigt_profile.(damping, v[l, :, :, :], ΔD)
+        end
 
-        α_line = αline_λ(line, profile, LTE_pops[1], LTE_pops[2])
-
+        α_line = Array{PerLength, 4}(undef, size(profile))
+        for l in eachindex(line.λline)
+            α_line[l, :, :, :] = αline_λ(line,
+                                         profile[l, :, :, :],
+                                         populations[:, :, :, 1],
+                                         populations[:, :, :, 2])
+        end
         α_tot = α_line .+ α_cont
 
         for l in 1:length(line.λline)
             if θ_array[i] > 90
                 I_0 =  B_λ.(line.λline[l], atmos.temperature[1,:,:])
-                J[l] += weights[i]*short_characteristics_up(θ_array[i], ϕ_array[i], S_λ[l, :, :, :],
-                                                         α_tot[l], atmos, degrees=true, I_0=I_0)
+                J[l,:,:,:] .+= weights[i].*short_characteristics_up(θ_array[i], ϕ_array[i], S_λ[l,:,:,:],
+                                                         α_tot[l,:,:,:], atmos, degrees=true, I_0=I_0)
             elseif θ_array[i] < 90
                 I_0 = zero(S_λ[l, 1, :, :])
-                J[l] += weights[i]*short_characteristics_down(θ_array[i], ϕ_array[i], S_λ[l, :, :, :],
-                                                           α_tot[l], atmos, degrees=true, I_0=I_0)
+                J[l,:,:,:] .+= weights[i].*short_characteristics_down(θ_array[i], ϕ_array[i], S_λ[l,:,:,:],
+                                                           α_tot[l,:,:,:], atmos, degrees=true, I_0=I_0)
             end
         end
     end
@@ -158,11 +173,16 @@ function Λ_regular(ϵ::AbstractFloat, maxiter::Integer, atmos::Atmosphere, line
     populations = LTE_populations(line, atmos)
 
     # Find continuum extinction (only with Thomson and Rayleigh)
-    α_cont = α_continuum.(line.λ0, atmos.temperature*1.0, atmos.electron_density*1.0,
-                    populations[:, :, :, 1]*1.0, populations[:, :, :, 3]*1.0)
+    α_cont = Array{Float64, 4}(undef, (length(line.λline), length(atmos.z), length(atmos.x), length(atmos.y)))u"m^-1"
+    α_a = copy(α_cont)
 
-    α_a = α_absorption.(line.λ0, atmos.temperature*1.0, atmos.electron_density*1.0,
-                        populations[:, :, :, 1]*1.0, populations[:, :, :, 3]*1.0)
+    for l in eachindex(line.λline)
+        α_cont[l, :, :, :] = α_continuum.(line.λline[l], atmos.temperature*1.0, atmos.electron_density*1.0,
+                                 populations[:, :, :, 1]*1.0, populations[:, :, :, 3]*1.0)
+
+        α_a[l, :, :, :] = α_absorption.(line.λline[l], atmos.temperature*1.0, atmos.electron_density*1.0,
+                               populations[:, :, :, 1]*1.0, populations[:, :, :, 3]*1.0)
+    end
 
     # destruction ?? (Also with line?)
     ε_λ = α_a ./ α_cont
