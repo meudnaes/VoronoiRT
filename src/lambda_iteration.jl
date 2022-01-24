@@ -39,12 +39,20 @@ function J_λ_regular(S_λ::AbstractArray,
 
     J = zero(S_λ)
 
+    # There are NaN values in populations, find out why!
+    if any(i -> isnan(i), ustrip(populations))
+        println("NaN in populations")
+    end
+
     ΔD = doppler_width.(line.λ0, line.atom_weight, atmos.temperature)
     γ = γ_constant(line,
                    atmos.temperature,
                    (populations[:, :, :, 1].+populations[:, :, :, 2]),
                    atmos.electron_density)
 
+    if any(i -> isnan(i), ustrip(γ))
+       println("NaN in γ")
+    end
     a = damping_constant.(γ, ΔD)
 
     for i in 1:n_angles
@@ -61,9 +69,14 @@ function J_λ_regular(S_λ::AbstractArray,
 
         profile = Array{PerLength, 4}(undef, (length(line.λline), size(v_los)...))
         for l in eachindex(line.λline)
-            damping = ustrip(line.λline[l]^2*a)
-            profile[l, :, :, :] = voigt_profile.(damping, v[l, :, :, :], ΔD)
+            damping_λ = ustrip(line.λline[l]^2*a)
+            profile[l, :, :, :] = voigt_profile.(damping_λ, v[l, :, :, :], ΔD)
         end
+
+        # println(damping)
+        #=if any(i -> isnan(i), damping)
+            println("NAN in damping")
+        end=#
 
         α_line = Array{PerLength, 4}(undef, size(profile))
         for l in eachindex(line.λline)
@@ -86,7 +99,8 @@ function J_λ_regular(S_λ::AbstractArray,
             end
         end
     end
-    return J
+
+    return J, populations
 end
 
 function J_λ_voronoi(S_λ::AbstractArray, α_tot::AbstractArray, sites::VoronoiSites, quadrature::String)
@@ -203,24 +217,23 @@ function Λ_regular(ϵ::AbstractFloat, maxiter::Integer, atmos::Atmosphere, line
 
     i=0
 
-    local J_new
+    local J_new, α_tot
     # check where ε < 1e-2, cut above heights
     while criterion(S_new, S_old, ϵ, i, maxiter, thick)
-        print("Iteration $(i+1)\r")
         S_old = copy(S_new)
-        J_new = J_λ_regular(S_old, α_cont, populations, atmos, line, quadrature)
+        J_new, populations = J_λ_regular(S_old, α_cont, populations, atmos, line, quadrature)
         S_new = (1 .- ε_λ).*J_new .+ ε_λ.*B_0
         i+=1
     end
 
     if i == maxiter
         println("Did not converge inside scope")
-        return J_new, S_new, α_tot
+        return J_new, S_new, α_cont, populations
     end
 
     println("Converged in $i iterations")
 
-    return J_new, S_new, α_tot
+    return J_new, S_new, α_cont, populations
 end
 
 function Λ_voronoi(ϵ::AbstractFloat, maxiter::Integer, sites::VoronoiSites, quadrature::String)
@@ -272,6 +285,7 @@ function Λ_voronoi(ϵ::AbstractFloat, maxiter::Integer, sites::VoronoiSites, qu
 end
 
 function criterion(S_new, S_old, ϵ, i, maxiter, indcs)
+    println("Iteration $(i+1)")
     diff = maximum(abs.((S_new[indcs] .- S_old[indcs])./S_new[indcs])) |> Unitful.NoUnits
     if i > 0
         println(diff)

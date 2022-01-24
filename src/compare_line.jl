@@ -16,14 +16,46 @@ function compare(DATA, quadrature)
     ϕ = 10
 
     function regular()
-
-        atmos = Atmosphere(get_atmos(DATA; periodic=true, skip=2)...)
+        global atmos, line
+        atmos = Atmosphere(get_atmos(DATA; periodic=true, skip=3)...)
         line = HydrogenicLine(test_atom()...)
 
-        J_mean, S_λ, α_tot = Λ_regular(ϵ, maxiter, atmos, line, quadrature)
+        J_mean, S_λ, α_cont, populations = Λ_regular(ϵ, maxiter, atmos, line, quadrature)
 
-        I_top = short_characteristics_up(θ, ϕ, S_λ,
-                                            α_tot, atmos, degrees=true, I_0=S_λ[1,:,:])
+        ΔD = doppler_width.(line.λ0, line.atom_weight, atmos.temperature)
+        γ = γ_constant(line,
+                       atmos.temperature,
+                       (populations[:, :, :, 1].+populations[:, :, :, 2]),
+                       atmos.electron_density)
+
+        a = damping_constant.(γ, ΔD)
+
+        k = -[cos(θ), cos(ϕ)*sin(θ), sin(ϕ)*sin(θ)]
+
+        v_los = line_of_sight_velocity(atmos, k)
+
+        v = Array{Float64, 4}(undef, (length(line.λline), size(v_los)...))
+        for l in eachindex(line.λline)
+            v[l, :, :, :] = (line.λline[l] .- line.λ0 .+ line.λ0.*v_los./c_0)./ΔD .|> Unitful.NoUnits
+        end
+
+        profile = Array{PerLength, 4}(undef, (length(line.λline), size(v_los)...))
+        for l in eachindex(line.λline)
+            damping_λ = ustrip(line.λline[l]^2*a)
+            profile[l, :, :, :] = voigt_profile.(damping_λ, v[l, :, :, :], ΔD)
+        end
+
+        α_line = Array{PerLength, 4}(undef, size(profile))
+        for l in eachindex(line.λline)
+            α_line[l, :, :, :] = αline_λ(line,
+                                         profile[l, :, :, :],
+                                         populations[:, :, :, 1],
+                                         populations[:, :, :, 2])
+        end
+        α_tot = α_line .+ α_cont
+
+        I_top = short_characteristics_up(θ, ϕ, S_λ[6,:,:,:], α_tot[6,:,:,:],
+                                            atmos, degrees=true, I_0=S_λ[6,1,:,:])
 
         I_top = ustrip(uconvert.(u"kW*nm^-1*m^-2", I_top[end, 2:end-1, 2:end-1]))
 

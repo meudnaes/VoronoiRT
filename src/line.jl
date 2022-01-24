@@ -34,7 +34,7 @@ struct HydrogenicLine{T <: AbstractFloat}
         qwing = 600.0
         qcore = 15.0
         λ0 = convert(Quantity{T, Unitful.𝐋}, ((h * c_0) / (χu - χl)) |> u"nm")
-        nλ = 41
+        nλ = 11
         λline = sample_λ_line(nλ, λ0, qwing, qcore)
         Aul = convert(Quantity{T, Unitful.𝐓^-1}, calc_Aji(λ0, gl / gu, f_value))
         Bul = calc_Bji(λ0, Aul)
