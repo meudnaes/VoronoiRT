@@ -5,14 +5,7 @@ using Distances
 using Transparency
 using LinearAlgebra
 
-import PhysicalConstants.CODATA2018: h, c_0, k_B, m_p
-
-@derived_dimension PerLength Unitful.𝐋^-1
-@derived_dimension PerArea Unitful.𝐋^-2
-@derived_dimension NumberDensity Unitful.𝐋^-3
-@derived_dimension ColumnDensity Unitful.𝐋^-2
-@derived_dimension Volume Unitful.𝐋^3
-@derived_dimension UnitsIntensity_λ Unitful.P * Unitful.L^-3
+include("atmosphere.jl")
 
 """
     function B_ν(ν, T)
@@ -643,4 +636,21 @@ function arg_where(arr, num)
         end
     end
     return indices[1:j]
+end
+
+function line_of_sight_velocity(atmos::Atmosphere, k::Vector)
+    v_los = Array{Unitful.Velocity, 3}(undef, size(atmos.velocity_z))
+
+    for kk in 1:length(atmos.z)
+        for ii in 1:length(atmos.x)
+            for jj in 1:length(atmos.y)
+                velocity = [atmos.velocity_z[kk, ii, jj],
+                            atmos.velocity_x[kk, ii, jj],
+                            atmos.velocity_y[kk, ii, jj]]
+
+                v_los[kk, ii, jj] = dot(velocity, k)
+            end
+        end
+    end
+    return v_los::Array{Unitful.Velocity, 3}
 end

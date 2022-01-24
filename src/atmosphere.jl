@@ -1,4 +1,11 @@
-include("functions.jl")
+import PhysicalConstants.CODATA2018: h, c_0, k_B, m_p, m_e
+
+@derived_dimension PerLength Unitful.𝐋^-1
+@derived_dimension PerArea Unitful.𝐋^-2
+@derived_dimension NumberDensity Unitful.𝐋^-3
+@derived_dimension ColumnDensity Unitful.𝐋^-2
+@derived_dimension Volume Unitful.𝐋^3
+@derived_dimension UnitsIntensity_λ Unitful.P * Unitful.L^-3
 
 """
     Structure containing atmospheric grid and physical values at grid point
@@ -78,10 +85,9 @@ function get_atmos(file_path; periodic=true, skip=1)
 
     if z[1] > z[end]
         reverse!(z)
-        # reverse!(velocity_x, dims=1)
-        # reverse!(velocity_y, dims=1)
-        # reverse!(velocity_z, dims=1)
-        reverse!(velocity, dims=1)
+        reverse!(velocity_x, dims=1)
+        reverse!(velocity_y, dims=1)
+        reverse!(velocity_z, dims=1)
         reverse!(temperature, dims=1)
         reverse!(electron_density, dims=1)
         reverse!(hydrogen_populations, dims=1)
@@ -89,10 +95,9 @@ function get_atmos(file_path; periodic=true, skip=1)
 
     if x[1] > x[end]
         reverse!(x)
-        reverse!(velocity, dims=2)
-        # reverse!(velocity_x, dims=2)
-        # reverse!(velocity_y, dims=2)
-        # reverse!(velocity_z, dims=2)
+        reverse!(velocity_x, dims=2)
+        reverse!(velocity_y, dims=2)
+        reverse!(velocity_z, dims=2)
         reverse!(temperature, dims=2)
         reverse!(electron_density, dims=2)
         reverse!(hydrogen_populations, dims=2)
@@ -100,10 +105,9 @@ function get_atmos(file_path; periodic=true, skip=1)
 
     if y[1] > y[end]
         reverse!(y)
-        reverse!(velocity, dims=3)
-        # reverse!(velocity_x, dims=3)
-        # reverse!(velocity_y, dims=3)
-        # reverse!(velocity_z, dims=3)
+        reverse!(velocity_x, dims=3)
+        reverse!(velocity_y, dims=3)
+        reverse!(velocity_z, dims=3)
         reverse!(temperature, dims=3)
         reverse!(electron_density, dims=3)
         reverse!(hydrogen_populations, dims=3)
@@ -192,7 +196,7 @@ function get_atmos(file_path; periodic=true, skip=1)
 
         # velocity_z
         velocity_x_periodic = Array{Unitful.Velocity, 3}(undef, size(velocity_x) .+ size_add)
-        velocity_x_periodic[:, 2:end-1, 2:end-1] = veloci_xty
+        velocity_x_periodic[:, 2:end-1, 2:end-1] = velocity_x
         # x-direction
         velocity_x_periodic[:,1,2:end-1] = velocity_x[:,end,:]
         velocity_x_periodic[:,end,2:end-1] = velocity_x[:,1,:]
@@ -207,7 +211,7 @@ function get_atmos(file_path; periodic=true, skip=1)
 
         # velocity_z
         velocity_y_periodic = Array{Unitful.Velocity, 3}(undef, size(velocity_y) .+ size_add)
-        velocity_y_periodic[:, 2:end-1, 2:end-1] = veloci_yty
+        velocity_y_periodic[:, 2:end-1, 2:end-1] = velocity_y
         # x-direction
         velocity_y_periodic[:,1,2:end-1] = velocity_y[:,end,:]
         velocity_y_periodic[:,end,2:end-1] = velocity_y[:,1,:]
