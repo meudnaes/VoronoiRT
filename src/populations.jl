@@ -49,9 +49,8 @@ end
 
 
 """
-    LTE_populations(atom::Atom,
-                    temperature::Array{<:Unitful.Temperature, 3},
-                    electron_density::Array{<:NumberDensity, 3})
+    LTE_populations(line::HydrogenicLine,
+                    atmos::Atmosphere)
 Given the atom density, calculate the atom populations according to LTE.
 Tiago
 """
@@ -65,7 +64,7 @@ function LTE_populations(line::HydrogenicLine,
     nz, nx, ny = size(atom_density)
 
     n_levels = 3
-    n_relative = Array{Float64, 4}(undef, (nz, nx, ny, n_levels))
+    n_relative = ones(Float64, nz, nx, ny, n_levels)
 
     saha_const = (k_B / h) * (2π * m_e) / h
     saha_factor = 2 * ((saha_const * atmos.temperature).^(3/2) ./ atmos.electron_density) .|> u"m/m"
@@ -112,8 +111,6 @@ function get_revised_populations(rates::TransitionRates, atom_density::Array{<:N
     end
 
     populations[:,:,:,1] = atom_density .- sum(populations[:,:,:,2:end],dims=4)[:,:,:,1]
-
-    @test all( Inf .> ustrip.(populations) .>= 0.0 )
 
     return populations
 

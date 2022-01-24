@@ -2,6 +2,7 @@ include("atom.jl")
 include("line.jl")
 include("functions.jl")
 include("broadening.jl")
+include("populations.jl")
 include("voronoi_utils.jl")
 include("characteristics.jl")
 include("irregular_ray_tracing.jl")
@@ -39,20 +40,12 @@ function J_λ_regular(S_λ::AbstractArray,
 
     J = zero(S_λ)
 
-    # There are NaN values in populations, find out why!
-    if any(i -> isnan(i), ustrip(populations))
-        println("NaN in populations")
-    end
-
     ΔD = doppler_width.(line.λ0, line.atom_weight, atmos.temperature)
     γ = γ_constant(line,
                    atmos.temperature,
                    (populations[:, :, :, 1].+populations[:, :, :, 2]),
                    atmos.electron_density)
 
-    if any(i -> isnan(i), ustrip(γ))
-       println("NaN in γ")
-    end
     a = damping_constant.(γ, ΔD)
 
     for i in 1:n_angles
@@ -85,6 +78,7 @@ function J_λ_regular(S_λ::AbstractArray,
                                          populations[:, :, :, 1],
                                          populations[:, :, :, 2])
         end
+        # Negative line extinction... :(
         α_tot = α_line .+ α_cont
 
         for l in 1:length(line.λline)
@@ -98,6 +92,10 @@ function J_λ_regular(S_λ::AbstractArray,
                                                            α_tot[l,:,:,:], atmos, degrees=true, I_0=I_0)
             end
         end
+    end
+
+    if any(i -> isnan(i), ustrip(J))
+       println("NaN in J")
     end
 
     return J, populations
