@@ -5,7 +5,7 @@ import PhysicalConstants.CODATA2018: h, c_0, k_B, m_p, m_e
 @derived_dimension NumberDensity Unitful.𝐋^-3
 @derived_dimension ColumnDensity Unitful.𝐋^-2
 @derived_dimension Volume Unitful.𝐋^3
-@derived_dimension UnitsIntensity_λ Unitful.P * Unitful.L^-3
+@derived_dimension UnitsIntensity_λ Unitful.𝐋^-1 * Unitful.𝐌 * Unitful.𝐓^-3
 
 """
     Structure containing atmospheric grid and physical values at grid point

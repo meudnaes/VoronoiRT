@@ -2,7 +2,7 @@
 include("atom.jl")
 include("functions.jl")
 
-struct TransitionRates
+mutable struct TransitionRates
     R::Array{<:Unitful.Frequency, 5}
     C::Array{<:Unitful.Frequency, 5}
 end
@@ -32,7 +32,7 @@ function calculate_transition_rates(atmos::Atmosphere,
 
     for level = 1:n_levels
         start, stop = iλbf[level]
-        σ = σic(level, atom, λ[start:stop])
+        σ = σic(level, line, λ[start:stop])
         G = Gij(level, n_levels+1, λ[start:stop], temperature, LTE_pops)
 
         R[level,n_levels+1,:,:,:] = Rij(J[start:stop,:,:,:], σ, λ[start:stop])
@@ -184,14 +184,14 @@ function σij(i::Integer,
 
     damping_constant = line.damping_constant
     ΔλD = line.doppler_width
-    λ0 = line.lineData.λ0
-    Bij = line.lineData.Bij
+    λ0 = line.λ0
+    Bij = line.Bij
     σ_constant = h*c_0/(4π*λ0) * Bij
     nλ = length(λ)
     nz, nx, ny = size(ΔλD)
     σ = Array{Unitful.Area, 4}(undef, nλ, nz, nx, ny)
 
-    @Threads.threads for l=1:nλ
+    for l=1:nλ
         damping = (λ[l]^2 * damping_constant) .|> u"m/m"
         v = (λ[l] - λ0) ./ ΔλD
         profile = voigt_profile.(damping, ustrip(v), ΔλD)
@@ -209,7 +209,7 @@ end
 Calculates the bound-free cross-section.
 """
 function σic(i::Integer,
-             atom::Atom,
+             line::HydrogenicLine,
              λ::Array{<:Unitful.Length, 1},
              λ_edge=nothing)
 
@@ -217,8 +217,8 @@ function σic(i::Integer,
         λ_edge = λ[end]
     end
     λ3_ratio = (λ ./ λ_edge).^3
-    n_eff = sqrt(E_∞ / (atom.χ[end] - atom.χ[i])) |>u"J/J" # should be χu - χl
-    charge = atom.Z
+    n_eff = sqrt(E_∞ / (line.χ[end] - line.χ[i])) |>u"J/J" # should be χu - χl
+    charge = line.Z
     σ_constant = (4 * e^2 / (3 * π * sqrt(3) * ε_0 * m_e * c_0^2 * R_∞)) |> u"m^2"
 
     σ = (σ_constant * charge^4 * n_eff * λ3_ratio .* gaunt_bf.(λ, charge, n_eff))
@@ -247,7 +247,7 @@ function Gij(i::Integer,
 
     n_ratio = LTE_populations[:,:,:,i] ./LTE_populations[:,:,:,j]
 
-    @Threads.threads for l=1:nλ
+    for l=1:nλ
         G[l,:,:,:] =  n_ratio .* exp.(- hc ./ (k_B*λ[l]*temperature))
     end
 

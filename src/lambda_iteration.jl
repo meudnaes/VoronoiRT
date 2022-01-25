@@ -41,15 +41,16 @@ function J_λ_regular(S_λ::AbstractArray,
     # Ω = (θ, φ), space angle
     weights, θ_array, ϕ_array, n_angles = read_quadrature(quadrature)
 
-    J = zero(S_λ)
+    J_λ = Array{UnitsIntensity_λ, 4}(undef, size(S_λ))
+    fill!(J_λ, 0u"kW*m^-2*nm^-1")
 
-    ΔD = doppler_width.(line.λ0, line.atom_weight, atmos.temperature)
     γ = γ_constant(line,
                    atmos.temperature,
                    (populations[:, :, :, 1].+populations[:, :, :, 2]),
                    atmos.electron_density)
 
-    a = damping_constant.(γ, ΔD)
+    a = damping_constant.(γ, line.ΔD)
+
 
     for i in 1:n_angles
         θ = θ_array[i]
@@ -61,14 +62,14 @@ function J_λ_regular(S_λ::AbstractArray,
         v_los = line_of_sight_velocity(atmos, k)
         v = Array{Float64, 4}(undef, (length(line.λline), size(v_los)...))
         for l in eachindex(line.λline)
-            v[l, :, :, :] = (line.λline[l] .- line.λ0 .+ line.λ0.*v_los./c_0)./ΔD .|> Unitful.NoUnits
+            v[l, :, :, :] = (line.λline[l] .- line.λ0 .+ line.λ0.*v_los./c_0)./line.ΔD .|> Unitful.NoUnits
         end
 
         # calculate line profile
         profile = Array{PerLength, 4}(undef, (length(line.λline), size(v_los)...))
         for l in eachindex(line.λline)
             damping_λ = ustrip(line.λline[l]^2*a)
-            profile[l, :, :, :] = voigt_profile.(damping_λ, v[l, :, :, :], ΔD)
+            profile[l, :, :, :] = voigt_profile.(damping_λ, v[l, :, :, :], line.ΔD)
         end
 
         # line extinction
@@ -86,27 +87,28 @@ function J_λ_regular(S_λ::AbstractArray,
         for l in 1:length(line.λline)
             if θ_array[i] > 90
                 I_0 =  B_λ.(line.λline[l], atmos.temperature[1,:,:])
-                J[l,:,:,:] .+= weights[i].*short_characteristics_up(θ_array[i],
-                                                                    ϕ_array[i],
-                                                                    S_λ[l,:,:,:],
-                                                                    α_tot[l,:,:,:],
-                                                                    atmos,
-                                                                    degrees=true,
-                                                                    I_0=I_0)
-            elseif θ_array[i] < 90
-                I_0 = zero(S_λ[l, 1, :, :])
-                J[l,:,:,:] .+= weights[i].*short_characteristics_down(θ_array[i],
+                J_λ[l,:,:,:] .+= weights[i].*short_characteristics_up(θ_array[i],
                                                                       ϕ_array[i],
                                                                       S_λ[l,:,:,:],
                                                                       α_tot[l,:,:,:],
                                                                       atmos,
                                                                       degrees=true,
                                                                       I_0=I_0)
+            elseif θ_array[i] < 90
+                I_0 = Matrix{UnitsIntensity_λ}(undef, size(S_λ[l, 1, :, :]))
+                fill!(I_0, 0u"kW*m^-2*nm^-1")
+                J_λ[l,:,:,:] .+= weights[i].*short_characteristics_down(θ_array[i],
+                                                                        ϕ_array[i],
+                                                                        S_λ[l,:,:,:],
+                                                                        α_tot[l,:,:,:],
+                                                                        atmos,
+                                                                        degrees=true,
+                                                                        I_0=I_0)
             end
         end
     end
 
-    return J, populations
+    return J_λ, populations
 end
 
 function J_λ_voronoi(S_λ::AbstractArray,
@@ -226,7 +228,7 @@ function Λ_regular(ϵ::AbstractFloat,
 
     # Start with the source function as the Planck function
     # Start with the source function as the Planck function
-    B_0 = Array{UnitsIntensity_λ, 4}(undef, size(α_cont))u"kW*m^-2*nm^-1"
+    B_0 = Array{UnitsIntensity_λ, 4}(undef, size(α_cont))
 
     for l in eachindex(line.λline)
         B_0[l, :, :, :] = B_λ.(line.λline[l], atmos.temperature)
@@ -234,7 +236,8 @@ function Λ_regular(ϵ::AbstractFloat,
 
     S_new = copy(B_0)
 
-    S_old = zero(S_new)
+    S_old = Array{UnitsIntensity_λ, 4}(undef, size(α_cont))
+    fill!(S_old, 0u"kW*m^-2*nm^-1")
 
     i=0
 

@@ -18,7 +18,7 @@ function compare(DATA, quadrature)
     function regular()
         global atmos, line
         atmos = Atmosphere(get_atmos(DATA; periodic=true, skip=3)...)
-        line = HydrogenicLine(test_atom()...)
+        line = HydrogenicLine(test_atom()..., atmos)
 
         J_mean, S_λ, α_cont, populations = Λ_regular(ϵ, maxiter, atmos, line, quadrature)
 
