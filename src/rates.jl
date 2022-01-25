@@ -18,7 +18,8 @@ of a single atom.
 """
 function calculate_transition_rates(atmos::Atmosphere,
                                     line::HydrogenicLine,
-                                    J_λ::Array{<:UnitsIntensity_λ,4})
+                                    J_λ::Array{<:UnitsIntensity_λ,4},
+                                    dmp_const::Array{<:PerArea, 3})
     LTE_pops = LTE_populations(line, atmos)
 
     nz, nx, ny, nl = size(LTE_pops)
@@ -50,7 +51,7 @@ function calculate_transition_rates(atmos::Atmosphere,
 
             line = lines[line_number]
 
-            σ = σij(l, u, line, λ[start:stop])
+            σ = σij(l, u, line, λ[start:stop], dmp_const)
             G = Gij(l, u, λ[start:stop], temperature, LTE_pops)
 
             R[l,u,:,:,:] = Rij(J[start:stop,:,:,:], σ, λ[start:stop])
@@ -83,7 +84,7 @@ function Rij(J::Array{<:UnitsIntensity_λ, 4},
              λ::Array{<:Unitful.Length, 1})
 
     nλ, nz, nx, ny = size(J)
-    R = Array{Unitful.Frequency,3}(undef,nz,nx,ny)
+    R = Array{Unitful.Frequency,3}(undef, (nz, nx, ny))
     fill!(R,0.0u"s^-1")
 
     for l=1:(nλ-1)
@@ -179,22 +180,20 @@ Calculates the bound-bound cross section.
 """
 function σij(i::Integer,
              j::Integer,
-             line::Line,
-             λ::Array{<:Unitful.Length, 1})
+             line::HydrogenicLine,
+             λ::Vector{<:Unitful.Length},
+             dmp_const::Array{<:PerArea, 3})
 
-    damping_constant = line.damping_constant
-    ΔλD = line.doppler_width
     λ0 = line.λ0
-    Bij = line.Bij
-    σ_constant = h*c_0/(4π*λ0) * Bij
+    σ_constant = h*c_0/(4π*λ0) * line.Bij
     nλ = length(λ)
-    nz, nx, ny = size(ΔλD)
+    nz, nx, ny = size(line.ΔD)
     σ = Array{Unitful.Area, 4}(undef, nλ, nz, nx, ny)
 
     for l=1:nλ
-        damping = (λ[l]^2 * damping_constant) .|> u"m/m"
-        v = (λ[l] - λ0) ./ ΔλD
-        profile = voigt_profile.(damping, ustrip(v), ΔλD)
+        damping = (λ[l]^2 * dmp_const) .|> u"m/m"
+        v = (λ[l] - λ0) ./ line.ΔD
+        profile = voigt_profile.(damping, ustrip(v), line.ΔD)
         σ[l,:,:,:] = σ_constant .* profile
     end
 
@@ -210,7 +209,7 @@ Calculates the bound-free cross-section.
 """
 function σic(i::Integer,
              line::HydrogenicLine,
-             λ::Array{<:Unitful.Length, 1},
+             λ::Vector{<:Unitful.Length},
              λ_edge=nothing)
 
     if λ_edge == nothing

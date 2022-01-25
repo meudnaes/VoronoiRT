@@ -49,7 +49,7 @@ function J_λ_regular(S_λ::AbstractArray,
                    (populations[:, :, :, 1].+populations[:, :, :, 2]),
                    atmos.electron_density)
 
-    a = damping_constant.(γ, line.ΔD)
+    dmp_const = damping_constant.(γ, line.ΔD)
 
 
     for i in 1:n_angles
