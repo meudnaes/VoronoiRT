@@ -1,6 +1,7 @@
 using Plots
 using Transparency
 include("functions.jl")
+include("voronoi_utils.jl")
 
 struct HydrogenicLine{T <: AbstractFloat}
     Aji::Unitful.Frequency{T}
@@ -17,10 +18,10 @@ struct HydrogenicLine{T <: AbstractFloat}
     gj::Int
     atom_weight::Unitful.Mass{T}
     Z::Int
-    ΔD::Array{Unitful.Quantity{T, Unitful.𝐋}, 3}
+    ΔD::Array{Unitful.Quantity{T, Unitful.𝐋}}
     function HydrogenicLine(χu::Quantity{T}, χl::Quantity{T}, χ∞::Quantity{T},
                             gu::Int, gl::Int, f_value::T, atom_weight::Unitful.Mass{T},
-                            Z::Int, atmos::Atmosphere)  where T <: AbstractFloat
+                            Z::Int, temperature)  where T <: AbstractFloat
         χu = Transparency.wavenumber_to_energy(χu)
         χl = Transparency.wavenumber_to_energy(χl)
         χ∞ = Transparency.wavenumber_to_energy(χ∞)
@@ -40,7 +41,7 @@ struct HydrogenicLine{T <: AbstractFloat}
         Aul = convert(Quantity{T, Unitful.𝐓^-1}, calc_Aji(λ0, gl / gu, f_value))
         Bul = calc_Bji(λ0, Aul)
         Blu = gu / gl * Bul
-        ΔD = doppler_width.(λ0, atom_weight, atmos.temperature)
+        ΔD = doppler_width.(λ0, atom_weight, temperature)
         new{T}(Aul, Bul, Blu, λ0, λline, χl, χu, χ∞, gl, gu, atom_weight, Z, ΔD)
     end
 end

@@ -28,16 +28,16 @@ function calculate_transition_rates(atmos::Atmosphere,
     # ==================================================================
     # CALCULATE RADIATIVE RATES
     # ==================================================================
-    R = Array{Float64, 5}(undef, n_levels+1, n_levels+1, nz, nx, ny)u"s^-1"
-    C = Array{Float64, 5}(undef, n_levels+1, n_levels+1, nz, nx, ny)u"s^-1"
+    R = Array{Unitful.Frequency, 5}(undef, (n_levels+1, n_levels+1, nz, nx, ny))
+    C = Array{Unitful.Frequency, 5}(undef, (n_levels+1, n_levels+1, nz, nx, ny))
 
     for level = 1:n_levels
-        start, stop = iλbf[level]
-        σ = σic(level, line, λ[start:stop])
-        G = Gij(level, n_levels+1, λ[start:stop], temperature, LTE_pops)
+        # start, stop = iλbf[level]
+        σ = σic(level, line, line.λline)
+        G = Gij(level, n_levels+1, line.λline, atmos.temperature, LTE_pops)
 
-        R[level,n_levels+1,:,:,:] = Rij(J[start:stop,:,:,:], σ, λ[start:stop])
-        R[n_levels+1,level,:,:,:] = Rji(J[start:stop,:,:,:], σ, G, λ[start:stop])
+        R[level,n_levels+1,:,:,:] = Rij(J_λ, σ, line.λline)
+        R[n_levels+1,level,:,:,:] = Rji(J_λ, σ, G, line.λline)
 
         C[level,n_levels+1,:,:,:] = Cij(level, n_levels+1, atmos.electron_density, atmos.temperature, LTE_pops)
         C[n_levels+1,level,:,:,:] = Cij(n_levels+1, level, atmos.electron_density, atmos.temperature, LTE_pops)
@@ -47,18 +47,18 @@ function calculate_transition_rates(atmos::Atmosphere,
         for u=(l+1):n_levels
 
             line_number = sum((n_levels-l+1):(n_levels-1)) + (u - l)
-            start, stop = iλbb[line_number]
+            # start, stop = iλbb[line_number]
 
-            line = lines[line_number]
+            # line = lines[line_number]
 
-            σ = σij(l, u, line, λ[start:stop], dmp_const)
-            G = Gij(l, u, λ[start:stop], temperature, LTE_pops)
+            σ = σij(l, u, line, line.λline, dmp_const)
+            G = Gij(l, u, line.λline, atmos.temperature, LTE_pops)
 
-            R[l,u,:,:,:] = Rij(J[start:stop,:,:,:], σ, λ[start:stop])
-            R[u,l,:,:,:] = Rji(J[start:stop,:,:,:], σ, G, λ[start:stop])
+            R[l,u,:,:,:] = Rij(J_λ, σ, line.λline)
+            R[u,l,:,:,:] = Rji(J_λ, σ, G, line.λline)
 
-            C[l,u,:,:,:] = Cij(l, u, electron_density, temperature, LTE_pops)
-            C[u,l,:,:,:] = Cij(u, l, electron_density, temperature, LTE_pops)
+            C[l,u,:,:,:] = Cij(l, u, atmos.electron_density, atmos.temperature, LTE_pops)
+            C[u,l,:,:,:] = Cij(u, l, atmos.electron_density, atmos.temperature, LTE_pops)
 
         end
     end
@@ -216,7 +216,7 @@ function σic(i::Integer,
         λ_edge = λ[end]
     end
     λ3_ratio = (λ ./ λ_edge).^3
-    n_eff = sqrt(E_∞ / (line.χ[end] - line.χ[i])) |>u"J/J" # should be χu - χl
+    n_eff = sqrt(E_∞ / (line.χj - line.χi)) |>u"J/J" # should be χu - χl
     charge = line.Z
     σ_constant = (4 * e^2 / (3 * π * sqrt(3) * ε_0 * m_e * c_0^2 * R_∞)) |> u"m^2"
 
