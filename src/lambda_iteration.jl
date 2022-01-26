@@ -31,8 +31,8 @@ function J_λ_regular(S_λ::AbstractArray,
     return J
 end
 
-function J_λ_regular(S_λ::Array{<:UnitsIntensity_λ, 3},
-                     α_cont::Array{<:PerLength, 3},
+function J_λ_regular(S_λ::Array{<:UnitsIntensity_λ, 4},
+                     α_cont::Array{<:PerLength, 4},
                      populations::Array{<:NumberDensity, 4},
                      atmos::Atmosphere,
                      line::HydrogenicLine,
@@ -41,8 +41,7 @@ function J_λ_regular(S_λ::Array{<:UnitsIntensity_λ, 3},
     # Ω = (θ, φ), space angle
     weights, θ_array, ϕ_array, n_angles = read_quadrature(quadrature)
 
-    J_λ = Array{UnitsIntensity_λ, 4}(undef, size(S_λ))
-    fill!(J_λ, 0u"kW*m^-2*nm^-1")
+    J_λ = zero(S_λ)
 
     γ = γ_constant(line,
                    atmos.temperature,
@@ -50,8 +49,8 @@ function J_λ_regular(S_λ::Array{<:UnitsIntensity_λ, 3},
                    atmos.electron_density)
 
     damping_λ = Array{Float64, 4}(undef, size(S_λ))
-    for l in eachindex(line.λline)
-        damping_λ[l, :, :, :] = damping(γ, line.λline[l], line.ΔD)
+    for l in eachindex(line.λ)
+        damping_λ[l, :, :, :] = damping.(γ, line.λ[l], line.ΔD)
     end
 
     for i in 1:n_angles
@@ -62,20 +61,20 @@ function J_λ_regular(S_λ::Array{<:UnitsIntensity_λ, 3},
 
         # calculate line of sight velocity
         v_los = line_of_sight_velocity(atmos, -k)
-        v = Array{Float64, 4}(undef, (length(line.λline), size(v_los)...))
-        for l in eachindex(line.λline)
-            v[l, :, :, :] = (line.λline[l] .- line.λ0 .+ line.λ0.*v_los./c_0)./line.ΔD .|> Unitful.NoUnits
+        v = Array{Float64, 4}(undef, (length(line.λ), size(v_los)...))
+        for l in eachindex(line.λ)
+            v[l, :, :, :] = (line.λ[l] .- line.λ0 .+ line.λ0.*v_los./c_0)./line.ΔD .|> Unitful.NoUnits
         end
 
         # calculate line profile
-        profile = Array{PerLength, 4}(undef, (length(line.λline), size(v_los)...))
-        for l in eachindex(line.λline)
+        profile = Array{Float64, 4}(undef, (length(line.λ), size(v_los)...))u"m^-1"
+        for l in eachindex(line.λ)
             profile[l, :, :, :] = voigt_profile.(damping_λ[l, :, :, :], v[l, :, :, :], line.ΔD)
         end
 
         # line extinction
-        α_line = Array{PerLength, 4}(undef, size(profile))
-        for l in eachindex(line.λline)
+        α_line = Array{Float64, 4}(undef, size(profile))u"m^-1"
+        for l in eachindex(line.λ)
             α_line[l, :, :, :] = αline_λ(line,
                                          profile[l, :, :, :],
                                          populations[:, :, :, 1],
@@ -85,9 +84,9 @@ function J_λ_regular(S_λ::Array{<:UnitsIntensity_λ, 3},
         # total exinction
         α_tot = α_line .+ α_cont
 
-        for l in 1:length(line.λline)
+        for l in 1:length(line.λ)
             if θ_array[i] > 90
-                I_0 =  B_λ.(line.λline[l], atmos.temperature[1,:,:])
+                I_0 =  B_λ.(line.λ[l], atmos.temperature[1,:,:])
                 J_λ[l,:,:,:] .+= weights[i].*short_characteristics_up(θ_array[i],
                                                                       ϕ_array[i],
                                                                       S_λ[l,:,:,:],
@@ -96,8 +95,7 @@ function J_λ_regular(S_λ::Array{<:UnitsIntensity_λ, 3},
                                                                       degrees=true,
                                                                       I_0=I_0)
             elseif θ_array[i] < 90
-                I_0 = Matrix{UnitsIntensity_λ}(undef, size(S_λ[l, 1, :, :]))
-                fill!(I_0, 0u"kW*m^-2*nm^-1")
+                I_0 = zero(S_λ[l, 1, :, :])
                 J_λ[l,:,:,:] .+= weights[i].*short_characteristics_down(θ_array[i],
                                                                         ϕ_array[i],
                                                                         S_λ[l,:,:,:],
@@ -109,7 +107,7 @@ function J_λ_regular(S_λ::Array{<:UnitsIntensity_λ, 3},
         end
     end
 
-    return J_λ, populations, dmp_const
+    return J_λ, damping_λ
 end
 
 function J_λ_voronoi(S_λ::AbstractArray,
@@ -150,9 +148,9 @@ end
 
 function J_λ_voronoi(S_λ::Vector{<:UnitsIntensity_λ},
                      α_cont::Vector{<:PerLength},
-                     populations::Matrix{<:NumberDensity}
+                     populations::Matrix{<:NumberDensity},
                      sites::VoronoiSites,
-                     line::HydrogenicLine
+                     line::HydrogenicLine,
                      quadrature::String)
 
     # Ω = (θ, φ), space angle
@@ -167,8 +165,8 @@ function J_λ_voronoi(S_λ::Vector{<:UnitsIntensity_λ},
                    sites.electron_density)
 
     damping_λ = similar(J_λ)
-    for l in eachindex(line.λline)
-       damping_λ[l, :, :, :] = damping(γ, line.λline[l], line.ΔD)
+    for l in eachindex(line.λ)
+       damping_λ[l, :, :, :] = damping(γ, line.λ[l], line.ΔD)
     end
 
     n_sweeps = 3
@@ -180,20 +178,20 @@ function J_λ_voronoi(S_λ::Vector{<:UnitsIntensity_λ},
 
         # calculate line of sight velocity
         v_los = line_of_sight_velocity(atmos, -k)
-        v = Matrix{Float64}(undef, (length(line.λline), sites.n))
-        for l in eachindex(line.λline)
-            v[l, :] = (line.λline[l] .- line.λ0 .+ line.λ0.*v_los./c_0)./line.ΔD .|> Unitful.NoUnits
+        v = Matrix{Float64}(undef, (length(line.λ), sites.n))
+        for l in eachindex(line.λ)
+            v[l, :] = (line.λ[l] .- line.λ0 .+ line.λ0.*v_los./c_0)./line.ΔD .|> Unitful.NoUnits
         end
 
         # calculate line profile
-        profile = Matrix{PerLength}(undef, (length(line.λline), sites.n))
-        for l in eachindex(line.λline)
+        profile = Matrix{PerLength}(undef, (length(line.λ), sites.n))
+        for l in eachindex(line.λ)
             profile[l, :] = voigt_profile.(damping_λ[l, :], v[l, :], line.ΔD)
         end
 
         # line extinction
         α_line = Matrix{PerLength}(undef, size(profile))
-        for l in eachindex(line.λline)
+        for l in eachindex(line.λ)
             α_line[l, :] = αline_λ(line,
                                    profile[l, :],
                                    populations[:, 1],
@@ -276,19 +274,19 @@ function Λ_regular(ϵ::AbstractFloat,
 
     # Start in LTE
 
-    populations = LTE_populations(line, atmos)
+    populations = LTE_populations(line, atmos)*1.0
 
     # Find continuum extinction and absorption extinction (only with Thomson and Rayleigh)
-    α_cont = Array{Float64, 4}(undef, (length(line.λline), size(atmos.temperature)...))u"m^-1"
+    α_cont = Array{Float64, 4}(undef, (length(line.λ), size(atmos.temperature)...))u"m^-1"
     α_a = copy(α_cont)
-    for l in eachindex(line.λline)
-        α_cont[l, :, :, :] = α_continuum.(line.λline[l],
+    for l in eachindex(line.λ)
+        α_cont[l, :, :, :] = α_continuum.(line.λ[l],
                                           atmos.temperature*1.0,
                                           atmos.electron_density*1.0,
                                           populations[:, :, :, 1]*1.0,
                                           populations[:, :, :, 3]*1.0)
 
-        α_a[l, :, :, :] = α_absorption.(line.λline[l],
+        α_a[l, :, :, :] = α_absorption.(line.λ[l],
                                         atmos.temperature*1.0,
                                         atmos.electron_density*1.0,
                                         populations[:, :, :, 1]*1.0,
@@ -296,16 +294,17 @@ function Λ_regular(ϵ::AbstractFloat,
     end
 
     # destruction probability (Should I include line???)
-    ε_λ = α_a ./ α_cont
+    ελ = Array{Float64, 4}(undef, size(α_cont))
+    for l in eachindex(line.λ)
+        ελ[l, :, :, :] = destruction(populations, atmos.electron_density, atmos.temperature, line)
+    end
+    thick = ελ .> 5e-3
 
-    thick = ε_λ .> 5e-3
-
-    # Start with the source function as the Planck function
     # Start with the source function as the Planck function
     B_0 = Array{Float64, 4}(undef, size(α_cont))u"kW*m^-2*nm^-1"
 
-    for l in eachindex(line.λline)
-        B_0[l, :, :, :] = B_λ.(line.λline[l], atmos.temperature)
+    for l in eachindex(line.λ)
+        B_0[l, :, :, :] = B_λ.(line.λ[l], atmos.temperature)
     end
 
     S_new = copy(B_0)
@@ -321,19 +320,36 @@ function Λ_regular(ϵ::AbstractFloat,
         # Calculate radiation field #
         #############################
         S_old = copy(S_new)
-        J_new, populations, dmp_const = J_λ_regular(S_old, α_cont, populations,
-                                                    atmos, line, quadrature)
-        S_new = (1 .- ε_λ).*J_new .+ ε_λ.*B_0
+        J_new, damping_λ = J_λ_regular(S_old, α_cont, populations,
+                                       atmos, line, quadrature)
+        S_new = (1 .- ελ).*J_new .+ ελ.*B_0
+
+        if any(isnan.(J_new))
+            println("NaN in J iter $i")
+        end
+
+        if any(isnan.(S_new))
+            println("NaN in S iter $i")
+        end
 
         #############################
         #      Calculate rates      #
         #############################
-        R, C = calculate_transition_rates(atmos, line, J_new, dmp_const)
+        R, C = calculate_transition_rates(atmos, line, J_new, damping_λ)
 
         #############################
         #    Update populations     #
         #############################
-        populations = get_revised_populations(R, C, atmos.hydrogen_populations)
+        populations = get_revised_populations(R, C, atmos.hydrogen_populations*1.0)
+
+        if any(isnan.(populations))
+            println("NaN in pops iter $i")
+        end
+
+        if any(i -> i<= 0u"m^-3", populations)
+            println("Bad pops in iter $i")
+        end
+
         i+=1
     end
 
@@ -358,59 +374,61 @@ function Λ_voronoi(ϵ::AbstractFloat,
     populations = LTE_populations(line, sites)
 
     # Find continuum extinction and absorption extinction (only with Thomson and Rayleigh)
-    α_cont = Array{PerLength, 2}(undef, (length(line.λline), sites.n)
+    α_cont = Array{Float64, 2}(undef, (length(line.λ), sites.n))u"m^-1"
     α_a = copy(α_cont)
-    for l in eachindex(line.λline)
-        α_cont[l, :] = α_continuum.(line.λline[l],
+    for l in eachindex(line.λ)
+        α_cont[l, :] = α_continuum.(line.λ[l],
                                           sites.temperature*1.0,
                                           sites.electron_density*1.0,
-                                          populations[:, :, :, 1]*1.0,
-                                          populations[:, :, :, 3]*1.0)
+                                          populations[:, 1]*1.0,
+                                          populations[:, 3]*1.0)
 
-        α_a[l, :] = α_absorption.(line.λline[l],
+        α_a[l, :] = α_absorption.(line.λ[l],
                                         sites.temperature*1.0,
                                         sites.electron_density*1.0,
-                                        populations[:, :, :, 1]*1.0,
-                                        populations[:, :, :, 3]*1.0)
+                                        populations[:, 1]*1.0,
+                                        populations[:, 3]*1.0)
     end
 
-    # destruction probability (Should I include line???)
-    ε_λ = α_a ./ α_cont
-
-    thick = ε_λ .> 5e-3
-
     # Start with the source function as the Planck function
-    B_0 = Array{UnitsIntensity_λ, 2}(undef, size(α_cont))
+    B_0 = Array{Float64, 2}(undef, size(α_cont))u"kW*m^-2*nm^-1"
 
-    for l in eachindex(line.λline)
-        B_0[l, :] = B_λ.(line.λline[l], sites.temperature)
+    for l in eachindex(line.λ)
+        B_0[l, :] = B_λ.(line.λ[l], sites.temperature)
     end
 
     S_new = copy(B_0)
 
-    S_old = Array{UnitsIntensity_λ, 2}(undef, size(α_cont))
-    fill!(S_old, 0u"kW*m^-2*nm^-1")
+    S_old = zero(S_new)
 
-    # destruction
-    ε_λ = α_a ./ α_tot
+    ελ = destruction(populations, atmos.electron_density, atmos.temperature, line)
 
     thick = ε_λ .> 5e-3
-
-    # Start with the source function as the Planck function
-    B_0 = B_λ.(λ, sites.temperature)
-    S_new = B_0
-
-    S_old = zero(S_new)
 
     i=0
 
     local J_new
     # check where ε < 1e-2, cut above heights
     while criterion(S_new, S_old, ϵ, i, maxiter, thick)
-        print("Iteration $(i+1)\r")
+        #############################
+        # Calculate radiation field #
+        #############################
         S_old = copy(S_new)
-        J_new = J_λ_voronoi(S_old, α_tot, sites, quadrature)
-        S_new = (1 .- ε_λ).*J_new .+ ε_λ.*B_0
+        J_new, damping_λ = J_λ_voronoi(S_old, α_cont, populations,
+                                       sites, line, quadrature)
+
+        S_new = (1 .- ελ).*J_new .+ ελ.*B_0
+
+        #############################
+        #      Calculate rates      #
+        #############################
+        R, C = calculate_transition_rates(sites, line, J_new, damping_λ)
+
+        #############################
+        #    Update populations     #
+        #############################
+        populations = get_revised_populations(R, C, sites.hydrogen_populations)
+
         i+=1
     end
 
@@ -470,6 +488,18 @@ function Λ_voronoi(ϵ::AbstractFloat, maxiter::Integer, sites::VoronoiSites, qu
     println("Converged in $i iterations")
 
     return J_new, S_new, α_tot
+end
+
+function destruction(populations::Array{<:NumberDensity, 4},
+                     electron_density::Array{<:NumberDensity, 3},
+                     temperature::Array{<:Unitful.Temperature, 3},
+                     line::HydrogenicLine)
+    # destruction, eq (3.98) in Rutten, 2003
+    A21 = line.Aji
+    B21 = line.Bji
+    C21 = Cij(2, 1, electron_density, temperature, populations)
+    Bλ_0 = B_λ.(line.λ0, temperature)
+    ελ_0 = C21./(C21 .+ A21 .+ B21.*Bλ_0)
 end
 
 function criterion(S_new, S_old, ϵ, i, maxiter, indcs)

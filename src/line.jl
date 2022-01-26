@@ -9,7 +9,8 @@ struct HydrogenicLine{T <: AbstractFloat}
     Bji::Unitful.Quantity{T, Unitful.𝐋 * Unitful.𝐓^2 / Unitful.𝐌}
     Bij::Unitful.Quantity{T, Unitful.𝐋 * Unitful.𝐓^2 / Unitful.𝐌}
     λ0::Unitful.Length{T}
-    λline::Vector{Unitful.Length}
+    λ::Vector{Unitful.Quantity{T, Unitful.𝐋}}
+    λidx::Vector{Int}
     χi::Unitful.Energy{T}
     χj::Unitful.Energy{T}
     # Properties of atom, not line, but keeping here for now
@@ -20,12 +21,13 @@ struct HydrogenicLine{T <: AbstractFloat}
     Z::Int
     ΔD::Array{Unitful.Quantity{T, Unitful.𝐋}}
     function HydrogenicLine(χu::Quantity{T}, χl::Quantity{T}, χ∞::Quantity{T},
+                            nλ_bb::Int, nλ_bf::Int,
                             gu::Int, gl::Int, f_value::T, atom_weight::Unitful.Mass{T},
                             Z::Int, temperature::Array{<: Unitful.Temperature})  where T <: AbstractFloat
+        # Add conversion from cm^-1 to aJ, if type of χu is L^-1
         χu = Transparency.wavenumber_to_energy(χu)
         χl = Transparency.wavenumber_to_energy(χl)
         χ∞ = Transparency.wavenumber_to_energy(χ∞)
-        # Add conversion from cm^-1 to aJ, if type of χu is L^-1
         @assert χ∞ > χu
         @assert χu > χl
         @assert gu > 0
@@ -33,16 +35,28 @@ struct HydrogenicLine{T <: AbstractFloat}
         @assert f_value > 0
         @assert atom_weight > 0u"kg"
         @assert Z >= 1
+        # Sample wavelengths for bound-bound and bound-free transitions
+        λ0 = convert(Quantity{T, Unitful.𝐋}, ((h * c_0) / (χu - χl)) |> u"nm")
         qwing = 600.0
         qcore = 15.0
-        λ0 = convert(Quantity{T, Unitful.𝐋}, ((h * c_0) / (χu - χl)) |> u"nm")
-        nλ = 11
-        λline = sample_λ_line(nλ, λ0, qwing, qcore)
+        λbb = sample_λ_line(nλ_bb, λ0, qwing, qcore)
+        # from Ida
+        ##
+        λ1_min = transition_λ(χl, χ∞)*(1/2.0)^2 .+ 0.001u"nm"
+        λ2_min = transition_λ(χu, χ∞)*(2/2.0)^2 .+ 0.001u"nm"
+        ##
+        λbf_l = sample_λ_boundfree(nλ_bf, λ1_min, χl, χ∞)
+        λbf_u = sample_λ_boundfree(nλ_bf, λ2_min, χu, χ∞)
+        λ = vcat(λbb, λbf_l, λbf_u)
+        λi = [1, nλ_bb, nλ_bb+nλ_bf, nλ_bb+2*nλ_bf]
+        # Einstein coefficients
         Aul = convert(Quantity{T, Unitful.𝐓^-1}, calc_Aji(λ0, gl / gu, f_value))
         Bul = calc_Bji(λ0, Aul)
         Blu = gu / gl * Bul
+        # Doppler doppler_width
         ΔD = doppler_width.(λ0, atom_weight, temperature)
-        new{T}(Aul, Bul, Blu, λ0, λline, χl, χu, χ∞, gl, gu, atom_weight, Z, ΔD)
+
+        new{T}(Aul, Bul, Blu, λ0, λ, λi, χl, χu, χ∞, gl, gu, atom_weight, Z, ΔD)
     end
 end
 
@@ -62,6 +76,9 @@ function test_atom()
     χu = 82258.211u"cm^-1"
     χ∞ = 109677.617u"cm^-1"
 
+    nλ_bb = 11
+    nλ_bf = 5
+
     gl = 2
     gu = 8
 
@@ -71,5 +88,5 @@ function test_atom()
 
     Z = 1
 
-    return χu, χl, χ∞, gu, gl, f_value, atom_weight, Z
+    return χu, χl, χ∞, nλ_bb, nλ_bf, gu, gl, f_value, atom_weight, Z
 end

@@ -502,3 +502,15 @@ function _initialise(p_vec, atmos::Atmosphere)
     end
     return temperature_new, N_e_new, N_H_new, velocity_z_new, velocity_x_new, velocity_y_new
 end
+
+function line_of_sight_velocity(sites::VoronoiSites, k::Vector)
+    v_los = Vector{Unitful.Velocity}(undef, sites.n)
+
+    for ii in 1:sites.n
+        velocity = [sites.velocity_z[ii],
+                    sites.velocity_x[ii],
+                    sites.velocity_y[ii]]
+        v_los[ii] = dot(velocity, k)
+    end
+    return v_los::Vector{Unitful.Velocity}
+end

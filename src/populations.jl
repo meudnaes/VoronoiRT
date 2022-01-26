@@ -116,11 +116,11 @@ function get_revised_populations(R::Array{<:Unitful.Frequency, 5},
 
     P = R .+ C
     n_levels = size(P)[1] - 1
-    nz,nx,ny = size(atom_density)
+    nz, nx, ny = size(atom_density)
 
-    A = Array{Float64, 5}(undef, n_levels, n_levels, nz, nx, ny)u"s^-1"
-    b = Array{Float64, 4}(undef, n_levels, nz, nx, ny)u"s^-1 * m^-3"
-    populations = Array{Float64, 4}(undef, nz, nx, ny, n_levels+1)u"m^-3"
+    A = Array{Float64, 5}(undef, (n_levels, n_levels, nz, nx, ny))u"s^-1"
+    b = Array{Float64, 4}(undef, (n_levels, nz, nx, ny))u"s^-1*m^-3"
+    populations = Array{Float64, 4}(undef, (nz, nx, ny, n_levels + 1))u"m^-3"
 
     for r=1:n_levels
         A[r,r,:,:,:] = P[1,r+1,:,:,:] .+ P[r+1,1,:,:,:]

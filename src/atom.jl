@@ -126,35 +126,3 @@ the energy difference between two levels.
 function transition_λ(χ1::Unitful.Energy, χ2::Unitful.Energy)
     ((h * c_0) / (χ2-χ1)) |> u"nm"
 end
-
-
-# ==================================================================
-#  WRITE TO FILE
-# ==================================================================
-
-
-"""
-    write_to_file(atom::Atom, output_path::String)
-
-Writes wavelengths to the output file.
-"""
-function write_to_file(λ::Array{<:Unitful.Length,1}, output_path::String)
-    h5open(output_path, "r+") do file
-        write(file, "wavelength", ustrip(λ))
-    end
-end
-
-
-"""
-    write_to_file(atom::Atom, output_path::String)
-
-Writes wavelength and number of bound-bound and
-bound-free wavelengths to the output file.
-"""
-function write_to_file(λ, iλbf, iλbb, output_path::String)
-    h5open(output_path, "r+") do file
-        write(file, "wavelength", ustrip.(λ))
-        #write(file, "iwbf", Arr
-        #write(file, "iwbf", iλbb)
-    end
-end

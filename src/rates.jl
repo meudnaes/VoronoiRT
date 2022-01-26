@@ -19,7 +19,7 @@ of a single atom.
 function calculate_transition_rates(atmos::Atmosphere,
                                     line::HydrogenicLine,
                                     J_λ::Array{<:UnitsIntensity_λ,4},
-                                    dmp_const::Array{<:PerArea, 3})
+                                    damping_λ::Array{<:Float64, 4})
     LTE_pops = LTE_populations(line, atmos)
 
     nz, nx, ny, nl = size(LTE_pops)
@@ -28,19 +28,79 @@ function calculate_transition_rates(atmos::Atmosphere,
     # ==================================================================
     # CALCULATE RADIATIVE RATES
     # ==================================================================
-    R = Array{Unitful.Frequency, 5}(undef, (n_levels+1, n_levels+1, nz, nx, ny))
-    C = Array{Unitful.Frequency, 5}(undef, (n_levels+1, n_levels+1, nz, nx, ny))
+    R = Array{Float64, 5}(undef, (n_levels+1, n_levels+1, nz, nx, ny))u"s^-1"
+    C = Array{Float64, 5}(undef, (n_levels+1, n_levels+1, nz, nx, ny))u"s^-1"
+
+    # ionization
+    for level = 1:n_levels
+        start = line.λidx[level+1]
+        stop = line.λidx[level+2]
+        σ = σic(level, line, line.λ[start:stop])
+        G = Gij(level, n_levels+1, line.λ[start:stop], atmos.temperature*1.0, LTE_pops)
+
+        R[level,n_levels+1,:,:,:] = Rij(J_λ[start:stop,:,:,:], σ, line.λ[start:stop])
+        R[n_levels+1,level,:,:,:] = Rji(J_λ[start:stop,:,:,:], σ, G, line.λ[start:stop])
+
+        C[level,n_levels+1,:,:,:] = Cij(level, n_levels+1, atmos.electron_density*1.0, atmos.temperature, LTE_pops)
+        C[n_levels+1,level,:,:,:] = Cij(n_levels+1, level, atmos.electron_density*1.0, atmos.temperature, LTE_pops)
+    end
+
+    # bb transition
+    # for l=1:n_levels-1
+        # for u=(l+1):n_levels
+
+    start = line.λidx[1]
+    stop = line.λidx[2]
+
+    l = 1
+    u = 2
+
+    σ = σij(l, u, line, line.λ[start:stop], damping_λ[start:stop,:,:,:])
+    G = Gij(l, u, line.λ[start:stop], atmos.temperature, LTE_pops)
+
+    R[l,u,:,:,:] = Rij(J_λ[start:stop,:,:,:], σ, line.λ[start:stop])
+    R[u,l,:,:,:] = Rji(J_λ[start:stop,:,:,:], σ, G, line.λ[start:stop])
+
+    C[l,u,:,:,:] = Cij(l, u, atmos.electron_density*1.0, atmos.temperature*1.0, LTE_pops)
+    C[u,l,:,:,:] = Cij(u, l, atmos.electron_density*1.0, atmos.temperature*1.0, LTE_pops)
+
+        # end
+    # end
+
+    # Fill diagonal with zeros, because #undef does not like arithmetics
+    for l=1:n_levels+1
+        R[l,l,:,:,:] .= 0u"s^-1"
+        C[l,l,:,:,:] .= 0u"s^-1"
+    end
+
+    return R, C
+end
+
+function calculate_transition_rates(sites::VoronoiSites,
+                                    line::HydrogenicLine,
+                                    J_λ::Array{<:UnitsIntensity_λ, 2},
+                                    damping_λ::Array{<:Float64, 2})
+    LTE_pops = LTE_populations(line, sites)
+
+    nz, nx, ny, nl = size(LTE_pops)
+    n_levels = nl - 1
+
+    # ==================================================================
+    # CALCULATE RADIATIVE RATES
+    # ==================================================================
+    R = Array{Float64, 3}(undef, (n_levels+1, n_levels+1, nz, nx, ny))u"s^-1"
+    C = Array{Float64, 3}(undef, (n_levels+1, n_levels+1, nz, nx, ny))u"s^-1"
 
     for level = 1:n_levels
         # start, stop = iλbf[level]
-        σ = σic(level, line, line.λline)
-        G = Gij(level, n_levels+1, line.λline, atmos.temperature, LTE_pops)
+        σ = σic(level, line, line.λ)
+        G = Gij(level, n_levels+1, line.λ, sites.temperature, LTE_pops)
 
-        R[level,n_levels+1,:,:,:] = Rij(J_λ, σ, line.λline)
-        R[n_levels+1,level,:,:,:] = Rji(J_λ, σ, G, line.λline)
+        R[level,n_levels+1,:] = Rij(J_λ, σ, line.λ)
+        R[n_levels+1,level,:] = Rji(J_λ, σ, G, line.λ)
 
-        C[level,n_levels+1,:,:,:] = Cij(level, n_levels+1, atmos.electron_density, atmos.temperature, LTE_pops)
-        C[n_levels+1,level,:,:,:] = Cij(n_levels+1, level, atmos.electron_density, atmos.temperature, LTE_pops)
+        C[level,n_levels+1,:] = Cij(level, n_levels+1, sites.electron_density, sites.temperature, LTE_pops)
+        C[n_levels+1,level,:] = Cij(n_levels+1, level, sites.electron_density, sites.temperature, LTE_pops)
     end
 
     for l=1:n_levels-1
@@ -51,22 +111,22 @@ function calculate_transition_rates(atmos::Atmosphere,
 
             # line = lines[line_number]
 
-            σ = σij(l, u, line, line.λline, dmp_const)
-            G = Gij(l, u, line.λline, atmos.temperature, LTE_pops)
+            σ = σij(l, u, line, line.λ, damping_λ)
+            G = Gij(l, u, line.λ, sites.temperature, LTE_pops)
 
-            R[l,u,:,:,:] = Rij(J_λ, σ, line.λline)
-            R[u,l,:,:,:] = Rji(J_λ, σ, G, line.λline)
+            R[l,u,:] = Rij(J_λ, σ, line.λ)
+            R[u,l,:] = Rji(J_λ, σ, G, line.λ)
 
-            C[l,u,:,:,:] = Cij(l, u, atmos.electron_density, atmos.temperature, LTE_pops)
-            C[u,l,:,:,:] = Cij(u, l, atmos.electron_density, atmos.temperature, LTE_pops)
+            C[l,u,:] = Cij(l, u, sites.electron_density, sites.temperature, LTE_pops)
+            C[u,l,:] = Cij(u, l, sites.electron_density, sites.temperature, LTE_pops)
 
         end
     end
 
     # Fill diagonal with zeros, because #undef does not like arithmetics
     for l=1:n_levels+1
-        R[l,l,:,:,:] .= 0u"s^-1"
-        C[l,l,:,:,:] .= 0u"s^-1"
+        R[l,l,:] .= 0u"s^-1"
+        C[l,l,:] .= 0u"s^-1"
     end
 
     return R, C
@@ -182,7 +242,7 @@ function σij(i::Integer,
              j::Integer,
              line::HydrogenicLine,
              λ::Vector{<:Unitful.Length},
-             dmp_const::Array{<:PerArea, 3})
+             damping_λ::Array{<:Float64, 4})
 
     λ0 = line.λ0
     σ_constant = h*c_0/(4π*λ0) * line.Bij
@@ -191,9 +251,8 @@ function σij(i::Integer,
     σ = Array{Unitful.Area, 4}(undef, nλ, nz, nx, ny)
 
     for l=1:nλ
-        damping = (λ[l]^2 * dmp_const) .|> u"m/m"
         v = (λ[l] - λ0) ./ line.ΔD
-        profile = voigt_profile.(damping, ustrip(v), line.ΔD)
+        profile = voigt_profile.(damping_λ[l], ustrip(v), line.ΔD)
         σ[l,:,:,:] = σ_constant .* profile
     end
 

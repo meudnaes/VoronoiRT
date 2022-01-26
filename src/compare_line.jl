@@ -34,19 +34,19 @@ function compare(DATA, quadrature)
 
         v_los = line_of_sight_velocity(atmos, k)
 
-        v = Array{Float64, 4}(undef, (length(line.λline), size(v_los)...))
-        for l in eachindex(line.λline)
-            v[l, :, :, :] = (line.λline[l] .- line.λ0 .+ line.λ0.*v_los./c_0)./ΔD .|> Unitful.NoUnits
+        v = Array{Float64, 4}(undef, (length(line.λ), size(v_los)...))
+        for l in eachindex(line.λ)
+            v[l, :, :, :] = (line.λ[l] .- line.λ0 .+ line.λ0.*v_los./c_0)./ΔD .|> Unitful.NoUnits
         end
 
-        profile = Array{PerLength, 4}(undef, (length(line.λline), size(v_los)...))
-        for l in eachindex(line.λline)
-            damping_λ = ustrip(line.λline[l]^2*a)
+        profile = Array{PerLength, 4}(undef, (length(line.λ), size(v_los)...))
+        for l in eachindex(line.λ)
+            damping_λ = ustrip(line.λ[l]^2*a)
             profile[l, :, :, :] = voigt_profile.(damping_λ, v[l, :, :, :], ΔD)
         end
 
-        α_line = Array{PerLength, 4}(undef, size(profile))
-        for l in eachindex(line.λline)
+        α_line = Array{Float64, 4}(undef, size(profile))u"m^-1"
+        for l in eachindex(line.λ)
             α_line[l, :, :, :] = αline_λ(line,
                                          profile[l, :, :, :],
                                          populations[:, :, :, 1],

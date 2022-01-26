@@ -23,7 +23,7 @@ end
 Planck's law! Radiation in LTE. Takes wavelength and temperature, returns
 specific intensity
 """
-function B_λ(λ, T)
+function B_λ(λ::Unitful.Quantity{Unitful.Length}, T::Unitful.Quantity{Unitful.Temperature})
     return 2*h*c_0^2/λ^5 * 1/(exp(h*c_0/(λ*k_B*T)) - 1)
 end
 
@@ -653,16 +653,4 @@ function line_of_sight_velocity(atmos::Atmosphere, k::Vector)
         end
     end
     return v_los::Array{Unitful.Velocity, 3}
-end
-
-function line_of_sight_velocity(sites::VoronoiSites, k::Vector)
-    v_los = Vector{Unitful.Velocity}(undef, sites.n)
-
-    for ii in 1:sites.n
-        velocity = [sites.velocity_z[ii],
-                    sites.velocity_x[ii],
-                    sites.velocity_y[ii]]
-        v_los[ii] = dot(velocity, k)
-    end
-    return v_los::Vector{Unitful.Velocity}
 end
