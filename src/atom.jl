@@ -128,19 +128,6 @@ function transition_λ(χ1::Unitful.Energy, χ2::Unitful.Energy)
 end
 
 
-"""
-    damping_constant(γ::Unitful.Frequency,
-                     ΔλD::Unitful.Length)
-
-Get daping constant to be multiplied with λ^2.
-"""
-function damping_constant(γ::Unitful.Frequency,
-                          ΔλD::Unitful.Length)
-    (γ / (4 * π * c_0 * ΔλD))
-end
-
-
-
 # ==================================================================
 #  WRITE TO FILE
 # ==================================================================

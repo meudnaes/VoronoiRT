@@ -654,3 +654,15 @@ function line_of_sight_velocity(atmos::Atmosphere, k::Vector)
     end
     return v_los::Array{Unitful.Velocity, 3}
 end
+
+function line_of_sight_velocity(sites::VoronoiSites, k::Vector)
+    v_los = Vector{Unitful.Velocity}(undef, sites.n)
+
+    for ii in 1:sites.n
+        velocity = [sites.velocity_z[ii],
+                    sites.velocity_x[ii],
+                    sites.velocity_y[ii]]
+        v_los[ii] = dot(velocity, k)
+    end
+    return v_los::Vector{Unitful.Velocity}
+end

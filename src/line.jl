@@ -51,9 +51,9 @@ Compute line extinction given an `AtomicLine` struct, `profile` defined per wave
 and upper and lower population densities `n_u` and `n_l`.
 """
 function αline_λ(line::HydrogenicLine,
-                 profile::Array{<:PerLength, 3},
-                 n_l::Array{<:NumberDensity, 3},
-                 n_u::Array{<:NumberDensity, 3})
+                 profile::Array{<:PerLength},
+                 n_l::Array{<:NumberDensity},
+                 n_u::Array{<:NumberDensity})
     (h .* c_0 / (4 .* π .* line.λ0) .* profile .* (n_l .* line.Bij .- n_u .* line.Bji)) .|> u"m^-1"
 end
 

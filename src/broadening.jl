@@ -58,12 +58,12 @@ function const_quadratic_stark(line::HydrogenicLine;
 end
 
 function γ_constant(line::HydrogenicLine,
-                    temperature::Array{<:Unitful.Temperature, 3},
-                    neutral_hydrogen_density::Array{<:NumberDensity, 3},
-                    electron_density::Array{<:NumberDensity, 3})
+                    temperature::Array{<:Unitful.Temperature},
+                    neutral_hydrogen_density::Array{<:NumberDensity},
+                    electron_density::Array{<:NumberDensity})
 
-    u=2
-    l=1
+    u=2 #line.j
+    l=1 #line.i
 
     unsold_const = const_unsold(line)
     quad_stark_const = const_quadratic_stark(line)

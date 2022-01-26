@@ -31,9 +31,9 @@ function J_λ_regular(S_λ::AbstractArray,
     return J
 end
 
-function J_λ_regular(S_λ::AbstractArray,
-                     α_cont::AbstractArray,
-                     populations::AbstractArray,
+function J_λ_regular(S_λ::Array{<:UnitsIntensity_λ, 3},
+                     α_cont::Array{<:PerLength, 3},
+                     populations::Array{<:NumberDensity, 4},
                      atmos::Atmosphere,
                      line::HydrogenicLine,
                      quadrature::String)
@@ -49,8 +49,10 @@ function J_λ_regular(S_λ::AbstractArray,
                    (populations[:, :, :, 1].+populations[:, :, :, 2]),
                    atmos.electron_density)
 
-    dmp_const = damping_constant.(γ, line.ΔD)
-
+    damping_λ = Array{Float64, 4}(undef, size(S_λ))
+    for l in eachindex(line.λline)
+        damping_λ[l, :, :, :] = damping(γ, line.λline[l], line.ΔD)
+    end
 
     for i in 1:n_angles
         θ = θ_array[i]
@@ -59,7 +61,7 @@ function J_λ_regular(S_λ::AbstractArray,
         k = -[cos(θ), cos(ϕ)*sin(θ), sin(ϕ)*sin(θ)]
 
         # calculate line of sight velocity
-        v_los = line_of_sight_velocity(atmos, k)
+        v_los = line_of_sight_velocity(atmos, -k)
         v = Array{Float64, 4}(undef, (length(line.λline), size(v_los)...))
         for l in eachindex(line.λline)
             v[l, :, :, :] = (line.λline[l] .- line.λ0 .+ line.λ0.*v_los./c_0)./line.ΔD .|> Unitful.NoUnits
@@ -68,8 +70,7 @@ function J_λ_regular(S_λ::AbstractArray,
         # calculate line profile
         profile = Array{PerLength, 4}(undef, (length(line.λline), size(v_los)...))
         for l in eachindex(line.λline)
-            damping_λ = ustrip(line.λline[l]^2*dmp_const)
-            profile[l, :, :, :] = voigt_profile.(damping_λ, v[l, :, :, :], line.ΔD)
+            profile[l, :, :, :] = voigt_profile.(damping_λ[l, :, :, :], v[l, :, :, :], line.ΔD)
         end
 
         # line extinction
@@ -128,6 +129,79 @@ function J_λ_voronoi(S_λ::AbstractArray,
         θ = θ_array[i]*π/180
         ϕ = ϕ_array[i]*π/180
         k = -[cos(θ), cos(ϕ)*sin(θ), sin(ϕ)*sin(θ)]
+        if θ_array[i] > 90
+            perm = sortperm(sites.layers_up)
+            layers_sorted = sites.layers_up[perm]
+            bottom_layer = searchsortedfirst(layers_sorted, 2)-1
+            I_0 = B_λ.(500u"nm", sites.temperature[1:bottom_layer])
+            J += weights[i]*Delaunay_up(sites, I_0,
+                                           S_λ, α_tot, k, n_sweeps, Nran)
+        elseif θ_array[i] < 90
+            perm = sortperm(sites.layers_down)
+            layers_sorted = sites.layers_down[perm]
+            top_layer = searchsortedfirst(layers_sorted, 2)-1
+            I_0 = zeros(top_layer)u"kW*nm^-1*m^-2"
+            J += weights[i]*Delaunay_down(sites, I_0,
+                                             S_λ, α_tot, k, n_sweeps, Nran)
+        end
+    end
+    return J
+end
+
+function J_λ_voronoi(S_λ::Vector{<:UnitsIntensity_λ},
+                     α_cont::Vector{<:PerLength},
+                     populations::Matrix{<:NumberDensity}
+                     sites::VoronoiSites,
+                     line::HydrogenicLine
+                     quadrature::String)
+
+    # Ω = (θ, φ), space angle
+    weights, θ_array, ϕ_array, n_points = read_quadrature(quadrature)
+
+    J_λ = Matrix{UnitsIntensity_λ}(undef, size(S_λ))
+    fill!(J_λ, 0u"kW*m^-2*nm^-1")
+
+    γ = γ_constant(line,
+                   sites.temperature,
+                   (populations[:, 1].+populations[:, 2]),
+                   sites.electron_density)
+
+    damping_λ = Matrix{Float64}(undef, size(S_λ))
+    for l in eachindex(line.λline)
+       damping_λ[l, :, :, :] = damping(γ, line.λline[l], line.ΔD)
+    end
+
+    n_sweeps = 3
+
+    for i in 1:n_points
+        θ = θ_array[i]*π/180
+        ϕ = ϕ_array[i]*π/180
+        k = -[cos(θ), cos(ϕ)*sin(θ), sin(ϕ)*sin(θ)]
+
+        # calculate line of sight velocity
+        v_los = line_of_sight_velocity(atmos, -k)
+        v = Matrix{Float64}(undef, (length(line.λline), sites.n))
+        for l in eachindex(line.λline)
+            v[l, :] = (line.λline[l] .- line.λ0 .+ line.λ0.*v_los./c_0)./line.ΔD .|> Unitful.NoUnits
+        end
+
+        # calculate line profile
+        profile = Matrix{PerLength}(undef, (length(line.λline), sites.n))
+        for l in eachindex(line.λline)
+            profile[l, :] = voigt_profile.(damping_λ[l, :], v[l, :], line.ΔD)
+        end
+
+        # line extinction
+        α_line = Matrix{PerLength}(undef, size(profile))
+        for l in eachindex(line.λline)
+            α_line[l, :] = αline_λ(line,
+                                   profile[l, :],
+                                   populations[:, 1],
+                                   populations[:, 2])
+        end
+
+        α_tot = α_cont .+ α_line
+
         if θ_array[i] > 90
             perm = sortperm(sites.layers_up)
             layers_sorted = sites.layers_up[perm]
