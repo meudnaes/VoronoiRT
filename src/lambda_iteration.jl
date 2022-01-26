@@ -158,7 +158,7 @@ function J_λ_voronoi(S_λ::Vector{<:UnitsIntensity_λ},
     # Ω = (θ, φ), space angle
     weights, θ_array, ϕ_array, n_points = read_quadrature(quadrature)
 
-    J_λ = Matrix{UnitsIntensity_λ}(undef, size(S_λ))
+    J_λ = similar(S_λ)
     fill!(J_λ, 0u"kW*m^-2*nm^-1")
 
     γ = γ_constant(line,
@@ -166,7 +166,7 @@ function J_λ_voronoi(S_λ::Vector{<:UnitsIntensity_λ},
                    (populations[:, 1].+populations[:, 2]),
                    sites.electron_density)
 
-    damping_λ = Matrix{Float64}(undef, size(S_λ))
+    damping_λ = similar(J_λ)
     for l in eachindex(line.λline)
        damping_λ[l, :, :, :] = damping(γ, line.λline[l], line.ΔD)
     end
@@ -279,7 +279,7 @@ function Λ_regular(ϵ::AbstractFloat,
     populations = LTE_populations(line, atmos)
 
     # Find continuum extinction and absorption extinction (only with Thomson and Rayleigh)
-    α_cont = Array{PerLength, 4}(undef, (length(line.λline), size(atmos.temperature)...))
+    α_cont = Array{Float64, 4}(undef, (length(line.λline), size(atmos.temperature)...))u"m^-1"
     α_a = copy(α_cont)
     for l in eachindex(line.λline)
         α_cont[l, :, :, :] = α_continuum.(line.λline[l],
@@ -302,7 +302,7 @@ function Λ_regular(ϵ::AbstractFloat,
 
     # Start with the source function as the Planck function
     # Start with the source function as the Planck function
-    B_0 = Array{UnitsIntensity_λ, 4}(undef, size(α_cont))
+    B_0 = Array{Float64, 4}(undef, size(α_cont))u"kW*m^-2*nm^-1"
 
     for l in eachindex(line.λline)
         B_0[l, :, :, :] = B_λ.(line.λline[l], atmos.temperature)
@@ -310,8 +310,7 @@ function Λ_regular(ϵ::AbstractFloat,
 
     S_new = copy(B_0)
 
-    S_old = Array{UnitsIntensity_λ, 4}(undef, size(α_cont))
-    fill!(S_old, 0u"kW*m^-2*nm^-1")
+    S_old = zero(S_new)
 
     i=0
 
