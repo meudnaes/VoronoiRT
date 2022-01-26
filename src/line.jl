@@ -21,7 +21,7 @@ struct HydrogenicLine{T <: AbstractFloat}
     ΔD::Array{Unitful.Quantity{T, Unitful.𝐋}}
     function HydrogenicLine(χu::Quantity{T}, χl::Quantity{T}, χ∞::Quantity{T},
                             gu::Int, gl::Int, f_value::T, atom_weight::Unitful.Mass{T},
-                            Z::Int, temperature)  where T <: AbstractFloat
+                            Z::Int, temperature::Array{<: Unitful.Temperature})  where T <: AbstractFloat
         χu = Transparency.wavenumber_to_energy(χu)
         χl = Transparency.wavenumber_to_energy(χl)
         χ∞ = Transparency.wavenumber_to_energy(χ∞)
