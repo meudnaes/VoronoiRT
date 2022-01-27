@@ -61,6 +61,52 @@ struct HydrogenicLine{T <: AbstractFloat}
 end
 
 """
+Computes the Voigt line profile
+"""
+function compute_voigt_profile(line::HydrogenicLine, atmos::Atmosphere,
+                               damping_λ::Array{Float64, 4},
+                               θ::Float64, ϕ::Float64)
+
+    k = [cos(θ), cos(ϕ)*sin(θ), sin(ϕ)*sin(θ)]
+
+    # calculate line of sight velocity
+    v_los = line_of_sight_velocity(atmos, k)
+    v = Array{Float64, 4}(undef, (length(line.λ), size(v_los)...))
+    for l in eachindex(line.λ)
+        v[l, :, :, :] = (line.λ[l] .- line.λ0 .+ line.λ0.*v_los./c_0)./line.ΔD .|> Unitful.NoUnits
+    end
+
+    # calculate line profile
+    profile = Array{Float64, 4}(undef, (length(line.λ), size(v_los)...))u"m^-1"
+    for l in eachindex(line.λ)
+        profile[l, :, :, :] = voigt_profile.(damping_λ[l, :, :, :], v[l, :, :, :], line.ΔD)
+    end
+
+    return profile
+end
+function compute_voigt_profile(line::HydrogenicLine, sites::VoronoiSites,
+                               damping_λ::Array{Float64, 2},
+                               θ::Float64, ϕ::Float64)
+
+    k = [cos(θ), cos(ϕ)*sin(θ), sin(ϕ)*sin(θ)]
+
+    # calculate line of sight velocity
+    v_los = line_of_sight_velocity(sites, k)
+    v = Array{Float64, 4}(undef, (length(line.λ), sites.n))
+    for l in eachindex(line.λ)
+        v[l, :] = (line.λ[l] .- line.λ0 .+ line.λ0.*v_los./c_0)./line.ΔD .|> Unitful.NoUnits
+    end
+
+    # calculate line profile
+    profile = Array{Float64, 2}(undef, (length(line.λ), sites.n))u"m^-1"
+    for l in eachindex(line.λ)
+        profile[l, :] = voigt_profile.(damping_λ[l, :], v[l, :], line.ΔD)
+    end
+
+    return profile
+end
+
+"""
 Compute line extinction given an `AtomicLine` struct, `profile` defined per wavelength,
 and upper and lower population densities `n_u` and `n_l`.
 """
@@ -76,8 +122,8 @@ function test_atom()
     χu = 82258.211u"cm^-1"
     χ∞ = 109677.617u"cm^-1"
 
-    nλ_bb = 11
-    nλ_bf = 5
+    nλ_bb = 5
+    nλ_bf = 10
 
     gl = 2
     gu = 8

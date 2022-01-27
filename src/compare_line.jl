@@ -16,35 +16,13 @@ function compare(DATA, quadrature)
     ϕ = 10
 
     function regular()
-        atmos = Atmosphere(get_atmos(DATA; periodic=true, skip=6)...)
+        atmos = Atmosphere(get_atmos(DATA; periodic=true, skip=5)...)
         line = HydrogenicLine(test_atom()..., atmos.temperature)
 
         global J_mean, S_λ, α_cont, populations
         J_mean, S_λ, α_cont, populations = Λ_regular(ϵ, maxiter, atmos, line, quadrature)
 
-        ΔD = doppler_width.(line.λ0, line.atom_weight, atmos.temperature)
-        γ = γ_constant(line,
-                       atmos.temperature,
-                       (populations[:, :, :, 1].+populations[:, :, :, 2]),
-                       atmos.electron_density)
-
-        # a = damping_constant.(γ, ΔD)
-        damping_λ = damping
-
-        k = -[cos(θ), cos(ϕ)*sin(θ), sin(ϕ)*sin(θ)]
-
-        v_los = line_of_sight_velocity(atmos, k)
-
-        v = Array{Float64, 4}(undef, (length(line.λ), size(v_los)...))
-        for l in eachindex(line.λ)
-            v[l, :, :, :] = (line.λ[l] .- line.λ0 .+ line.λ0.*v_los./c_0)./ΔD .|> Unitful.NoUnits
-        end
-
-        profile = Array{PerLength, 4}(undef, (length(line.λ), size(v_los)...))
-        for l in eachindex(line.λ)
-            damping_λ = damping.(γ, line.λ[l], line.ΔD)
-            profile[l, :, :, :] = voigt_profile.(damping_λ, v[l, :, :, :], ΔD)
-        end
+        profile = compute_voigt_profile(line, atmos, θ, ϕ)
 
         α_line = Array{Float64, 4}(undef, size(profile))u"m^-1"
         for l in eachindex(line.λ)

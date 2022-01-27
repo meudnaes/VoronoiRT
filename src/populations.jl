@@ -7,6 +7,7 @@ include("rates.jl")
 
 For a given atom density, calculate the populations according to zero-radiation.
 """
+#=
 function zero_radiation_populations(atmosphere::Atmosphere, atom::Atom, lines)
 
     nz,nx,ny = size(atmosphere.temperature)
@@ -19,7 +20,7 @@ function zero_radiation_populations(atmosphere::Atmosphere, atom::Atom, lines)
 
     return populations
 end
-
+=#
 
 """
     LTE_populations(line::HydrogenicLine,
@@ -83,6 +84,9 @@ function LTE_populations(line::HydrogenicLine,
     return n_relative .* atom_density
 end
 
+"""
+Update populations with Statistical Equilibrium
+"""
 function get_revised_populations(R::Array{<:Unitful.Frequency, 5},
                                  C::Array{<:Unitful.Frequency, 5},
                                  atom_density::Array{<:NumberDensity,3})
@@ -117,5 +121,35 @@ function get_revised_populations(R::Array{<:Unitful.Frequency, 5},
     populations[:,:,:,1] = atom_density .- sum(populations[:,:,:,2:end],dims=4)[:,:,:,1]
 
     return populations
+end
+function get_revised_populations(R::Array{<:Unitful.Frequency, 3},
+                                 C::Array{<:Unitful.Frequency, 3},
+                                 atom_density::Array{<:NumberDensity,1})
 
+    P = R .+ C
+
+    n_levels = size(P)[1] - 1
+    n = size(atom_density)
+
+    A = Array{Float64, 3}(undef, (n_levels, n_levels, n))u"s^-1"
+    b = Matrix{Float64}(undef, (n_levels, n))u"s^-1*m^-3"
+    populations = Matrix{Float64}(undef, (n, n_levels + 1))u"m^-3"
+
+    for r=1:n_levels
+        A[r,r,:] = P[1,r+1,:] .+ P[r+1,1,:]
+        for c=setdiff(1:n_levels, r)
+            A[r,c,:] = P[1,r+1,:] .- P[c+1,r+1,:]
+            A[r,r,:] .+= P[r+1,c+1,:]
+        end
+
+        b[r,:,:,:] = atom_density .* P[1,r+1,:,:,:]
+    end
+
+    for ii=1:n
+        populations[ii, 2:end] .= inv(A[:, :, ii])*b[:, ii]
+    end
+
+    populations[:, 1] = atom_density .- sum(populations[:, 2:end], dims=2)[:,1]
+
+    return populations
 end

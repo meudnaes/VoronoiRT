@@ -70,53 +70,65 @@ function calculate_transition_rates(atmos::Atmosphere,
 
     return R, C
 end
-
 function calculate_transition_rates(sites::VoronoiSites,
                                     line::HydrogenicLine,
                                     J_λ::Array{<:UnitsIntensity_λ, 2},
                                     damping_λ::Array{<:Float64, 2})
-    LTE_pops = LTE_populations(line, sites)
+    LTE_pops = LTE_populations(line, sites)*1.0
 
-    nz, nx, ny, nl = size(LTE_pops)
+    n, nl = size(LTE_pops)
     n_levels = nl - 1
 
     # ==================================================================
     # CALCULATE RADIATIVE RATES
     # ==================================================================
-    R = Array{Float64, 3}(undef, (n_levels+1, n_levels+1, nz, nx, ny))u"s^-1"
-    C = Array{Float64, 3}(undef, (n_levels+1, n_levels+1, nz, nx, ny))u"s^-1"
+    R = Array{Float64, 3}(undef, (n_levels+1, n_levels+1, n))u"s^-1"
+    C = Array{Float64, 3}(undef, (n_levels+1, n_levels+1, n))u"s^-1"
 
+    # ionization
     for level = 1:n_levels
-        # start, stop = iλbf[level]
-        σ = σic(level, line, line.λ)
-        G = Gij(level, n_levels+1, line.λ, sites.temperature, LTE_pops)
+        start = line.λidx[level+1]
+        stop = line.λidx[level+2]-1
+        σ = σic(level, line, line.λ[start:stop])
+        G = Gij(level, n_levels+1, line.λ[start:stop], sites.temperature*1.0, LTE_pops)
 
-        R[level,n_levels+1,:] = Rij(J_λ, σ, line.λ)
-        R[n_levels+1,level,:] = Rji(J_λ, σ, G, line.λ)
+        R[level,n_levels+1,:] = Rij(J_λ[start:stop,:], σ, line.λ[start:stop])
+        R[n_levels+1,level,:] = Rji(J_λ[start:stop,:], σ, G, line.λ[start:stop])
 
-        C[level,n_levels+1,:] = Cij(level, n_levels+1, sites.electron_density, sites.temperature, LTE_pops)
-        C[n_levels+1,level,:] = Cij(n_levels+1, level, sites.electron_density, sites.temperature, LTE_pops)
+        C[level,n_levels+1,:] = Cij(level, n_levels+1, sites.electron_density*1.0, sites.temperature*1.0, LTE_pops)
+        C[n_levels+1,level,:] = Cij(n_levels+1, level, sites.electron_density*1.0, sites.temperature*1.0, LTE_pops)
     end
 
-    for l=1:n_levels-1
-        for u=(l+1):n_levels
+    # bb transition
+    # for l=1:n_levels-1
+        # for u=(l+1):n_levels
 
-            line_number = sum((n_levels-l+1):(n_levels-1)) + (u - l)
-            # start, stop = iλbb[line_number]
+    start = line.λidx[1]
+    stop = line.λidx[2]-1
 
-            # line = lines[line_number]
+    l = 1
+    u = 2
 
-            σ = σij(l, u, line, line.λ, damping_λ)
-            G = Gij(l, u, line.λ, sites.temperature, LTE_pops)
+    σ = σij(l, u, line, line.λ[start:stop], damping_λ[start:stop, :])
+    G = Gij(l, u, line.λ[start:stop], sites.temperature*1.0, LTE_pops)
 
-            R[l,u,:] = Rij(J_λ, σ, line.λ)
-            R[u,l,:] = Rji(J_λ, σ, G, line.λ)
+    R[l,u,:] = Rij(J_λ[start:stop,:], σ, line.λ[start:stop])
+    R[u,l,:] = Rji(J_λ[start:stop,:], σ, G, line.λ[start:stop])
 
-            C[l,u,:] = Cij(l, u, sites.electron_density, sites.temperature, LTE_pops)
-            C[u,l,:] = Cij(u, l, sites.electron_density, sites.temperature, LTE_pops)
+    C[l,u,:] = Cij(l, u, sites.electron_density*1.0, sites.temperature*1.0, LTE_pops)
+    C[u,l,:] = Cij(u, l, sites.electron_density*1.0, sites.temperature*1.0, LTE_pops)
 
-        end
+        # end
+    # end
+
+    # Fill diagonal with zeros, because #undef does not like arithmetics
+    for l=1:n_levels+1
+        R[l,l,:] .= 0u"s^-1"
+        C[l,l,:] .= 0u"s^-1"
     end
+
+    return R, C
+end
 
     # Fill diagonal with zeros, because #undef does not like arithmetics
     for l=1:n_levels+1
@@ -139,12 +151,27 @@ function Rij(J::Array{<:UnitsIntensity_λ, 4},
              λ::Array{<:Unitful.Length, 1})
 
     nλ, nz, nx, ny = size(J)
-    R = Array{Unitful.Frequency,3}(undef, (nz, nx, ny))
+    R = Array{Float64, 3}(undef, (nz, nx, ny))u"s^-1"
     fill!(R,0.0u"s^-1")
 
     for l=1:(nλ-1)
-        R += 2π/hc * (( λ[l]   * σij[l,:,:,:]   .* J[l,:,:,:] .+
-                        λ[l+1] * σij[l+1,:,:,:] .* J[l+1,:,:,:]) .* (λ[l+1] - λ[l])) ./1000
+        R += 2π/hc*((λ[l]*σij[l,:,:,:].*J[l,:,:,:] .+
+                     λ[l+1]*σij[l+1,:,:,:].*J[l+1,:,:,:]).*(λ[l+1] - λ[l]))./1000
+    end
+
+    return R
+end
+function Rij(J::Array{<:UnitsIntensity_λ, 2},
+             σij::Array{<:Unitful.Area, 2},
+             λ::Array{<:Unitful.Length, 1})
+
+    nλ, n = size(J)
+    R = Vector{Float64}(undef, (nz, nx, ny))u"s^-1"
+    fill!(R,0.0u"s^-1")
+
+    for l=1:(nλ-1)
+        R += 2π/hc*((λ[l]*σij[l,:].*J[l,:] .+
+                     λ[l+1]*σij[l+1,:].*J[l+1,:]).*(λ[l+1] - λ[l]))./1000
     end
 
     return R
@@ -166,10 +193,24 @@ function Rij(J::Array{<:UnitsIntensity_λ, 4},
     fill!(R,0.0u"s^-1")
 
     for l=1:(nλ-1)
-        R +=  2π/hc * ( λ[l]   * σij[l]   .* J[l,:,:,:]   .+
-                        λ[l+1] * σij[l+1] .* J[l+1,:,:,:]  ) .* (λ[l+1] - λ[l]) ./1000
+        R +=  2π/hc*(λ[l]*σij[l].*J[l,:,:,:] .+
+                     λ[l+1]*σij[l+1].*J[l+1,:,:,:]).*(λ[l+1] - λ[l])./1000
     end
 
+    return R
+end
+function Rij(J::Array{<:UnitsIntensity_λ, 2},
+             σij::Array{<:Unitful.Area, 1},
+             λ::Array{<:Unitful.Length, 1})
+
+    nλ, n = size(J)
+    R = Vector{Float64, 1}(undef, n)u"s^-1"
+    fill!(R,0.0u"s^-1")
+
+    for l=1:(nλ-1)
+        R +=  2π/hc*(λ[l]*σij[l].*J[l,:] .+
+                     λ[l+1]*σij[l+1].*J[l+1,:]).*(λ[l+1] - λ[l])./1000
+    end
 
     return R
 end
@@ -193,9 +234,25 @@ function Rji(J::Array{<:UnitsIntensity_λ, 4},
 
     # Trapezoid rule
     for l=1:(nλ-1)
-        @assert λ[l+1] - λ[l] >= 0u"nm" "Negative λ diff"
         R += 2π/hc*(σij[l,:,:,:].*Gij[l,:,:,:].*λ[l].*(2*h*c_0^2/λ[l]^5 .+ J[l,:,:,:] ) .+
                     σij[l+1,:,:,:].*Gij[l+1,:,:,:].*λ[l+1].*(2*h*c_0^2 / λ[l+1]^5 .+ J[l+1,:,:,:] )).*(λ[l+1] - λ[l])
+    end
+
+    return R
+end
+function Rji(J::Array{<:UnitsIntensity_λ, 2},
+             σij::Array{<:Unitful.Area, 2},
+             Gij::Array{Float64, 2},
+             λ::Array{<:Unitful.Length, 1})
+
+    nλ, n = size(J)
+    R = Vector{Float64}(undef, n)u"s^-1"
+    fill!(R,0.0u"s^-1")
+
+    # Trapezoid rule
+    for l=1:(nλ-1)
+        R += 2π/hc*(σij[l,:].*Gij[l,:].*λ[l].*(2*h*c_0^2/λ[l]^5 .+ J[l,:] ) .+
+                    σij[l+1,:].*Gij[l+1,:].*λ[l+1].*(2*h*c_0^2 / λ[l+1]^5 .+ J[l+1,:] )).*(λ[l+1] - λ[l])
     end
 
     return R
@@ -220,8 +277,25 @@ function Rji(J::Array{<:UnitsIntensity_λ, 4},
 
     # Trapezoid rule
     for l=1:(nλ-1)
-        R += 2π/hc * (σij[l]   .* Gij[l,:,:,:]   .* λ[l]   .* (2*hc*c_0 / λ[l]^5   .+ J[l,:,:,:] ) .+
-                      σij[l+1] .* Gij[l+1,:,:,:] .* λ[l+1] .* (2*hc*c_0 / λ[l+1]^5 .+ J[l+1,:,:,:] )) .* (λ[l+1] - λ[l])
+        R += 2π/hc * (σij[l].*Gij[l,:,:,:].*λ[l].*(2*hc*c_0/λ[l]^5 .+ J[l,:,:,:]) .+
+                      σij[l+1].*Gij[l+1,:,:,:].*λ[l+1].*(2*hc*c_0/λ[l+1]^5 .+ J[l+1,:,:,:])).*(λ[l+1] - λ[l])
+    end
+
+    return R
+end
+function Rji(J::Array{<:UnitsIntensity_λ, 2},
+             σij::Array{<:Unitful.Area, 1},
+             Gij::Array{Float64, 2},
+             λ::Array{<:Unitful.Length, 1})
+
+    nλ, n = size(J)
+    R = Vector{Float64}(undef, n)u"s^-1"
+    fill!(R,0.0u"s^-1")
+
+    # Trapezoid rule
+    for l=1:(nλ-1)
+        R += 2π/hc * (σij[l].*Gij[l,:].*λ[l].*(2*hc*c_0/λ[l]^5 .+ J[l,:]) .+
+                      σij[l+1].*Gij[l+1,:].*λ[l+1].*(2*hc*c_0/λ[l+1]^5 .+ J[l+1,:])).*(λ[l+1] - λ[l])
     end
 
     return R
@@ -251,6 +325,26 @@ function σij(i::Integer,
         v = (λ[l] - λ0) ./ line.ΔD
         profile = voigt_profile.(damping_λ[l, :, :, :], ustrip(v), line.ΔD)
         σ[l,:,:,:] = σ_constant .* profile
+    end
+
+    return σ
+end
+function σij(i::Integer,
+             j::Integer,
+             line::HydrogenicLine,
+             λ::Vector{<:Unitful.Length},
+             damping_λ::Array{<:Float64, 2})
+
+    λ0 = line.λ0
+    σ_constant = h*c_0/(4π*λ0) * line.Bij
+    nλ = length(λ)
+    n = length(line.ΔD)
+    σ = Array{Float64, 2}(undef, (nλ, n))u"m^2"
+
+    for l=1:nλ
+        v = (λ[l] - λ0) ./ line.ΔD
+        profile = voigt_profile.(damping_λ[l, :], ustrip(v), line.ΔD)
+        σ[l, :] = σ_constant .* profile
     end
 
     return σ
@@ -308,6 +402,24 @@ function Gij(i::Integer,
 
     return G
 end
+function Gij(i::Integer,
+             j::Integer,
+             λ::Array{<:Unitful.Length, 1},
+             temperature::Array{<:Unitful.Temperature, 1},
+             LTE_populations::Array{<:NumberDensity, 2})
+
+    nλ = length(λ)
+    n = size(temperature)
+    G = Array{Float64, 2}(undef, (nλ, n))
+
+    n_ratio = LTE_populations[:,i] ./LTE_populations[:,j]
+
+    for l=1:nλ
+        G[l,:] =  n_ratio .* exp.(- hc ./ (k_B*λ[l]*temperature))
+    end
+
+    return G
+end
 
 """
     Cij(i::Integer,
@@ -343,6 +455,34 @@ function Cij(i::Integer,
             C = coll_ion_hydrogen_johnson.(j, electron_density, temperature)
         end
         C = C .* ( LTE_populations[:,:,:,j] ./ LTE_populations[:,:,:,i] )
+    end
+
+    return C
+end
+function Cij(i::Integer,
+             j::Integer,
+             electron_density::Array{<:NumberDensity,1},
+             temperature::Array{<:Unitful.Temperature,1},
+             LTE_populations::Array{<:NumberDensity,2})
+
+    ionisation_level = size(LTE_populations)[end]
+
+    # If UP
+    if i < j
+        if j < ionisation_level
+            C = coll_exc_hydrogen_johnson.(i, j, electron_density, temperature)
+        elseif j == ionisation_level
+            C = coll_ion_hydrogen_johnson.(i, electron_density, temperature)
+        end
+
+    # If DOWN
+    elseif i > j
+        if i < ionisation_level
+            C = coll_exc_hydrogen_johnson.(j, i, electron_density, temperature)
+        elseif i == ionisation_level
+            C = coll_ion_hydrogen_johnson.(j, electron_density, temperature)
+        end
+        C = C .* ( LTE_populations[:,j] ./ LTE_populations[:,i] )
     end
 
     return C

@@ -269,8 +269,7 @@ function Delaunay_up(sites::VoronoiSites,
                         S::AbstractVector,
                         α::AbstractVector,
                         k::AbstractVector,
-                        n_sweeps::Int,
-                        Nran::Int)
+                        n_sweeps::Int)
 
     # Weighting parameter
     p = 10.0
@@ -346,8 +345,7 @@ function Delaunay_down(sites::VoronoiSites,
                         S::AbstractVector,
                         α::AbstractVector,
                         k::AbstractVector,
-                        n_sweeps::Int,
-                        Nran::Int)
+                        n_sweeps::Int)
 
     # Weighting parameter
     p = 7.0

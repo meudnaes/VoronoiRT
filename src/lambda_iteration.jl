@@ -57,20 +57,7 @@ function J_λ_regular(S_λ::Array{<:UnitsIntensity_λ, 4},
         θ = θ_array[i]
         ϕ = ϕ_array[i]
 
-        k = -[cos(θ), cos(ϕ)*sin(θ), sin(ϕ)*sin(θ)]
-
-        # calculate line of sight velocity
-        v_los = line_of_sight_velocity(atmos, -k)
-        v = Array{Float64, 4}(undef, (length(line.λ), size(v_los)...))
-        for l in eachindex(line.λ)
-            v[l, :, :, :] = (line.λ[l] .- line.λ0 .+ line.λ0.*v_los./c_0)./line.ΔD .|> Unitful.NoUnits
-        end
-
-        # calculate line profile
-        profile = Array{Float64, 4}(undef, (length(line.λ), size(v_los)...))u"m^-1"
-        for l in eachindex(line.λ)
-            profile[l, :, :, :] = voigt_profile.(damping_λ[l, :, :, :], v[l, :, :, :], line.ΔD)
-        end
+        profile = compute_voigt_profile(line, atmos, damping_λ, θ, ϕ)
 
         # line extinction
         α_line = Array{Float64, 4}(undef, size(profile))u"m^-1"
@@ -84,7 +71,7 @@ function J_λ_regular(S_λ::Array{<:UnitsIntensity_λ, 4},
         # total exinction
         α_tot = α_line .+ α_cont
 
-        for l in 1:length(line.λ)
+        for l in eachindex(line.λ)
             if θ_array[i] > 90
                 I_0 =  B_λ.(line.λ[l], atmos.temperature[1,:,:])
                 J_λ[l,:,:,:] .+= weights[i].*short_characteristics_up(θ_array[i],
@@ -156,17 +143,16 @@ function J_λ_voronoi(S_λ::Vector{<:UnitsIntensity_λ},
     # Ω = (θ, φ), space angle
     weights, θ_array, ϕ_array, n_points = read_quadrature(quadrature)
 
-    J_λ = similar(S_λ)
-    fill!(J_λ, 0u"kW*m^-2*nm^-1")
+    J_λ = zero(S_λ)
 
     γ = γ_constant(line,
                    sites.temperature,
                    (populations[:, 1].+populations[:, 2]),
                    sites.electron_density)
 
-    damping_λ = similar(J_λ)
+    damping_λ = Array{Float64, 4}(undef, size(S_λ))
     for l in eachindex(line.λ)
-       damping_λ[l, :, :, :] = damping(γ, line.λ[l], line.ΔD)
+       damping_λ[l, :, :, :] = damping.(γ, line.λ[l], line.ΔD)
     end
 
     n_sweeps = 3
@@ -176,18 +162,7 @@ function J_λ_voronoi(S_λ::Vector{<:UnitsIntensity_λ},
         ϕ = ϕ_array[i]*π/180
         k = -[cos(θ), cos(ϕ)*sin(θ), sin(ϕ)*sin(θ)]
 
-        # calculate line of sight velocity
-        v_los = line_of_sight_velocity(atmos, -k)
-        v = Matrix{Float64}(undef, (length(line.λ), sites.n))
-        for l in eachindex(line.λ)
-            v[l, :] = (line.λ[l] .- line.λ0 .+ line.λ0.*v_los./c_0)./line.ΔD .|> Unitful.NoUnits
-        end
-
-        # calculate line profile
-        profile = Matrix{PerLength}(undef, (length(line.λ), sites.n))
-        for l in eachindex(line.λ)
-            profile[l, :] = voigt_profile.(damping_λ[l, :], v[l, :], line.ΔD)
-        end
+        profile = compute_voigt_profile(line, sites, damping_λ, θ, ϕ)
 
         # line extinction
         α_line = Matrix{PerLength}(undef, size(profile))
@@ -199,21 +174,22 @@ function J_λ_voronoi(S_λ::Vector{<:UnitsIntensity_λ},
         end
 
         α_tot = α_cont .+ α_line
-
-        if θ_array[i] > 90
-            perm = sortperm(sites.layers_up)
-            layers_sorted = sites.layers_up[perm]
-            bottom_layer = searchsortedfirst(layers_sorted, 2)-1
-            I_0 = B_λ.(500u"nm", sites.temperature[1:bottom_layer])
-            J += weights[i]*Delaunay_up(sites, I_0,
-                                           S_λ, α_tot, k, n_sweeps, Nran)
-        elseif θ_array[i] < 90
-            perm = sortperm(sites.layers_down)
-            layers_sorted = sites.layers_down[perm]
-            top_layer = searchsortedfirst(layers_sorted, 2)-1
-            I_0 = zeros(top_layer)u"kW*nm^-1*m^-2"
-            J += weights[i]*Delaunay_down(sites, I_0,
-                                             S_λ, α_tot, k, n_sweeps, Nran)
+        for l in eachindex(line.λ)
+            if θ_array[i] > 90
+                perm = sortperm(sites.layers_up)
+                layers_sorted = sites.layers_up[perm]
+                bottom_layer = searchsortedfirst(layers_sorted, 2)-1
+                I_0 = B_λ.(500u"nm", sites.temperature[1:bottom_layer])
+                J += weights[i]*Delaunay_up(sites, I_0,
+                                            S_λ[l,:], α_tot[l,:], k, n_sweeps)
+            elseif θ_array[i] < 90
+                perm = sortperm(sites.layers_down)
+                layers_sorted = sites.layers_down[perm]
+                top_layer = searchsortedfirst(layers_sorted, 2)-1
+                I_0 = zeros(top_layer)u"kW*nm^-1*m^-2"
+                J += weights[i]*Delaunay_down(sites, I_0,
+                                              S_λ[l,:], α_tot[l,:], k, n_sweeps)
+            end
         end
     end
     return J
@@ -388,9 +364,12 @@ function Λ_voronoi(ϵ::AbstractFloat,
 
     S_old = zero(S_new)
 
-    ελ = destruction(populations, atmos.electron_density, atmos.temperature, line)
-
-    thick = ε_λ .> 1e-2
+    # destruction probability (Should I include line???)
+    ελ = Array{Float64, 2}(undef, size(α_cont))
+    for l in eachindex(line.λ)
+        ελ[l, :] = destruction(populations, sites.electron_density, sites.temperature, line)
+    end
+    thick = ελ .> 1e-2
 
     i=0
 
@@ -477,9 +456,9 @@ function Λ_voronoi(ϵ::AbstractFloat, maxiter::Integer, sites::VoronoiSites, qu
     return J_new, S_new, α_tot
 end
 
-function destruction(populations::Array{<:NumberDensity, 4},
-                     electron_density::Array{<:NumberDensity, 3},
-                     temperature::Array{<:Unitful.Temperature, 3},
+function destruction(populations::Array{<:NumberDensity},
+                     electron_density::Array{<:NumberDensity},
+                     temperature::Array{<:Unitful.Temperature},
                      line::HydrogenicLine)
     # destruction, eq (3.98) in Rutten, 2003
     A21 = line.Aji
