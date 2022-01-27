@@ -1,25 +1,3 @@
-struct Atom
-    density::Array{<:NumberDensity, 3}                  # (nz, nx, ny)
-    n_levels::Integer
-    n_lines::Integer
-    χ::Vector{<:Unitful.Energy}
-    g::Vector{Int64}
-    Z::Integer
-    f_value::Vector{Float64}
-    λ::Vector{Unitful.Length}
-    nλ::Integer
-    iλbb
-    iλbf
-end
-
-struct Line
-    u::Int
-    l::Int
-    lineData::AtomicLine
-    doppler_width::Array{<:Unitful.Length, 3}        # (n_lines, nz, nx, ny)
-    damping_constant::Array{<:PerArea, 3}            # (n_lines, nx, ny)
-end
-
 """
     sample_λ_line(nλ::Int64, χl::Unitful.Energy, χu::Unitful.Energy,
                             qwing::Float64, qcore::Float64)

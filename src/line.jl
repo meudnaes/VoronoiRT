@@ -41,14 +41,14 @@ struct HydrogenicLine{T <: AbstractFloat}
         qcore = 15.0
         λbb = sample_λ_line(nλ_bb, λ0, qwing, qcore)
         # from Ida
-        ##
+        ## Same χ for both
         λ1_min = transition_λ(χl, χ∞)*(1/2.0)^2 .+ 0.001u"nm"
-        λ2_min = transition_λ(χu, χ∞)*(2/2.0)^2 .+ 0.001u"nm"
+        λ2_min = transition_λ(χl, χ∞)*(2/2.0)^2 .+ 0.001u"nm"
         ##
         λbf_l = sample_λ_boundfree(nλ_bf, λ1_min, χl, χ∞)
         λbf_u = sample_λ_boundfree(nλ_bf, λ2_min, χu, χ∞)
         λ = vcat(λbb, λbf_l, λbf_u)
-        λi = [1, nλ_bb, nλ_bb+nλ_bf, nλ_bb+2*nλ_bf]
+        λi = [1, nλ_bb+1, nλ_bb+nλ_bf+1, nλ_bb+2*nλ_bf+1]
         # Einstein coefficients
         Aul = convert(Quantity{T, Unitful.𝐓^-1}, calc_Aji(λ0, gl / gu, f_value))
         Bul = calc_Bji(λ0, Aul)

@@ -9,17 +9,17 @@ global my_seed = 2022
 Random.seed!(my_seed)
 
 function compare(DATA, quadrature)
-    maxiter = 50
-    ϵ = 1e-4
+    maxiter = 100
+    ϵ = 1e-3
 
     θ = 10
     ϕ = 10
 
     function regular()
-        global atmos, line
-        atmos = Atmosphere(get_atmos(DATA; periodic=true, skip=3)...)
+        atmos = Atmosphere(get_atmos(DATA; periodic=true, skip=6)...)
         line = HydrogenicLine(test_atom()..., atmos.temperature)
 
+        global J_mean, S_λ, α_cont, populations
         J_mean, S_λ, α_cont, populations = Λ_regular(ϵ, maxiter, atmos, line, quadrature)
 
         ΔD = doppler_width.(line.λ0, line.atom_weight, atmos.temperature)
@@ -28,7 +28,8 @@ function compare(DATA, quadrature)
                        (populations[:, :, :, 1].+populations[:, :, :, 2]),
                        atmos.electron_density)
 
-        a = damping_constant.(γ, ΔD)
+        # a = damping_constant.(γ, ΔD)
+        damping_λ = damping
 
         k = -[cos(θ), cos(ϕ)*sin(θ), sin(ϕ)*sin(θ)]
 
@@ -41,7 +42,7 @@ function compare(DATA, quadrature)
 
         profile = Array{PerLength, 4}(undef, (length(line.λ), size(v_los)...))
         for l in eachindex(line.λ)
-            damping_λ = ustrip(line.λ[l]^2*a)
+            damping_λ = damping.(γ, line.λ[l], line.ΔD)
             profile[l, :, :, :] = voigt_profile.(damping_λ, v[l, :, :, :], ΔD)
         end
 

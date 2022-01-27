@@ -23,7 +23,7 @@ end
 Planck's law! Radiation in LTE. Takes wavelength and temperature, returns
 specific intensity
 """
-function B_λ(λ::Unitful.Quantity{Unitful.Length}, T::Unitful.Quantity{Unitful.Temperature})
+function B_λ(λ::Unitful.Length, T::Unitful.Temperature)
     return 2*h*c_0^2/λ^5 * 1/(exp(h*c_0/(λ*k_B*T)) - 1)
 end
 

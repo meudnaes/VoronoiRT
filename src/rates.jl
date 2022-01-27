@@ -2,11 +2,6 @@
 include("atom.jl")
 include("functions.jl")
 
-mutable struct TransitionRates
-    R::Array{<:Unitful.Frequency, 5}
-    C::Array{<:Unitful.Frequency, 5}
-end
-
 """
     calculate_transition_rates(atmosphere::Atmosphere,
                                atom::Atom,
@@ -20,7 +15,7 @@ function calculate_transition_rates(atmos::Atmosphere,
                                     line::HydrogenicLine,
                                     J_λ::Array{<:UnitsIntensity_λ,4},
                                     damping_λ::Array{<:Float64, 4})
-    LTE_pops = LTE_populations(line, atmos)
+    LTE_pops = LTE_populations(line, atmos)*1.0
 
     nz, nx, ny, nl = size(LTE_pops)
     n_levels = nl - 1
@@ -34,15 +29,15 @@ function calculate_transition_rates(atmos::Atmosphere,
     # ionization
     for level = 1:n_levels
         start = line.λidx[level+1]
-        stop = line.λidx[level+2]
+        stop = line.λidx[level+2]-1
         σ = σic(level, line, line.λ[start:stop])
         G = Gij(level, n_levels+1, line.λ[start:stop], atmos.temperature*1.0, LTE_pops)
 
         R[level,n_levels+1,:,:,:] = Rij(J_λ[start:stop,:,:,:], σ, line.λ[start:stop])
         R[n_levels+1,level,:,:,:] = Rji(J_λ[start:stop,:,:,:], σ, G, line.λ[start:stop])
 
-        C[level,n_levels+1,:,:,:] = Cij(level, n_levels+1, atmos.electron_density*1.0, atmos.temperature, LTE_pops)
-        C[n_levels+1,level,:,:,:] = Cij(n_levels+1, level, atmos.electron_density*1.0, atmos.temperature, LTE_pops)
+        C[level,n_levels+1,:,:,:] = Cij(level, n_levels+1, atmos.electron_density*1.0, atmos.temperature*1.0, LTE_pops)
+        C[n_levels+1,level,:,:,:] = Cij(n_levels+1, level, atmos.electron_density*1.0, atmos.temperature*1.0, LTE_pops)
     end
 
     # bb transition
@@ -50,13 +45,13 @@ function calculate_transition_rates(atmos::Atmosphere,
         # for u=(l+1):n_levels
 
     start = line.λidx[1]
-    stop = line.λidx[2]
+    stop = line.λidx[2]-1
 
     l = 1
     u = 2
 
     σ = σij(l, u, line, line.λ[start:stop], damping_λ[start:stop,:,:,:])
-    G = Gij(l, u, line.λ[start:stop], atmos.temperature, LTE_pops)
+    G = Gij(l, u, line.λ[start:stop], atmos.temperature*1.0, LTE_pops)
 
     R[l,u,:,:,:] = Rij(J_λ[start:stop,:,:,:], σ, line.λ[start:stop])
     R[u,l,:,:,:] = Rji(J_λ[start:stop,:,:,:], σ, G, line.λ[start:stop])
@@ -167,13 +162,14 @@ function Rij(J::Array{<:UnitsIntensity_λ, 4},
              λ::Array{<:Unitful.Length, 1})
 
     nλ, nz, nx, ny = size(J)
-    R = Array{Unitful.Frequency,3}(undef,nz,nx,ny)
+    R = Array{Float64, 3}(undef, (nz, nx, ny))u"s^-1"
     fill!(R,0.0u"s^-1")
 
     for l=1:(nλ-1)
         R +=  2π/hc * ( λ[l]   * σij[l]   .* J[l,:,:,:]   .+
                         λ[l+1] * σij[l+1] .* J[l+1,:,:,:]  ) .* (λ[l+1] - λ[l]) ./1000
     end
+
 
     return R
 end
@@ -192,13 +188,14 @@ function Rji(J::Array{<:UnitsIntensity_λ, 4},
              λ::Array{<:Unitful.Length, 1})
 
     nλ, nz, nx, ny = size(J)
-    R = Array{Unitful.Frequency,3}(undef,nz,nx,ny)
+    R = Array{Float64, 3}(undef, (nz, nx, ny))u"s^-1"
     fill!(R,0.0u"s^-1")
 
     # Trapezoid rule
     for l=1:(nλ-1)
-        R += 2π/hc * (σij[l,:,:,:]   .* Gij[l,:,:,:]   .* λ[l]   .* (2*h*c_0^2 / λ[l]^5   .+ J[l,:,:,:] ) .+
-                      σij[l+1,:,:,:] .* Gij[l+1,:,:,:] .* λ[l+1] .* (2*h*c_0^2 / λ[l+1]^5 .+ J[l+1,:,:,:] )) .* (λ[l+1] - λ[l])
+        @assert λ[l+1] - λ[l] >= 0u"nm" "Negative λ diff"
+        R += 2π/hc*(σij[l,:,:,:].*Gij[l,:,:,:].*λ[l].*(2*h*c_0^2/λ[l]^5 .+ J[l,:,:,:] ) .+
+                    σij[l+1,:,:,:].*Gij[l+1,:,:,:].*λ[l+1].*(2*h*c_0^2 / λ[l+1]^5 .+ J[l+1,:,:,:] )).*(λ[l+1] - λ[l])
     end
 
     return R
@@ -218,7 +215,7 @@ function Rji(J::Array{<:UnitsIntensity_λ, 4},
              λ::Array{<:Unitful.Length, 1})
 
     nλ, nz, nx, ny = size(J)
-    R = Array{Unitful.Frequency,3}(undef,nz,nx,ny)
+    R = Array{Float64, 3}(undef, (nz, nx, ny))u"s^-1"
     fill!(R,0.0u"s^-1")
 
     # Trapezoid rule
@@ -252,7 +249,7 @@ function σij(i::Integer,
 
     for l=1:nλ
         v = (λ[l] - λ0) ./ line.ΔD
-        profile = voigt_profile.(damping_λ[l], ustrip(v), line.ΔD)
+        profile = voigt_profile.(damping_λ[l, :, :, :], ustrip(v), line.ΔD)
         σ[l,:,:,:] = σ_constant .* profile
     end
 
@@ -370,20 +367,4 @@ function gaunt_bf(λ::Unitful.Length,
     g_bf = 1 + 0.1728 * x3 * (1 - 2 * nsqx) - 0.0496 * x3^2 * (1 - (1 - nsqx) * 0.66666667 * nsqx)
     @assert g_bf >= 0 "gaunt_bf negative, calculation will not be reliable"
     return g_bf
-end
-
-"""
-    write_to_file(populations::Array{<:NumberDensity,4},
-                  iteration::Int64,
-                  output_path::String)
-
-Write the populations for a given iteration to the output file.
-"""
-function write_to_file(rates::TransitionRates,
-                       iteration::Int64,
-                       output_path::String)
-    h5open(output_path, "r+") do file
-        file["R"][iteration+1,:,:,:,:,:] = ustrip.(rates.R)
-        file["C"][iteration+1,:,:,:,:,:] = ustrip.(rates.C)
-    end
 end

@@ -1,32 +1,5 @@
 include("rates.jl")
 
-
-"""
-    collect_initial_populations(atom::Atom,
-                                temperature::Array{<:Unitful.Temperature, 3},
-                                electron_density::Array{<:NumberDensity,3},
-                                population_mode=nothing)
-
-Collect initial population distribution. Either LTE or zero-radiation.
-"""
-function collect_initial_populations(atmosphere::Atmosphere,
-                                     atom::Atom,
-                                     lines,
-                                     distribution::String)
-
-    temperature = atmosphere.temperature
-    electron_density = atmosphere.electron_density
-    density = atom.density
-
-    if distribution == "LTE"
-        initial_populations = LTE_populations(atom, temperature, electron_density)
-    elseif distribution == "zero_radiation"
-        initial_populations = zero_radiation_populations(atmosphere, atom, lines)
-    end
-
-    return initial_populations
-end
-
 """
     zero_radiation_populations(atom::Atom,
                                temperature::Array{<:Unitful.Temperature, 3},
@@ -115,6 +88,7 @@ function get_revised_populations(R::Array{<:Unitful.Frequency, 5},
                                  atom_density::Array{<:NumberDensity,3})
 
     P = R .+ C
+
     n_levels = size(P)[1] - 1
     nz, nx, ny = size(atom_density)
 
@@ -144,59 +118,4 @@ function get_revised_populations(R::Array{<:Unitful.Frequency, 5},
 
     return populations
 
-end
-
-
-"""
-    check_population_convergence(populations::Array{<:NumberDensity, 4},
-                                 new_populations::Array{<:NumberDensity, 4},
-                                 criterion::Real = 1e-3)
-Check if the relative difference between two populations satisfy
-the convergence criterion. Return convergence status and error.
-"""
-function check_population_convergence(populations::Array{<:NumberDensity, 4},
-                                      new_populations::Array{<:NumberDensity, 4},
-                                      criterion::Real = 1e-3)
-    error = abs.(populations .- new_populations) ./populations
-    mean_error = sum(error) / length(error)
-
-    converged = false
-    if maximum(error) < criterion
-        converged = true
-    end
-
-    return converged, mean_error
-end
-
-
-
-"""
-    write_to_file(populations::Array{<:NumberDensity,4},
-                  iteration::Int64,
-                  output_path::String)
-
-Write the populations for a given iteration to the output file.
-"""
-function write_to_file(populations::Array{<:NumberDensity,4},
-                       iteration::Int64,
-                       output_path::String)
-    h5open(output_path, "r+") do file
-        file["populations"][iteration+1,:,:,:,:] = ustrip.(populations)
-    end
-end
-
-
-"""
-    write_to_file(populations::Array{<:NumberDensity,4},
-                  iteration::Int64,
-                  output_path::String)
-
-Write the populations for a given iteration to the output file.
-"""
-function write_to_file(error::Float64,
-                       iteration::Int64,
-                       output_path::String)
-    h5open(output_path, "r+") do file
-        file["populations"][iteration+1] = ustrip.(populations)
-    end
 end

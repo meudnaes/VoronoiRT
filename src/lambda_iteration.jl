@@ -298,7 +298,7 @@ function Λ_regular(ϵ::AbstractFloat,
     for l in eachindex(line.λ)
         ελ[l, :, :, :] = destruction(populations, atmos.electron_density, atmos.temperature, line)
     end
-    thick = ελ .> 5e-3
+    thick = ελ .> 1e-2
 
     # Start with the source function as the Planck function
     B_0 = Array{Float64, 4}(undef, size(α_cont))u"kW*m^-2*nm^-1"
@@ -324,14 +324,6 @@ function Λ_regular(ϵ::AbstractFloat,
                                        atmos, line, quadrature)
         S_new = (1 .- ελ).*J_new .+ ελ.*B_0
 
-        if any(isnan.(J_new))
-            println("NaN in J iter $i")
-        end
-
-        if any(isnan.(S_new))
-            println("NaN in S iter $i")
-        end
-
         #############################
         #      Calculate rates      #
         #############################
@@ -342,14 +334,9 @@ function Λ_regular(ϵ::AbstractFloat,
         #############################
         populations = get_revised_populations(R, C, atmos.hydrogen_populations*1.0)
 
-        if any(isnan.(populations))
-            println("NaN in pops iter $i")
-        end
-
-        if any(i -> i<= 0u"m^-3", populations)
-            println("Bad pops in iter $i")
-        end
-
+        ############################
+        #     Iteration is done    #
+        ############################
         i+=1
     end
 
@@ -403,7 +390,7 @@ function Λ_voronoi(ϵ::AbstractFloat,
 
     ελ = destruction(populations, atmos.electron_density, atmos.temperature, line)
 
-    thick = ε_λ .> 5e-3
+    thick = ε_λ .> 1e-2
 
     i=0
 
@@ -434,12 +421,12 @@ function Λ_voronoi(ϵ::AbstractFloat,
 
     if i == maxiter
         println("Did not converge inside scope")
-        return J_new, S_new, α_tot
+        return J_new, S_new, α_tot, populations
     end
 
     println("Converged in $i iterations")
 
-    return J_new, S_new, α_tot
+    return J_new, S_new, α_tot, populations
 end
 
 function Λ_voronoi(ϵ::AbstractFloat, maxiter::Integer, sites::VoronoiSites, quadrature::String)
