@@ -130,14 +130,6 @@ function calculate_transition_rates(sites::VoronoiSites,
     return R, C
 end
 
-    # Fill diagonal with zeros, because #undef does not like arithmetics
-    for l=1:n_levels+1
-        R[l,l,:] .= 0u"s^-1"
-        C[l,l,:] .= 0u"s^-1"
-    end
-
-    return R, C
-end
 
 """
     Rij(J::Array{<:UnitsIntensity_λ, 4},
@@ -166,7 +158,7 @@ function Rij(J::Array{<:UnitsIntensity_λ, 2},
              λ::Array{<:Unitful.Length, 1})
 
     nλ, n = size(J)
-    R = Vector{Float64}(undef, (nz, nx, ny))u"s^-1"
+    R = Vector{Float64}(undef, n)u"s^-1"
     fill!(R,0.0u"s^-1")
 
     for l=1:(nλ-1)
@@ -204,7 +196,7 @@ function Rij(J::Array{<:UnitsIntensity_λ, 2},
              λ::Array{<:Unitful.Length, 1})
 
     nλ, n = size(J)
-    R = Vector{Float64, 1}(undef, n)u"s^-1"
+    R = Vector{Float64}(undef, n)u"s^-1"
     fill!(R,0.0u"s^-1")
 
     for l=1:(nλ-1)
@@ -409,7 +401,7 @@ function Gij(i::Integer,
              LTE_populations::Array{<:NumberDensity, 2})
 
     nλ = length(λ)
-    n = size(temperature)
+    n = length(temperature)
     G = Array{Float64, 2}(undef, (nλ, n))
 
     n_ratio = LTE_populations[:,i] ./LTE_populations[:,j]

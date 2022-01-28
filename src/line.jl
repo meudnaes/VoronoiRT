@@ -92,7 +92,7 @@ function compute_voigt_profile(line::HydrogenicLine, sites::VoronoiSites,
 
     # calculate line of sight velocity
     v_los = line_of_sight_velocity(sites, k)
-    v = Array{Float64, 4}(undef, (length(line.λ), sites.n))
+    v = Array{Float64, 2}(undef, (length(line.λ), sites.n))
     for l in eachindex(line.λ)
         v[l, :] = (line.λ[l] .- line.λ0 .+ line.λ0.*v_los./c_0)./line.ΔD .|> Unitful.NoUnits
     end
@@ -122,8 +122,8 @@ function test_atom()
     χu = 82258.211u"cm^-1"
     χ∞ = 109677.617u"cm^-1"
 
-    nλ_bb = 5
-    nλ_bf = 10
+    nλ_bb = 20
+    nλ_bf = 50
 
     gl = 2
     gu = 8

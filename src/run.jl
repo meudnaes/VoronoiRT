@@ -74,9 +74,9 @@ function searchlight()
 
     temperature = ones(nz, nx, ny)u"K"
     electron_density = zeros(nz, nx, ny)u"m^-3"
-    hydrogen_populations = zeros(nz, nx, ny)u"m^-3"
+    hydrogen_density = zeros(nz, nx, ny)u"m^-3"
 
-    atmos = Atmosphere(z, x, y, temperature, electron_density, hydrogen_populations)
+    atmos = Atmosphere(z, x, y, temperature, electron_density, hydrogen_density)
 
     S_0 = zeros(nz, nx, ny)u"kW*m^-2*nm^-1"
     α = zeros(nz, nx, ny)u"m^-1"

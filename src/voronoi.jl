@@ -66,7 +66,7 @@ function _initialise(p_vec, atmos::Atmosphere)
     for k in 1:n_sites
         temperature_new[k] = trilinear(p_vec[1, k], p_vec[2, k], p_vec[3, k], atmos, atmos.temperature)
         N_e_new[k] = trilinear(p_vec[1, k], p_vec[2, k], p_vec[3, k], atmos, atmos.electron_density)
-        N_H_new[k] = trilinear(p_vec[1, k], p_vec[2, k], p_vec[3, k], atmos, atmos.hydrogen_populations)
+        N_H_new[k] = trilinear(p_vec[1, k], p_vec[2, k], p_vec[3, k], atmos, atmos.hydrogen_density)
     end
     return ustrip(temperature_new), ustrip(N_e_new), ustrip(N_H_new)
 end
@@ -81,7 +81,7 @@ function main()
 
     n_sites = nz*nx*ny
 
-    p_vec = rejection_sampling(n_sites, atmos, log10.(ustrip.(atmos.hydrogen_populations)))
+    p_vec = rejection_sampling(n_sites, atmos, log10.(ustrip.(atmos.hydrogen_density)))
 
 
     sites_file = "../data/sites.txt"
@@ -175,7 +175,7 @@ function searchlight_irregular()
 
     temperature = ones(n_sites)
     electron_density = zeros(n_sites)
-    hydrogen_populations = zeros(n_sites)
+    hydrogen_density = zeros(n_sites)
 
     sample_quantity = ones(nz, nx, ny)
 
@@ -209,7 +209,7 @@ function searchlight_irregular()
 
     # Voronoi grid
     sites = VoronoiSites(read_cell(neighbours_file, n_sites, positions)...,
-                         temperature, electron_density, hydrogen_populations,
+                         temperature, electron_density, hydrogen_density,
                          bounds[1,1], bounds[1,2],
                          bounds[2,1], bounds[2,2],
                          bounds[3,1], bounds[3,2],
@@ -411,7 +411,7 @@ function searchlight_irregular_2()
 
     temperature = ones(n_sites)*1u"K"
     electron_density = zeros(n_sites)*1u"m^-3"
-    hydrogen_populations = zeros(n_sites)*1u"m^-3"
+    hydrogen_density = zeros(n_sites)*1u"m^-3"
 
     println("---Computing grid---")
     positions = rand(3, n_sites)u"m"
@@ -442,7 +442,7 @@ function searchlight_irregular_2()
 
     # Voronoi grid
     sites = VoronoiSites(read_cell(neighbours_file, n_sites, positions)...,
-                         temperature, electron_density, hydrogen_populations,
+                         temperature, electron_density, hydrogen_density,
                          bounds[1,1]*1u"m", bounds[1,2]*1u"m",
                          bounds[2,1]*1u"m", bounds[2,2]*1u"m",
                          bounds[3,1]*1u"m", bounds[3,2]*1u"m",

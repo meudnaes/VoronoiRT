@@ -18,7 +18,7 @@ struct Atmosphere
     y::Vector{<:Unitful.Length}
     temperature::Array{<:Unitful.Temperature, 3}
     electron_density::Array{<:NumberDensity, 3}
-    hydrogen_populations::Array{<:NumberDensity, 3}
+    hydrogen_density::Array{<:NumberDensity, 3}
     velocity_z::Array{Unitful.Velocity, 3}
     velocity_x::Array{Unitful.Velocity, 3}
     velocity_y::Array{Unitful.Velocity, 3}
@@ -33,7 +33,7 @@ struct Atmosphere
     #                     y::Vector{<:Unitful.Length{T}}) where T <: AbstractFloat
     #                     # temperature::Array{<:Unitful.Temperature{T}, 3},
     #                     # electron_density::Array{<:NumberDensity{T}, 3},
-    #                     # hydrogen_populations::Array{<:NumberDensity{T}, 3}) where T <: AbstractFloat
+    #                     # hydrogen_density::Array{<:NumberDensity{T}, 3}) where T <: AbstractFloat
     #     #Funcy func
     #     nz = length(z)
     #     nx = length(x)
@@ -41,7 +41,7 @@ struct Atmosphere
     #     Δx = x[2] - x[1]
     #     Δy = y[2] - y[1]
     #     new{T}(z, x, y, nz, nx, ny, Δx, Δy)
-    #            # temperature, electron_density, hydrogen_populations,
+    #            # temperature, electron_density, hydrogen_density,
     #            # nz, nx, ny, Δx, Δy)
     # end
 end
@@ -57,7 +57,7 @@ Original author: Ida Risnes Hansen
 function get_atmos(file_path; periodic=true, skip=1)
     println("---Extracting atmospheric data---")
 
-    local x, y, z, temperature, electron_density, hydrogen_populations, velocity_z, velocity_x, velocity_y
+    local x, y, z, temperature, electron_density, hydrogen_density, velocity_z, velocity_x, velocity_y
 
     h5open(file_path, "r") do atmos
         z = read(atmos, "z")[1:skip:end]*u"m"
@@ -70,7 +70,7 @@ function get_atmos(file_path; periodic=true, skip=1)
 
         temperature = read(atmos, "temperature")[1:skip:end, 1:skip:end, 1:skip:end]u"K"
         electron_density = read(atmos, "electron_density")[1:skip:end, 1:skip:end, 1:skip:end]u"m^-3"
-        hydrogen_populations = read(atmos, "hydrogen_populations")[1:skip:end, 1:skip:end, 1:skip:end, 1, 1]u"m^-3"
+        hydrogen_density = read(atmos, "hydrogen_populations")[1:skip:end, 1:skip:end, 1:skip:end, 1, 1]u"m^-3"
     end
 
     #=
@@ -81,7 +81,7 @@ function get_atmos(file_path; periodic=true, skip=1)
         velocity_z = velocity_z[:,:,:,1]
         temperature = temperature[:,:,:,1]
         electron_density = electron_density[:,:,:,1]
-        hydrogen_populations = hydrogen_populations[:,:,:,1,1]
+        hydrogen_density = hydrogen_density[:,:,:,1,1]
     end
     =#
 
@@ -92,7 +92,7 @@ function get_atmos(file_path; periodic=true, skip=1)
         reverse!(velocity_z, dims=1)
         reverse!(temperature, dims=1)
         reverse!(electron_density, dims=1)
-        reverse!(hydrogen_populations, dims=1)
+        reverse!(hydrogen_density, dims=1)
     end
 
     if x[1] > x[end]
@@ -102,7 +102,7 @@ function get_atmos(file_path; periodic=true, skip=1)
         reverse!(velocity_z, dims=2)
         reverse!(temperature, dims=2)
         reverse!(electron_density, dims=2)
-        reverse!(hydrogen_populations, dims=2)
+        reverse!(hydrogen_density, dims=2)
     end
 
     if y[1] > y[end]
@@ -112,7 +112,7 @@ function get_atmos(file_path; periodic=true, skip=1)
         reverse!(velocity_z, dims=3)
         reverse!(temperature, dims=3)
         reverse!(electron_density, dims=3)
-        reverse!(hydrogen_populations, dims=3)
+        reverse!(hydrogen_density, dims=3)
     end
 
     if periodic
@@ -167,19 +167,19 @@ function get_atmos(file_path; periodic=true, skip=1)
         electron_density_periodic[:,end,end] .= electron_density[:,1,1]
 
         # Temperature
-        hydrogen_populations_periodic = Array{NumberDensity, 3}(undef, size(hydrogen_populations) .+ size_add)
-        hydrogen_populations_periodic[:, 2:end-1, 2:end-1] = hydrogen_populations
+        hydrogen_density_periodic = Array{NumberDensity, 3}(undef, size(hydrogen_density) .+ size_add)
+        hydrogen_density_periodic[:, 2:end-1, 2:end-1] = hydrogen_density
         # x-direction
-        hydrogen_populations_periodic[:,1,2:end-1] = hydrogen_populations[:,end,:]
-        hydrogen_populations_periodic[:,end,2:end-1] = hydrogen_populations[:,1,:]
+        hydrogen_density_periodic[:,1,2:end-1] = hydrogen_density[:,end,:]
+        hydrogen_density_periodic[:,end,2:end-1] = hydrogen_density[:,1,:]
         # y-direction
-        hydrogen_populations_periodic[:,2:end-1,end] = hydrogen_populations[:,:,1]
-        hydrogen_populations_periodic[:,2:end-1,1] = hydrogen_populations[:,:,end]
+        hydrogen_density_periodic[:,2:end-1,end] = hydrogen_density[:,:,1]
+        hydrogen_density_periodic[:,2:end-1,1] = hydrogen_density[:,:,end]
         # fix corners
-        hydrogen_populations_periodic[:,1,1] .= hydrogen_populations[:,end,end]
-        hydrogen_populations_periodic[:,1,end] .= hydrogen_populations[:,end,1]
-        hydrogen_populations_periodic[:,end,1] .= hydrogen_populations[:,1,end]
-        hydrogen_populations_periodic[:,end,end] .= hydrogen_populations[:,1,1]
+        hydrogen_density_periodic[:,1,1] .= hydrogen_density[:,end,end]
+        hydrogen_density_periodic[:,1,end] .= hydrogen_density[:,end,1]
+        hydrogen_density_periodic[:,end,1] .= hydrogen_density[:,1,end]
+        hydrogen_density_periodic[:,end,end] .= hydrogen_density[:,1,1]
 
         # velocity_z
         velocity_z_periodic = Array{Unitful.Velocity, 3}(undef, size(velocity_z) .+ size_add)
@@ -226,8 +226,8 @@ function get_atmos(file_path; periodic=true, skip=1)
         velocity_y_periodic[:,end,1] .= velocity_y[:,1,end]
         velocity_y_periodic[:,end,end] .= velocity_y[:,1,1]
 
-        return z, x_periodic, y_periodic, temperature_periodic, electron_density_periodic, hydrogen_populations_periodic, velocity_z_periodic, velocity_x_periodic, velocity_y_periodic
+        return z, x_periodic, y_periodic, temperature_periodic, electron_density_periodic, hydrogen_density_periodic, velocity_z_periodic, velocity_x_periodic, velocity_y_periodic
     end
 
-    return z, x, y, temperature, electron_density, hydrogen_populations, velocity_z, velocity_x, velocity_y
+    return z, x, y, temperature, electron_density, hydrogen_density, velocity_z, velocity_x, velocity_y
 end

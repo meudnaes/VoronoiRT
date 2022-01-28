@@ -34,7 +34,7 @@ function LTE_populations(line::HydrogenicLine,
     χ = [line.χi, line.χj, line.χ∞]
     # Ionised hydrogen -> g = 1
     g = [line.gi, line.gj, 1]
-    atom_density = atmos.hydrogen_populations
+    atom_density = atmos.hydrogen_density
     nz, nx, ny = size(atom_density)
 
     n_levels = 3
@@ -62,24 +62,24 @@ function LTE_populations(line::HydrogenicLine,
     χ = [line.χi, line.χj, line.χ∞]
     # Ionised hydrogen -> g = 1
     g = [line.gi, line.gj, 1]
-    atom_density = atmos.hydrogen_populations
-    nz, nx, ny = size(atom_density)
+    atom_density = sites.hydrogen_density
+    n = length(atom_density)
 
     n_levels = 3
-    n_relative = ones(Float64, nz, nx, ny, n_levels)
+    n_relative = ones(Float64, n, n_levels)
 
     saha_const = (k_B / h) * (2π * m_e) / h
-    saha_factor = 2 * ((saha_const * atmos.temperature).^(3/2) ./ atmos.electron_density) .|> u"m/m"
+    saha_factor = 2 * ((saha_const * sites.temperature).^(3/2) ./ sites.electron_density) .|> u"m/m"
 
     for i=2:n_levels
         ΔE = χ[i] - χ[1]
-        n_relative[:,:,:,i] = g[i] / g[1] * exp.(-ΔE ./ (k_B * atmos.temperature))
+        n_relative[:, i] = g[i] / g[1] * exp.(-ΔE ./ (k_B * sites.temperature))
     end
 
     # Last level is ionised stage (H II)
-    n_relative[:,:,:,n_levels] .*= saha_factor
-    n_relative[:,:,:,1] = 1 ./ sum(n_relative, dims=4)[:,:,:,1]
-    n_relative[:,:,:,2:end] .*= n_relative[:,:,:,1]
+    n_relative[:,n_levels] .*= saha_factor
+    n_relative[:,1] = 1 ./ sum(n_relative, dims=2)[:,1]
+    n_relative[:,2:end] .*= n_relative[:,1]
 
     return n_relative .* atom_density
 end
@@ -129,7 +129,7 @@ function get_revised_populations(R::Array{<:Unitful.Frequency, 3},
     P = R .+ C
 
     n_levels = size(P)[1] - 1
-    n = size(atom_density)
+    n = length(atom_density)
 
     A = Array{Float64, 3}(undef, (n_levels, n_levels, n))u"s^-1"
     b = Matrix{Float64}(undef, (n_levels, n))u"s^-1*m^-3"

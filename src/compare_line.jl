@@ -9,20 +9,29 @@ global my_seed = 2022
 Random.seed!(my_seed)
 
 function compare(DATA, quadrature)
-    maxiter = 100
+    maxiter = 50
     ϵ = 1e-3
 
     θ = 10
     ϕ = 10
 
     function regular()
-        atmos = Atmosphere(get_atmos(DATA; periodic=true, skip=5)...)
+        atmos = Atmosphere(get_atmos(DATA; periodic=true, skip=8)...)
         line = HydrogenicLine(test_atom()..., atmos.temperature)
 
-        global J_mean, S_λ, α_cont, populations
         J_mean, S_λ, α_cont, populations = Λ_regular(ϵ, maxiter, atmos, line, quadrature)
 
-        profile = compute_voigt_profile(line, atmos, θ, ϕ)
+        γ = γ_constant(line,
+                       atmos.temperature,
+                       (populations[:, :, :, 1].+populations[:, :, :, 2]),
+                       atmos.electron_density)
+
+        damping_λ = Array{Float64, 4}(undef, size(S_λ))
+        for l in eachindex(line.λ)
+            damping_λ[l, :, :, :] = damping.(γ, line.λ[l], line.ΔD)
+        end
+
+        profile = compute_voigt_profile(line, atmos, damping_λ, θ*π/180, ϕ*π/180)
 
         α_line = Array{Float64, 4}(undef, size(profile))u"m^-1"
         for l in eachindex(line.λ)
@@ -34,7 +43,7 @@ function compare(DATA, quadrature)
         α_tot = α_line .+ α_cont
 
         I_top = short_characteristics_up(θ, ϕ, S_λ[6,:,:,:], α_tot[6,:,:,:],
-                                            atmos, degrees=true, I_0=S_λ[6,1,:,:])
+                                         atmos, degrees=true, I_0=S_λ[6,1,:,:])
 
         I_top = ustrip(uconvert.(u"kW*nm^-1*m^-2", I_top[end, 2:end-1, 2:end-1]))
 
@@ -62,7 +71,7 @@ function compare(DATA, quadrature)
         ny = length(atmos.y)
 
         n_sites = floor(Int, nz*nx*ny/8)
-        positions = rejection_sampling(n_sites, atmos, log10.(ustrip.(atmos.hydrogen_populations)))
+        positions = rejection_sampling(n_sites, atmos, log10.(ustrip.(atmos.hydrogen_density)))
 
         sites_file = "../data/sites_compare.txt"
         neighbours_file = "../data/neighbours_compare.txt"
@@ -97,12 +106,35 @@ function compare(DATA, quadrature)
                              y_min*1u"m", y_max*1u"m",
                              n_sites)
 
-        J_mean, S_λ, α_tot = Λ_voronoi(ϵ, maxiter, sites, quadrature)
+        line = HydrogenicLine(test_atom()..., sites.temperature)
+
+        J_mean, S_λ, α_cont, populations = Λ_voronoi(ϵ, maxiter, sites, line, quadrature)
+
+        γ = γ_constant(line,
+                       sites.temperature,
+                       (populations[:, 1].+populations[:, 2]),
+                       sites.electron_density)
+
+        damping_λ = Matrix{Float64}(undef, size(S_λ))
+        for l in eachindex(line.λ)
+            damping_λ[l, :] = damping.(γ, line.λ[l], line.ΔD)
+        end
+
+        profile = compute_voigt_profile(line, sites, damping_λ, θ*π/180, ϕ*π/180)
+
+        α_line = Array{Float64, 2}(undef, size(profile))u"m^-1"
+        for l in eachindex(line.λ)
+         α_line[l, :] = αline_λ(line,
+                                profile[l, :],
+                                populations[:, 1],
+                                populations[:, 2])
+        end
+        α_tot = α_line .+ α_cont
 
         atmos_from_voronoi, S_λ_grid, α_grid = Voronoi_to_Raster(sites, atmos, S_λ, α_tot, 3)
 
-        I_top = short_characteristics_up(θ, ϕ, S_λ_grid,
-                                         α_grid, atmos_from_voronoi, I_0=S_λ_grid[1,:,:])
+        I_top = short_characteristics_up(θ, ϕ, S_λ_grid[6,:,:,:], α_grid[6,:,:,:],
+                                         atmos_from_voronoi, degrees=true, I_0=S_λ_grid[6,1,:,:])
 
         I_top = ustrip(uconvert.(u"kW*nm^-1*m^-2", I_top[end, 2:end-1, 2:end-1]))
 
@@ -117,13 +149,13 @@ function compare(DATA, quadrature)
              aspect_ratio=:equal,
              clim=(1.0,15.0))
 
-        savefig("../img/compare_converged/irregular_top")
+        savefig("../img/compare_line/irregular_top")
 
         return atmos_from_voronoi, S_λ_grid
     end
 
     atmos, S_regular = regular();
-    # atmos_voronoi, S_voronoi = voronoi(atmos);
+    atmos_voronoi, S_voronoi = voronoi(atmos);
 
 end
 
