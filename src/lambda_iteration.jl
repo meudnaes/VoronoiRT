@@ -7,7 +7,7 @@ include("characteristics.jl")
 include("irregular_ray_tracing.jl")
 
 function J_λ_regular(S_λ::Array{<:UnitsIntensity_λ, 4},
-                     α_cont::Array{<:PerLength, 4},
+                     α_cont::Array{<:PerLength, 3},
                      populations::Array{<:NumberDensity, 4},
                      atmos::Atmosphere,
                      line::HydrogenicLine,
@@ -44,7 +44,11 @@ function J_λ_regular(S_λ::Array{<:UnitsIntensity_λ, 4},
         end
 
         # total exinction
-        α_tot = α_line .+ α_cont
+        α_tot = Array{Float64, 4}(undef, size(S_λ))u"m^-1"
+        fill!(α_tot, 0u"m^-1")
+        for l in eachindex(line.λ)
+            α_tot[l, :, :, :] += α_line[l, :, :, :] .+ α_cont
+        end
 
         for l in eachindex(line.λ)
             if θ_array[i] > 90
@@ -143,35 +147,28 @@ function Λ_regular(ϵ::AbstractFloat,
 
     # Start in LTE
 
-    populations = LTE_populations(line, atmos)*1.0
+    LTE_pops = LTE_populations(line, atmos)
+    populations = copy(LTE_pops)
 
-    # Find continuum extinction and absorption extinction (only with Thomson and Rayleigh)
-    α_cont = Array{Float64, 4}(undef, (length(line.λ), size(atmos.temperature)...))u"m^-1"
-    α_a = copy(α_cont)
-    for l in eachindex(line.λ)
-        α_cont[l, :, :, :] = α_continuum.(line.λ[l],
-                                          atmos.temperature*1.0,
-                                          atmos.electron_density*1.0,
-                                          populations[:, :, :, 1]*1.0,
-                                          populations[:, :, :, 3]*1.0)
+    # Find continuum extinction and absorption extinction (without Thomson and Rayleigh)
+    α_cont = α_continuum.(line.λ0,
+                          atmos.temperature*1.0,
+                          atmos.electron_density*1.0,
+                          populations[:, :, :, 1]*1.0,
+                          populations[:, :, :, 3]*1.0)
 
-        α_a[l, :, :, :] = α_absorption.(line.λ[l],
-                                        atmos.temperature*1.0,
-                                        atmos.electron_density*1.0,
-                                        populations[:, :, :, 1]*1.0,
-                                        populations[:, :, :, 3]*1.0)
-    end
+    α_a = α_absorption.(line.λ0,
+                        atmos.temperature*1.0,
+                        atmos.electron_density*1.0,
+                        populations[:, :, :, 1]*1.0,
+                        populations[:, :, :, 3]*1.0)
 
     # destruction probability (Should I include line???)
-    ελ = Array{Float64, 4}(undef, size(α_cont))
-    for l in eachindex(line.λ)
-        ελ[l, :, :, :] = destruction(populations, atmos.electron_density, atmos.temperature, line)
-    end
+    ελ = destruction(populations, atmos.electron_density, atmos.temperature, line)
     thick = ελ .> 1e-2
 
     # Start with the source function as the Planck function
-    B_0 = Array{Float64, 4}(undef, size(α_cont))u"kW*m^-2*nm^-1"
-
+    B_0 = Array{Float64, 4}(undef, (length(line.λ), size(α_cont)...))u"kW*m^-2*nm^-1"
     for l in eachindex(line.λ)
         B_0[l, :, :, :] = B_λ.(line.λ[l], atmos.temperature)
     end
@@ -179,6 +176,8 @@ function Λ_regular(ϵ::AbstractFloat,
     S_new = copy(B_0)
 
     S_old = zero(S_new)
+
+    C = calculate_C(atmos, LTE_pops)
 
     i=0
 
@@ -191,12 +190,15 @@ function Λ_regular(ϵ::AbstractFloat,
         S_old = copy(S_new)
         J_new, damping_λ = J_λ_regular(S_old, α_cont, populations,
                                        atmos, line, quadrature)
-        S_new = (1 .- ελ).*J_new .+ ελ.*B_0
+
+        for l in eachindex(line.λ)
+            S_new[l,:,:,:] = (1 .- ελ).*J_new[l,:,:,:] .+ ελ.*B_0[l,:,:,:]
+        end
 
         #############################
         #      Calculate rates      #
         #############################
-        R, C = calculate_transition_rates(atmos, line, J_new, damping_λ)
+        R = calculate_R(atmos, line, J_new, damping_λ, LTE_pops)
 
         #############################
         #    Update populations     #
@@ -227,7 +229,8 @@ function Λ_voronoi(ϵ::AbstractFloat,
     println("---Iterating---")
 
     # Start in LTE
-    populations = LTE_populations(line, sites)
+    LTE_pops = LTE_populations(line, sites)
+    populations = copy(LTE_pops)
 
     # Find continuum extinction and absorption extinction (only with Thomson and Rayleigh)
     α_cont = Array{Float64, 2}(undef, (length(line.λ), sites.n))u"m^-1"
@@ -264,6 +267,8 @@ function Λ_voronoi(ϵ::AbstractFloat,
     end
     thick = ελ .> 1e-2
 
+    C = calculate_C(sites, line, J_new, damping_λ, LTE_pops)
+
     i=0
 
     local J_new
@@ -281,7 +286,7 @@ function Λ_voronoi(ϵ::AbstractFloat,
         #############################
         #      Calculate rates      #
         #############################
-        R, C = calculate_transition_rates(sites, line, J_new, damping_λ)
+        R = calculate_R(sites, line, J_new, damping_λ, LTE_pops)
 
         #############################
         #    Update populations     #
@@ -301,20 +306,31 @@ function Λ_voronoi(ϵ::AbstractFloat,
     return J_new, S_new, α_cont, populations
 end
 
-function destruction(populations::Array{<:NumberDensity},
+function destruction(LTE_pops::Array{<:NumberDensity},
                      electron_density::Array{<:NumberDensity},
                      temperature::Array{<:Unitful.Temperature},
                      line::HydrogenicLine)
     # destruction, eq (3.98) in Rutten, 2003
     A21 = line.Aji
     B21 = line.Bji
-    C21 = Cij(2, 1, electron_density, temperature, populations)
+    C21 = Cij(2, 1, electron_density, temperature, LTE_pops)
     Bλ_0 = B_λ.(line.λ0, temperature)
     ελ_0 = C21./(C21 .+ A21 .+ B21.*Bλ_0)
 end
 
 function criterion(S_new, S_old, ϵ, i, maxiter, indcs)
-    diff = maximum(abs.((S_new[indcs] .- S_old[indcs])./S_new[indcs])) |> Unitful.NoUnits
+    diff = 0
+    nλ = size(S_new)[1]
+    for l in 1:nλ
+        l_diff = maximum(abs.((S_new[l, :, :, :][indcs] .- S_old[l, :, :, :][indcs])
+                                ./S_new[l, :, :, :][indcs])) |> Unitful.NoUnits
+        if l_diff > diff
+            diff = l_diff
+        end
+        if isnan(l_diff)
+            println("NaN DIFF!, index $l")
+        end
+    end
     if i > 0
         println("   Rel. diff.: $diff")
     end

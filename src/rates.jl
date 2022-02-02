@@ -1,28 +1,60 @@
 include("functions.jl")
 
 """
-    calculate_transition_rates(atmosphere::Atmosphere,
-                               atom::Atom,
-                               J::Array{Any,1})
+    calculate_transition_rates(atmos::Atmosphere,
+                               line::Atom,
+                               J_λ::Array{<:UnitsIntensity_λ,4},
+                               damping_λ::Array{<:Float64, 4})
 
 Given the radiation field, calculate all transition rates for
 the excitation, de-excitation, ionisations and re-combiantions
 of a single atom.
 """
-function calculate_transition_rates(atmos::Atmosphere,
-                                    line::HydrogenicLine,
-                                    J_λ::Array{<:UnitsIntensity_λ,4},
-                                    damping_λ::Array{<:Float64, 4})
-    LTE_pops = LTE_populations(line, atmos)*1.0
+function calculate_C(atmos::Atmosphere,
+                     LTE_pops::Array{<:NumberDensity, 4})
 
     nz, nx, ny, nl = size(LTE_pops)
     n_levels = nl - 1
 
-    # ==================================================================
-    # CALCULATE RADIATIVE RATES
-    # ==================================================================
-    R = Array{Float64, 5}(undef, (n_levels+1, n_levels+1, nz, nx, ny))u"s^-1"
     C = Array{Float64, 5}(undef, (n_levels+1, n_levels+1, nz, nx, ny))u"s^-1"
+
+    # ionization
+    for level = 1:n_levels
+        C[level,n_levels+1,:,:,:] = Cij(level, n_levels+1, atmos.electron_density*1.0, atmos.temperature*1.0, LTE_pops)
+        C[n_levels+1,level,:,:,:] = Cij(n_levels+1, level, atmos.electron_density*1.0, atmos.temperature*1.0, LTE_pops)
+    end
+
+    # bb transition
+    # for l=1:n_levels-1
+        # for u=(l+1):n_levels
+
+    l = 1
+    u = 2
+
+    C[l,u,:,:,:] = Cij(l, u, atmos.electron_density*1.0, atmos.temperature*1.0, LTE_pops)
+    C[u,l,:,:,:] = Cij(u, l, atmos.electron_density*1.0, atmos.temperature*1.0, LTE_pops)
+
+        # end
+    # end
+
+    # Fill diagonal with zeros, because #undef does not like arithmetics
+    for l=1:n_levels+1
+        C[l,l,:,:,:] .= 0u"s^-1"
+    end
+
+    return C
+end
+
+function calculate_R(atmos::Atmosphere,
+                     line::HydrogenicLine,
+                     J_λ::Array{<:UnitsIntensity_λ,4},
+                     damping_λ::Array{<:Float64, 4},
+                     LTE_pops::Array{<:NumberDensity, 4})
+
+    nz, nx, ny, nl = size(LTE_pops)
+    n_levels = nl - 1
+
+    R = Array{Float64, 5}(undef, (n_levels+1, n_levels+1, nz, nx, ny))u"s^-1"
 
     # ionization
     for level = 1:n_levels
@@ -33,9 +65,6 @@ function calculate_transition_rates(atmos::Atmosphere,
 
         R[level,n_levels+1,:,:,:] = Rij(J_λ[start:stop,:,:,:], σ, line.λ[start:stop])
         R[n_levels+1,level,:,:,:] = Rji(J_λ[start:stop,:,:,:], σ, G, line.λ[start:stop])
-
-        C[level,n_levels+1,:,:,:] = Cij(level, n_levels+1, atmos.electron_density*1.0, atmos.temperature*1.0, LTE_pops)
-        C[n_levels+1,level,:,:,:] = Cij(n_levels+1, level, atmos.electron_density*1.0, atmos.temperature*1.0, LTE_pops)
     end
 
     # bb transition
@@ -54,20 +83,17 @@ function calculate_transition_rates(atmos::Atmosphere,
     R[l,u,:,:,:] = Rij(J_λ[start:stop,:,:,:], σ, line.λ[start:stop])
     R[u,l,:,:,:] = Rji(J_λ[start:stop,:,:,:], σ, G, line.λ[start:stop])
 
-    C[l,u,:,:,:] = Cij(l, u, atmos.electron_density*1.0, atmos.temperature*1.0, LTE_pops)
-    C[u,l,:,:,:] = Cij(u, l, atmos.electron_density*1.0, atmos.temperature*1.0, LTE_pops)
-
         # end
     # end
 
     # Fill diagonal with zeros, because #undef does not like arithmetics
     for l=1:n_levels+1
         R[l,l,:,:,:] .= 0u"s^-1"
-        C[l,l,:,:,:] .= 0u"s^-1"
     end
 
-    return R, C
+    return R
 end
+
 function calculate_transition_rates(sites::VoronoiSites,
                                     line::HydrogenicLine,
                                     J_λ::Array{<:UnitsIntensity_λ, 2},

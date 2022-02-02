@@ -17,6 +17,8 @@ function compare(DATA, quadrature)
 
     function regular()
         atmos = Atmosphere(get_atmos(DATA; periodic=true, skip=4)...)
+
+        global line
         line = HydrogenicLine(test_atom()..., atmos.temperature)
 
         J_mean, S_λ, α_cont, populations = Λ_regular(ϵ, maxiter, atmos, line, quadrature)
@@ -146,7 +148,7 @@ function compare(DATA, quadrature)
 end
 
 DATA = "../data/bifrost_qs006023_s525_quarter.hdf5"
-QUADRATURE = "../quadratures/ul7n12.dat"
+QUADRATURE = "../quadratures/ul2n3.dat"
 
 compare(DATA, QUADRATURE);
 print("")

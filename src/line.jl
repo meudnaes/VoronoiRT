@@ -37,7 +37,6 @@ struct HydrogenicLine{T <: AbstractFloat}
         @assert Z >= 1
         # Sample wavelengths for bound-bound and bound-free transitions
         λ0 = convert(Quantity{T, Unitful.𝐋}, ((h * c_0) / (χu - χl)) |> u"nm")
-        println(λ0)
         qwing = 600.0
         qcore = 15.0
         λbb = sample_λ_line(nλ_bb, λ0, qwing, qcore)
@@ -123,8 +122,8 @@ function test_atom()
     χu = 82258.211u"cm^-1"
     χ∞ = 109677.617u"cm^-1"
 
-    nλ_bb = 25
-    nλ_bf = 10
+    nλ_bb = 60
+    nλ_bf = 20
 
     gl = 2
     gu = 8
