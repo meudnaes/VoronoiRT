@@ -9,14 +9,14 @@ global my_seed = 2022
 Random.seed!(my_seed)
 
 function compare(DATA, quadrature)
-    maxiter = 50
+    maxiter = 100
     ϵ = 1e-3
 
     θ = 10
     ϕ = 10
 
     function regular()
-        atmos = Atmosphere(get_atmos(DATA; periodic=true, skip=5)...)
+        atmos = Atmosphere(get_atmos(DATA; periodic=true, skip=4)...)
         line = HydrogenicLine(test_atom()..., atmos.temperature)
 
         J_mean, S_λ, α_cont, populations = Λ_regular(ϵ, maxiter, atmos, line, quadrature)
@@ -45,22 +45,9 @@ function compare(DATA, quadrature)
         I_top = short_characteristics_up(θ, ϕ, S_λ[6,:,:,:], α_tot[6,:,:,:],
                                          atmos, degrees=true, I_0=S_λ[6,1,:,:])
 
-        I_top = ustrip(uconvert.(u"kW*nm^-1*m^-2", I_top[end, 2:end-1, 2:end-1]))
+        # plot_top_intensity(I_top, atmos.x, atmos.y, "regular_top")
 
-        heatmap(ustrip(atmos.x[2:end-1]),
-                ustrip(atmos.y[2:end-1]),
-                transpose(I_top),
-                xaxis="x",
-                yaxis="y",
-                dpi=300,
-                rightmargin=10Plots.mm,
-                title="Regular Grid",
-                aspect_ratio=:equal)#,
-                #clim=(1.0,15.0))
-
-        savefig("../img/compare_line/regular_top")
-
-        return atmos, S_λ
+        return atmos, S_λ, populations
     end
 
 
@@ -70,7 +57,7 @@ function compare(DATA, quadrature)
         nz = length(atmos.z)
         ny = length(atmos.y)
 
-        n_sites = floor(Int, nz*nx*ny/8)
+        n_sites = floor(Int, nz*nx*ny/4)
         positions = rejection_sampling(n_sites, atmos, log10.(ustrip.(atmos.hydrogen_density)))
 
         sites_file = "../data/sites_compare.txt"
@@ -131,32 +118,31 @@ function compare(DATA, quadrature)
         end
         α_tot = α_line .+ α_cont
 
-        atmos_from_voronoi, S_λ_grid, α_grid = Voronoi_to_Raster(sites, atmos, S_λ, α_tot, 3)
+        atmos_from_voronoi, S_λ_grid, α_grid, populations_grid = Voronoi_to_Raster(sites, atmos, S_λ, α_tot, populations, 3)
 
-        I_top = short_characteristics_up(θ, ϕ, S_λ_grid[6,:,:,:], α_grid[6,:,:,:],
-                                         atmos_from_voronoi, degrees=true, I_0=S_λ_grid[6,1,:,:])
+        # plot_top_intensity(I_top, atmos_voronoi.x, atmos_voronoi.y, "irregular_top")
 
-        I_top = ustrip(uconvert.(u"kW*nm^-1*m^-2", I_top[end, 2:end-1, 2:end-1]))
-
-        heatmap(ustrip(atmos_from_voronoi.x[2:end-1]),
-             ustrip(atmos_from_voronoi.y[2:end-1]),
-             transpose(I_top),
-             xaxis="x",
-             yaxis="y",
-             dpi=300,
-             rightmargin=10Plots.mm,
-             title="Irregular Grid",
-             aspect_ratio=:equal,
-             clim=(1.0,15.0))
-
-        savefig("../img/compare_line/irregular_top")
-
-        return atmos_from_voronoi, S_λ_grid
+        return atmos_from_voronoi, S_λ_grid, populations_grid
     end
 
-    atmos, S_regular = regular();
-    atmos_voronoi, S_voronoi = voronoi(atmos);
+    atmos_regular, S_regular, populations_regular = regular();
+    atmos_voronoi, S_voronoi, populations_voronoi = voronoi(atmos_regular);
 
+    VORONOI_DATA = "../data/voronoi_line.h5"
+
+    create_output_file(VORONOI_DATA, size(S_voronoi)[1], size(atmos_voronoi.temperature))
+
+    write_to_file(populations_voronoi, VORONOI_DATA)
+    write_to_file(S_voronoi, VORONOI_DATA)
+    write_to_file(atmos_voronoi, VORONOI_DATA)
+
+    REGULAR_DATA = "../data/regular_line.h5"
+
+    create_output_file(REGULAR_DATA, size(S_regular)[1], size(atmos_regular.temperature))
+
+    write_to_file(populations_regular, REGULAR_DATA)
+    write_to_file(S_regular, REGULAR_DATA)
+    write_to_file(atmos_regular, REGULAR_DATA)
 end
 
 DATA = "../data/bifrost_qs006023_s525_quarter.hdf5"

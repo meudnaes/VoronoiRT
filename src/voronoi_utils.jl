@@ -457,6 +457,7 @@ function Voronoi_to_Raster(sites::VoronoiSites,
                            atmos::Atmosphere,
                            S_λ::Array{<:UnitsIntensity_λ},
                            α_tot::Array{<:PerLength},
+                           populations::Array{<:NumberDensity},
                            r_factor)
 
     z = collect(LinRange(sites.z_min, sites.z_max,
@@ -479,6 +480,7 @@ function Voronoi_to_Raster(sites::VoronoiSites,
     velocity_y = copy(velocity_z)
     S_λ_grid = Array{Float64, 4}(undef, (nλ, nz, nx, ny))u"kW*nm^-1*m^-2"
     α_grid = Array{Float64, 4}(undef, (nλ, nz, nx, ny))u"m^-1"
+    populations_grid = Array{Float64, 4}(undef, (nz, nx, ny, 3))u"m^-3"
 
     tree = KDTree(ustrip(sites.positions))
     for k in 1:length(z)
@@ -494,6 +496,7 @@ function Voronoi_to_Raster(sites::VoronoiSites,
                 velocity_y[k, i, j] = sites.velocity_y[idx]
                 S_λ_grid[:, k, i, j] = S_λ[:, idx]
                 α_grid[:, k, i, j] = α_tot[:, idx]
+                populations_grid[k, i, j, :] = populations[idx, :]
             end
         end
     end
@@ -501,7 +504,7 @@ function Voronoi_to_Raster(sites::VoronoiSites,
     voronoi_atmos = Atmosphere(z, x, y, temperature, electron_density,
                            hydrogen_density, velocity_z, velocity_x, velocity_y)
 
-    return voronoi_atmos, S_λ_grid, α_grid
+    return voronoi_atmos, S_λ_grid, α_grid, populations_grid
 end
 
 function _initialise(p_vec, atmos::Atmosphere)

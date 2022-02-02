@@ -1,4 +1,3 @@
-include("atom.jl")
 include("line.jl")
 include("functions.jl")
 include("broadening.jl")

@@ -1,5 +1,3 @@
-# include("atmosphere.jl")
-include("atom.jl")
 include("functions.jl")
 
 """
