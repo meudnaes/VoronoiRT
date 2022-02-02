@@ -122,7 +122,7 @@ function test_atom()
     χu = 82258.211u"cm^-1"
     χ∞ = 109677.617u"cm^-1"
 
-    nλ_bb = 60
+    nλ_bb = 50
     nλ_bf = 20
 
     gl = 2

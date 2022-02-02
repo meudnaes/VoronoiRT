@@ -16,7 +16,7 @@ function compare(DATA, quadrature)
     ϕ = 10
 
     function regular()
-        atmos = Atmosphere(get_atmos(DATA; periodic=true, skip=4)...)
+        atmos = Atmosphere(get_atmos(DATA; periodic=true, skip=3)...)
 
         global line
         line = HydrogenicLine(test_atom()..., atmos.temperature)

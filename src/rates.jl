@@ -58,8 +58,8 @@ function calculate_R(atmos::Atmosphere,
 
     # ionization
     for level = 1:n_levels
-        start = line.λidx[level+1]
-        stop = line.λidx[level+2]-1
+        start = line.λidx[level+1]+1
+        stop = line.λidx[level+2]
         σ = σic(level, line, line.λ[start:stop])
         G = Gij(level, n_levels+1, line.λ[start:stop], atmos.temperature*1.0, LTE_pops)
 
@@ -71,8 +71,8 @@ function calculate_R(atmos::Atmosphere,
     # for l=1:n_levels-1
         # for u=(l+1):n_levels
 
-    start = line.λidx[1]
-    stop = line.λidx[2]-1
+    start = line.λidx[1]+1
+    stop = line.λidx[2]
 
     l = 1
     u = 2
@@ -158,13 +158,13 @@ end
 """
     Rij(J::Array{<:UnitsIntensity_λ, 4},
         σij::Array{<:Unitful.Area, 4},
-        λ::Array{<:Unitful.Length, 1})
+        λ::Vector{<:Unitful.Length})
 
 Raditive rate for excitation transitions.
 """
 function Rij(J::Array{<:UnitsIntensity_λ, 4},
              σij::Array{<:Unitful.Area, 4},
-             λ::Array{<:Unitful.Length, 1})
+             λ::Vector{<:Unitful.Length})
 
     nλ, nz, nx, ny = size(J)
     R = Array{Float64, 3}(undef, (nz, nx, ny))u"s^-1"
@@ -179,7 +179,7 @@ function Rij(J::Array{<:UnitsIntensity_λ, 4},
 end
 function Rij(J::Array{<:UnitsIntensity_λ, 2},
              σij::Array{<:Unitful.Area, 2},
-             λ::Array{<:Unitful.Length, 1})
+             λ::Vector{<:Unitful.Length})
 
     nλ, n = size(J)
     R = Vector{Float64}(undef, n)u"s^-1"
@@ -196,13 +196,13 @@ end
 """
     Rij(J::Array{<:UnitsIntensity_λ, 4},
         σij::Array{<:Unitful.Area, 1},
-        λ::Array{<:Unitful.Length, 1})
+        λ::Vector{<:Unitful.Length})
 
 Radiative rate for ionisation transitions.
 """
 function Rij(J::Array{<:UnitsIntensity_λ, 4},
              σij::Array{<:Unitful.Area, 1},
-             λ::Array{<:Unitful.Length, 1})
+             λ::Vector{<:Unitful.Length})
 
     nλ, nz, nx, ny = size(J)
     R = Array{Float64, 3}(undef, (nz, nx, ny))u"s^-1"
@@ -217,7 +217,7 @@ function Rij(J::Array{<:UnitsIntensity_λ, 4},
 end
 function Rij(J::Array{<:UnitsIntensity_λ, 2},
              σij::Array{<:Unitful.Area, 1},
-             λ::Array{<:Unitful.Length, 1})
+             λ::Vector{<:Unitful.Length})
 
     nλ, n = size(J)
     R = Vector{Float64}(undef, n)u"s^-1"
@@ -235,14 +235,14 @@ end
     Rji(J::Array{<:UnitsIntensity_λ, 4},
         σij::Array{<:Unitful.Area, 4},
         Gij::Array{Float64, 4},
-        λ::Array{<:Unitful.Length, 1})
+        λ::Vector{<:Unitful.Length})
 
 Radiative rate for de-excitation transitions.
 """
 function Rji(J::Array{<:UnitsIntensity_λ, 4},
              σij::Array{<:Unitful.Area, 4},
              Gij::Array{Float64, 4},
-             λ::Array{<:Unitful.Length, 1})
+             λ::Vector{<:Unitful.Length})
 
     nλ, nz, nx, ny = size(J)
     R = Array{Float64, 3}(undef, (nz, nx, ny))u"s^-1"
@@ -259,7 +259,7 @@ end
 function Rji(J::Array{<:UnitsIntensity_λ, 2},
              σij::Array{<:Unitful.Area, 2},
              Gij::Array{Float64, 2},
-             λ::Array{<:Unitful.Length, 1})
+             λ::Vector{<:Unitful.Length})
 
     nλ, n = size(J)
     R = Vector{Float64}(undef, n)u"s^-1"
@@ -278,14 +278,14 @@ end
     Rji(J::Array{<:UnitsIntensity_λ, 4},
         σij::Array{<:Unitful.Area, 1},
         Gij::Array{Float64, 4},
-        λ::Array{<:Unitful.Length, 1})
+        λ::Vector{<:Unitful.Length})
 
 Radiative rate for recombination transitions.
 """
 function Rji(J::Array{<:UnitsIntensity_λ, 4},
              σij::Array{<:Unitful.Area, 1},
              Gij::Array{Float64, 4},
-             λ::Array{<:Unitful.Length, 1})
+             λ::Vector{<:Unitful.Length})
 
     nλ, nz, nx, ny = size(J)
     R = Array{Float64, 3}(undef, (nz, nx, ny))u"s^-1"
@@ -302,7 +302,7 @@ end
 function Rji(J::Array{<:UnitsIntensity_λ, 2},
              σij::Array{<:Unitful.Area, 1},
              Gij::Array{Float64, 2},
-             λ::Array{<:Unitful.Length, 1})
+             λ::Vector{<:Unitful.Length})
 
     nλ, n = size(J)
     R = Vector{Float64}(undef, n)u"s^-1"
@@ -321,7 +321,7 @@ end
     σij(i::Integer,
         j::Integer,
         atom::Atom,
-        λ::Array{<:Unitful.Length, 1})
+        λ::Vector{<:Unitful.Length})
 
 Calculates the bound-bound cross section.
 """
@@ -369,7 +369,7 @@ end
 """
     σic(i::Integer,
         atom::Atom,
-        λ::Array{<:Unitful.Length, 1})
+        λ::Vector{<:Unitful.Length})
 
 Calculates the bound-free cross-section.
 """
@@ -394,7 +394,7 @@ end
 """
     Gij(i::Integer,
         j::Integer,
-        λ::Array{<:Unitful.Length, 1},
+        λ::Vector{<:Unitful.Length},
         temperature::Array{<:Unitful.Temperature, 3},
         LTE_populations::Array{<:NumberDensity, 4})
 
@@ -402,7 +402,7 @@ Factor to go into the de-excitation and recombination expressions.
 """
 function Gij(i::Integer,
              j::Integer,
-             λ::Array{<:Unitful.Length, 1},
+             λ::Vector{<:Unitful.Length},
              temperature::Array{<:Unitful.Temperature, 3},
              LTE_populations::Array{<:NumberDensity, 4})
 
@@ -420,7 +420,7 @@ function Gij(i::Integer,
 end
 function Gij(i::Integer,
              j::Integer,
-             λ::Array{<:Unitful.Length, 1},
+             λ::Vector{<:Unitful.Length},
              temperature::Array{<:Unitful.Temperature, 1},
              LTE_populations::Array{<:NumberDensity, 2})
 
