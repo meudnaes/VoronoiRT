@@ -1,5 +1,6 @@
 using Plots
 
+include("io.jl")
 include("line.jl")
 include("functions.jl")
 include("atmosphere.jl")
@@ -9,14 +10,14 @@ global my_seed = 2022
 Random.seed!(my_seed)
 
 function compare(DATA, quadrature)
-    maxiter = 100
+    maxiter = 3
     ϵ = 1e-3
 
     θ = 10
     ϕ = 10
 
     function regular()
-        atmos = Atmosphere(get_atmos(DATA; periodic=true, skip=3)...)
+        atmos = Atmosphere(get_atmos(DATA; periodic=true, skip=4)...)
 
         global line
         line = HydrogenicLine(test_atom()..., atmos.temperature)
@@ -35,14 +36,14 @@ function compare(DATA, quadrature)
 
         profile = compute_voigt_profile(line, atmos, damping_λ, θ*π/180, ϕ*π/180)
 
-        α_line = Array{Float64, 4}(undef, size(profile))u"m^-1"
+        α_tot = Array{Float64, 4}(undef, size(profile))u"m^-1"
         for l in eachindex(line.λ)
-            α_line[l, :, :, :] = αline_λ(line,
-                                         profile[l, :, :, :],
-                                         populations[:, :, :, 1],
-                                         populations[:, :, :, 2])
+            α_tot[l,:,:,:] = αline_λ(line,
+                                        profile[l, :, :, :],
+                                        populations[:, :, :, 1],
+                                        populations[:, :, :, 2])
+            α_tot[l,:,:,:] += α_cont
         end
-        α_tot = α_line .+ α_cont
 
         I_top = short_characteristics_up(θ, ϕ, S_λ[6,:,:,:], α_tot[6,:,:,:],
                                          atmos, degrees=true, I_0=S_λ[6,1,:,:])
@@ -111,14 +112,14 @@ function compare(DATA, quadrature)
 
         profile = compute_voigt_profile(line, sites, damping_λ, θ*π/180, ϕ*π/180)
 
-        α_line = Array{Float64, 2}(undef, size(profile))u"m^-1"
+        α_tot = Matrix{Float64}(undef, size(profile))u"m^-1"
         for l in eachindex(line.λ)
-         α_line[l, :] = αline_λ(line,
-                                profile[l, :],
-                                populations[:, 1],
-                                populations[:, 2])
+            α_tot[l, :] = αline_λ(line,
+                                  profile[l, :],
+                                  populations[:, 1],
+                                  populations[:, 2])
+            α_tot[l,:] += α_cont
         end
-        α_tot = α_line .+ α_cont
 
         atmos_from_voronoi, S_λ_grid, α_grid, populations_grid = Voronoi_to_Raster(sites, atmos, S_λ, α_tot, populations, 3)
 

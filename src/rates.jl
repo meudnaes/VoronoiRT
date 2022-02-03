@@ -1,14 +1,10 @@
 include("functions.jl")
 
 """
-    calculate_transition_rates(atmos::Atmosphere,
-                               line::Atom,
-                               J_λ::Array{<:UnitsIntensity_λ,4},
-                               damping_λ::Array{<:Float64, 4})
+    calculate_C(atmos::Atmosphere,
+                LTE_pops::Array{<:NumberDensity, 4})
 
-Given the radiation field, calculate all transition rates for
-the excitation, de-excitation, ionisations and re-combiantions
-of a single atom.
+Calculate collisional rates
 """
 function calculate_C(atmos::Atmosphere,
                      LTE_pops::Array{<:NumberDensity, 4})
@@ -44,6 +40,51 @@ function calculate_C(atmos::Atmosphere,
 
     return C
 end
+
+function calculate_C(sites::VoronoiSites,
+                     LTE_pops::Matrix{<:NumberDensity})
+
+    n, nl = size(LTE_pops)
+    n_levels = nl - 1
+
+    C = Array{Float64, 3}(undef, (n_levels+1, n_levels+1, n))u"s^-1"
+
+    # ionization
+    for level = 1:n_levels
+        C[level,n_levels+1,:] = Cij(level, n_levels+1, sites.electron_density*1.0, sites.temperature*1.0, LTE_pops)
+        C[n_levels+1,level,:] = Cij(n_levels+1, level, sites.electron_density*1.0, sites.temperature*1.0, LTE_pops)
+    end
+
+    # bb transition
+    # for l=1:n_levels-1
+        # for u=(l+1):n_levels
+
+    l = 1
+    u = 2
+
+    C[l,u,:] = Cij(l, u, sites.electron_density*1.0, sites.temperature*1.0, LTE_pops)
+    C[u,l,:] = Cij(u, l, sites.electron_density*1.0, sites.temperature*1.0, LTE_pops)
+
+        # end
+    # end
+
+    # Fill diagonal with zeros, because #undef does not like arithmetics
+    for l=1:n_levels+1
+        C[l,l,:] .= 0u"s^-1"
+    end
+
+    return C
+end
+
+"""
+    calculate_R(atmos::Atmosphere,
+                     line::HydrogenicLine,
+                     J_λ::Array{<:UnitsIntensity_λ,4},
+                     damping_λ::Array{<:Float64, 4},
+                     LTE_pops::Array{<:NumberDensity, 4})
+
+Calculcates the radiative rates
+"""
 
 function calculate_R(atmos::Atmosphere,
                      line::HydrogenicLine,
@@ -94,20 +135,16 @@ function calculate_R(atmos::Atmosphere,
     return R
 end
 
-function calculate_transition_rates(sites::VoronoiSites,
-                                    line::HydrogenicLine,
-                                    J_λ::Array{<:UnitsIntensity_λ, 2},
-                                    damping_λ::Array{<:Float64, 2})
-    LTE_pops = LTE_populations(line, sites)*1.0
+function calculate_R(sites::VoronoiSites,
+                     line::HydrogenicLine,
+                     J_λ::Matrix{<:UnitsIntensity_λ},
+                     damping_λ::Matrix{<:Float64},
+                     LTE_pops::Matrix{<:NumberDensity})
 
     n, nl = size(LTE_pops)
     n_levels = nl - 1
 
-    # ==================================================================
-    # CALCULATE RADIATIVE RATES
-    # ==================================================================
     R = Array{Float64, 3}(undef, (n_levels+1, n_levels+1, n))u"s^-1"
-    C = Array{Float64, 3}(undef, (n_levels+1, n_levels+1, n))u"s^-1"
 
     # ionization
     for level = 1:n_levels
@@ -118,9 +155,6 @@ function calculate_transition_rates(sites::VoronoiSites,
 
         R[level,n_levels+1,:] = Rij(J_λ[start:stop,:], σ, line.λ[start:stop])
         R[n_levels+1,level,:] = Rji(J_λ[start:stop,:], σ, G, line.λ[start:stop])
-
-        C[level,n_levels+1,:] = Cij(level, n_levels+1, sites.electron_density*1.0, sites.temperature*1.0, LTE_pops)
-        C[n_levels+1,level,:] = Cij(n_levels+1, level, sites.electron_density*1.0, sites.temperature*1.0, LTE_pops)
     end
 
     # bb transition
@@ -139,19 +173,15 @@ function calculate_transition_rates(sites::VoronoiSites,
     R[l,u,:] = Rij(J_λ[start:stop,:], σ, line.λ[start:stop])
     R[u,l,:] = Rji(J_λ[start:stop,:], σ, G, line.λ[start:stop])
 
-    C[l,u,:] = Cij(l, u, sites.electron_density*1.0, sites.temperature*1.0, LTE_pops)
-    C[u,l,:] = Cij(u, l, sites.electron_density*1.0, sites.temperature*1.0, LTE_pops)
-
         # end
     # end
 
     # Fill diagonal with zeros, because #undef does not like arithmetics
     for l=1:n_levels+1
         R[l,l,:] .= 0u"s^-1"
-        C[l,l,:] .= 0u"s^-1"
     end
 
-    return R, C
+    return R
 end
 
 
@@ -177,8 +207,8 @@ function Rij(J::Array{<:UnitsIntensity_λ, 4},
 
     return R
 end
-function Rij(J::Array{<:UnitsIntensity_λ, 2},
-             σij::Array{<:Unitful.Area, 2},
+function Rij(J::Matrix{<:UnitsIntensity_λ},
+             σij::Matrix{<:Unitful.Area},
              λ::Vector{<:Unitful.Length})
 
     nλ, n = size(J)
@@ -201,7 +231,7 @@ end
 Radiative rate for ionisation transitions.
 """
 function Rij(J::Array{<:UnitsIntensity_λ, 4},
-             σij::Array{<:Unitful.Area, 1},
+             σij::Vector{<:Unitful.Area},
              λ::Vector{<:Unitful.Length})
 
     nλ, nz, nx, ny = size(J)
@@ -215,8 +245,8 @@ function Rij(J::Array{<:UnitsIntensity_λ, 4},
 
     return R
 end
-function Rij(J::Array{<:UnitsIntensity_λ, 2},
-             σij::Array{<:Unitful.Area, 1},
+function Rij(J::Matrix{<:UnitsIntensity_λ},
+             σij::Vector{<:Unitful.Area},
              λ::Vector{<:Unitful.Length})
 
     nλ, n = size(J)
@@ -256,9 +286,9 @@ function Rji(J::Array{<:UnitsIntensity_λ, 4},
 
     return R
 end
-function Rji(J::Array{<:UnitsIntensity_λ, 2},
-             σij::Array{<:Unitful.Area, 2},
-             Gij::Array{Float64, 2},
+function Rji(J::Matrix{<:UnitsIntensity_λ},
+             σij::Matrix{<:Unitful.Area},
+             Gij::Matrix{Float64},
              λ::Vector{<:Unitful.Length})
 
     nλ, n = size(J)
@@ -283,7 +313,7 @@ end
 Radiative rate for recombination transitions.
 """
 function Rji(J::Array{<:UnitsIntensity_λ, 4},
-             σij::Array{<:Unitful.Area, 1},
+             σij::Vector{<:Unitful.Area},
              Gij::Array{Float64, 4},
              λ::Vector{<:Unitful.Length})
 
@@ -299,9 +329,9 @@ function Rji(J::Array{<:UnitsIntensity_λ, 4},
 
     return R
 end
-function Rji(J::Array{<:UnitsIntensity_λ, 2},
-             σij::Array{<:Unitful.Area, 1},
-             Gij::Array{Float64, 2},
+function Rji(J::Matrix{<:UnitsIntensity_λ},
+             σij::Vector{<:Unitful.Area},
+             Gij::Matrix{Float64},
              λ::Vector{<:Unitful.Length})
 
     nλ, n = size(J)
@@ -349,13 +379,13 @@ function σij(i::Integer,
              j::Integer,
              line::HydrogenicLine,
              λ::Vector{<:Unitful.Length},
-             damping_λ::Array{<:Float64, 2})
+             damping_λ::Matrix{<:Float64})
 
     λ0 = line.λ0
     σ_constant = h*c_0/(4π*λ0) * line.Bij
     nλ = length(λ)
     n = length(line.ΔD)
-    σ = Array{Float64, 2}(undef, (nλ, n))u"m^2"
+    σ = Matrix{Float64}(undef, (nλ, n))u"m^2"
 
     for l=1:nλ
         v = (λ[l] - λ0) ./ line.ΔD
@@ -421,12 +451,12 @@ end
 function Gij(i::Integer,
              j::Integer,
              λ::Vector{<:Unitful.Length},
-             temperature::Array{<:Unitful.Temperature, 1},
-             LTE_populations::Array{<:NumberDensity, 2})
+             temperature::Vector{<:Unitful.Temperature},
+             LTE_populations::Matrix{<:NumberDensity})
 
     nλ = length(λ)
     n = length(temperature)
-    G = Array{Float64, 2}(undef, (nλ, n))
+    G = Matrix{Float64}(undef, (nλ, n))
 
     n_ratio = LTE_populations[:,i] ./LTE_populations[:,j]
 

@@ -34,20 +34,15 @@ function J_λ_regular(S_λ::Array{<:UnitsIntensity_λ, 4},
 
         profile = compute_voigt_profile(line, atmos, damping_λ, θ, ϕ)
 
-        # line extinction
-        α_line = Array{Float64, 4}(undef, size(profile))u"m^-1"
+        # total extinction
+        α_tot = Array{Float64, 4}(undef, size(profile))u"m^-1"
         for l in eachindex(line.λ)
-            α_line[l, :, :, :] = αline_λ(line,
-                                         profile[l, :, :, :],
-                                         populations[:, :, :, 1],
-                                         populations[:, :, :, 2])
-        end
+            α_tot[l,:,:,:] = αline_λ(line,
+                                     profile[l, :, :, :],
+                                     populations[:, :, :, 1],
+                                     populations[:, :, :, 2])
 
-        # total exinction
-        α_tot = Array{Float64, 4}(undef, size(S_λ))u"m^-1"
-        fill!(α_tot, 0u"m^-1")
-        for l in eachindex(line.λ)
-            α_tot[l, :, :, :] += α_line[l, :, :, :] .+ α_cont
+            α_tot[l,:,:,:] += α_cont
         end
 
         for l in eachindex(line.λ)
@@ -77,7 +72,7 @@ function J_λ_regular(S_λ::Array{<:UnitsIntensity_λ, 4},
 end
 
 function J_λ_voronoi(S_λ::Matrix{<:UnitsIntensity_λ},
-                     α_cont::Matrix{<:PerLength},
+                     α_cont::Vector{<:PerLength},
                      populations::Matrix{<:NumberDensity},
                      sites::VoronoiSites,
                      line::HydrogenicLine,
@@ -107,16 +102,17 @@ function J_λ_voronoi(S_λ::Matrix{<:UnitsIntensity_λ},
 
         profile = compute_voigt_profile(line, sites, damping_λ, θ, ϕ)
 
-        # line extinction
-        α_line = Matrix{PerLength}(undef, size(profile))
+        # total extinction
+        α_tot = Matrix{Float64}(undef, size(profile))u"m^-1"
         for l in eachindex(line.λ)
-            α_line[l, :] = αline_λ(line,
-                                   profile[l, :],
-                                   populations[:, 1],
-                                   populations[:, 2])
+            α_tot[l,:] = αline_λ(line,
+                                 profile[l, :],
+                                 populations[:, 1],
+                                 populations[:, 2])
+
+            α_tot[l,:] += α_cont
         end
 
-        α_tot = α_cont .+ α_line
         for l in eachindex(line.λ)
             if θ_array[i] > 90
                 perm = sortperm(sites.layers_up)
@@ -233,24 +229,20 @@ function Λ_voronoi(ϵ::AbstractFloat,
     populations = copy(LTE_pops)
 
     # Find continuum extinction and absorption extinction (only with Thomson and Rayleigh)
-    α_cont = Array{Float64, 2}(undef, (length(line.λ), sites.n))u"m^-1"
-    α_a = copy(α_cont)
-    for l in eachindex(line.λ)
-        α_cont[l, :] = α_continuum.(line.λ[l],
-                                          sites.temperature*1.0,
-                                          sites.electron_density*1.0,
-                                          populations[:, 1]*1.0,
-                                          populations[:, 3]*1.0)
+    α_cont = α_continuum.(line.λ0,
+                          sites.temperature*1.0,
+                          sites.electron_density*1.0,
+                          populations[:, 1]*1.0,
+                          populations[:, 3]*1.0)
 
-        α_a[l, :] = α_absorption.(line.λ[l],
-                                        sites.temperature*1.0,
-                                        sites.electron_density*1.0,
-                                        populations[:, 1]*1.0,
-                                        populations[:, 3]*1.0)
-    end
+    α_a = α_absorption.(line.λ0,
+                        sites.temperature*1.0,
+                        sites.electron_density*1.0,
+                        populations[:, 1]*1.0,
+                        populations[:, 3]*1.0)
 
     # Start with the source function as the Planck function
-    B_0 = Array{Float64, 2}(undef, size(α_cont))u"kW*m^-2*nm^-1"
+    B_0 = Array{Float64, 2}(undef, (length(line.λ), sites.n))u"kW*m^-2*nm^-1"
 
     for l in eachindex(line.λ)
         B_0[l, :] = B_λ.(line.λ[l], sites.temperature)
@@ -261,13 +253,10 @@ function Λ_voronoi(ϵ::AbstractFloat,
     S_old = zero(S_new)
 
     # destruction probability (Should I include line???)
-    ελ = Array{Float64, 2}(undef, size(α_cont))
-    for l in eachindex(line.λ)
-        ελ[l, :] = destruction(populations, sites.electron_density, sites.temperature, line)
-    end
+    ελ = destruction(populations, sites.electron_density, sites.temperature, line)
     thick = ελ .> 1e-2
 
-    C = calculate_C(sites, line, J_new, damping_λ, LTE_pops)
+    C = calculate_C(sites, LTE_pops)
 
     i=0
 
@@ -281,7 +270,9 @@ function Λ_voronoi(ϵ::AbstractFloat,
         J_new, damping_λ = J_λ_voronoi(S_old, α_cont, populations,
                                        sites, line, quadrature)
 
-        S_new = (1 .- ελ).*J_new .+ ελ.*B_0
+        for l in eachindex(line.λ)
+        S_new[l,:] = (1 .- ελ).*J_new[l,:] .+ ελ.*B_0[l,:]
+        end
 
         #############################
         #      Calculate rates      #
@@ -318,7 +309,12 @@ function destruction(LTE_pops::Array{<:NumberDensity},
     ελ_0 = C21./(C21 .+ A21 .+ B21.*Bλ_0)
 end
 
-function criterion(S_new, S_old, ϵ, i, maxiter, indcs)
+function criterion(S_new::Array{<:UnitsIntensity_λ, 4},
+                   S_old::Array{<:UnitsIntensity_λ, 4},
+                   ϵ::Float64,
+                   i::Int,
+                   maxiter::Int,
+                   indcs)
     diff = 0
     nλ = size(S_new)[1]
     for l in 1:nλ
@@ -329,6 +325,28 @@ function criterion(S_new, S_old, ϵ, i, maxiter, indcs)
         end
         if isnan(l_diff)
             println("NaN DIFF!, index $l")
+        end
+    end
+    if i > 0
+        println("   Rel. diff.: $diff")
+    end
+    println("Iteration $(i+1)...")
+    diff > ϵ && i < maxiter
+end
+
+function criterion(S_new::Matrix{<:UnitsIntensity_λ},
+                   S_old::Matrix{<:UnitsIntensity_λ},
+                   ϵ::Float64,
+                   i::Int,
+                   maxiter::Int,
+                   indcs)
+    diff = 0
+    nλ = size(S_new)[1]
+    for l in 1:nλ
+        l_diff = maximum(abs.((S_new[l, :][indcs] .- S_old[l, :][indcs])
+                                ./S_new[l, :][indcs])) |> Unitful.NoUnits
+        if l_diff > diff
+            diff = l_diff
         end
     end
     if i > 0
