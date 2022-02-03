@@ -1,4 +1,7 @@
+using Unitful
 using HDF5
+
+include("atmosphere.jl")
 
 """
     write_to_file(Array,

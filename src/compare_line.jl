@@ -10,14 +10,16 @@ global my_seed = 2022
 Random.seed!(my_seed)
 
 function compare(DATA, quadrature)
-    maxiter = 3
+    maxiter = 100
     ϵ = 1e-3
 
     θ = 10
     ϕ = 10
 
+    n_skip = 4
+
     function regular()
-        atmos = Atmosphere(get_atmos(DATA; periodic=true, skip=4)...)
+        atmos = Atmosphere(get_atmos(DATA; periodic=true, skip=n_skip)...)
 
         global line
         line = HydrogenicLine(test_atom()..., atmos.temperature)
@@ -50,17 +52,27 @@ function compare(DATA, quadrature)
 
         # plot_top_intensity(I_top, atmos.x, atmos.y, "regular_top")
 
-        return atmos, S_λ, populations
+        REGULAR_DATA = "../data/regular_line.h5"
+
+        create_output_file(REGULAR_DATA, size(S_λ)[1], size(atmos.temperature))
+
+        write_to_file(populations, REGULAR_DATA)
+        write_to_file(S_λ, REGULAR_DATA)
+        write_to_file(atmos, REGULAR_DATA)
+
+        return 0
     end
 
 
-    function voronoi(atmos::Atmosphere)
+    function voronoi()
+
+        atmos = Atmosphere(get_atmos(DATA; periodic=false, skip=n_skip)...)
 
         nx = length(atmos.x)
         nz = length(atmos.z)
         ny = length(atmos.y)
 
-        n_sites = floor(Int, nz*nx*ny/4)
+        n_sites = floor(Int, nz*nx*ny)
         positions = rejection_sampling(n_sites, atmos, log10.(ustrip.(atmos.hydrogen_density)))
 
         sites_file = "../data/sites_compare.txt"
@@ -125,27 +137,19 @@ function compare(DATA, quadrature)
 
         # plot_top_intensity(I_top, atmos_voronoi.x, atmos_voronoi.y, "irregular_top")
 
-        return atmos_from_voronoi, S_λ_grid, populations_grid
+        VORONOI_DATA = "../data/voronoi_line.h5"
+
+        create_output_file(VORONOI_DATA, size(S_λ_grid)[1], size(atmos_from_voronoi.temperature))
+
+        write_to_file(populations_grid, VORONOI_DATA)
+        write_to_file(S_λ_grid, VORONOI_DATA)
+        write_to_file(atmos_from_voronoi, VORONOI_DATA)
+
+        return 0
     end
 
-    atmos_regular, S_regular, populations_regular = regular();
-    atmos_voronoi, S_voronoi, populations_voronoi = voronoi(atmos_regular);
-
-    VORONOI_DATA = "../data/voronoi_line.h5"
-
-    create_output_file(VORONOI_DATA, size(S_voronoi)[1], size(atmos_voronoi.temperature))
-
-    write_to_file(populations_voronoi, VORONOI_DATA)
-    write_to_file(S_voronoi, VORONOI_DATA)
-    write_to_file(atmos_voronoi, VORONOI_DATA)
-
-    REGULAR_DATA = "../data/regular_line.h5"
-
-    create_output_file(REGULAR_DATA, size(S_regular)[1], size(atmos_regular.temperature))
-
-    write_to_file(populations_regular, REGULAR_DATA)
-    write_to_file(S_regular, REGULAR_DATA)
-    write_to_file(atmos_regular, REGULAR_DATA)
+    # regular();
+    voronoi();
 end
 
 DATA = "../data/bifrost_qs006023_s525_quarter.hdf5"
