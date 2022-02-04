@@ -17,6 +17,29 @@ function inv_dist_itp_test(idxs, dists, p, values)
     f = f/avg_inv_dist
 end
 
+function inv_dist_itp(idxs::AbstractVector,
+                      dists::AbstractVector,
+                      p::AbstractFloat,
+                      values::AbstractVector)
+    avg_inv_dist = 0
+    f = 0
+    for i in 1:length(idxs)
+        idx = idxs[i]
+        if idx > 0
+            inv_dist = 1/dists[i]^p
+            avg_inv_dist += inv_dist
+            f += values[idx]*inv_dist
+        elseif idx == -5
+            # lower boundary
+            f+=0
+        elseif idx == -6
+            # upper boundary
+            f+=0
+        end
+    end
+    f = f/avg_inv_dist
+end
+
 function sample_function(x, y)
     return exp(-x^2 - y^2)
 end

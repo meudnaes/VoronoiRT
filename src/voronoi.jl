@@ -444,6 +444,7 @@ function searchlight_irregular_2()
     end
 
     # Voronoi grid
+    global sites
     sites = VoronoiSites(read_cell(neighbours_file, n_sites, positions)...,
                          temperature, electron_density, hydrogen_density,
                          velocity_z, velocity_x, velocity_y,
@@ -457,16 +458,14 @@ function searchlight_irregular_2()
 
     I_light = 1u"kW*m^-2*nm^-1"
 
-    perm = sortperm(sites.layers_up)
-    layers_sorted = sites.layers_up[perm]
-    bottom_layer = searchsortedfirst(layers_sorted, 2)
+    bottom_layer = sites.layers_up[2] - 1
 
-    I_0 = zeros(bottom_layer-1)u"kW*m^-2*nm^-1"
+    I_0 = zeros(bottom_layer)u"kW*m^-2*nm^-1"
     for i in 1:bottom_layer-1
-        idx = perm[i]
+        idx = sites.perm_up[i]
         xi = sites.positions[2, idx]
         yi = sites.positions[3, idx]
-        layer = sites.layers_up[idx]
+        layer = searchsortedfirst(sites.layers_up, idx) - 1
         if layer == 1 && sqrt((xi - 0.5u"m")^2 + (yi - 0.5u"m")^2) < R0
             I_0[i] = I_light
         end
@@ -557,16 +556,14 @@ function searchlight_irregular_2()
     θ = 150*π/180
     ϕ = 355*π/180
 
-    perm = sortperm(sites.layers_down)
-    layers_sorted = sites.layers_down[perm]
-    top_layer = searchsortedfirst(layers_sorted, 2)
+    top_layer = sites.layers_down[2] - 1
 
-    I_0 = zeros(top_layer-1)u"kW*m^-2*nm^-1"
+    I_0 = zeros(top_layer)u"kW*m^-2*nm^-1"
     for i in 1:top_layer-1
-        idx = perm[i]
+        idx = sites.perm_down[i]
         xi = sites.positions[2, idx]
         yi = sites.positions[3, idx]
-        layer = sites.layers_down[idx]
+        layer = searchsortedfirst(sites.layers_down, idx) - 1
         if layer == 1 && sqrt((xi - 0.5u"m")^2 + (yi - 0.5u"m")^2) < R0
             I_0[i] = I_light
         end
