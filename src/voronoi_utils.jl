@@ -9,7 +9,7 @@ struct VoronoiSites
     layers_down::Vector{Int}
     temperature::Vector{<:Unitful.Temperature}
     electron_density::Vector{<:NumberDensity}
-    hydrogen_density::Vector{<:NumberDensity}
+    hydrogen_populations::Vector{<:NumberDensity}
     velocity_z::Vector{<:Unitful.Velocity}
     velocity_x::Vector{<:Unitful.Velocity}
     velocity_y::Vector{<:Unitful.Velocity}
@@ -69,7 +69,6 @@ function read_cell(fname::String, n_sites::Int, positions::AbstractMatrix)
     # I need the permutation vectors, and the sorted vectors.
     # Layer sorting is unneccessary after this function
     #######################
-
 
     # perm_up = sortperm(layers_up)
     # layers_sorted_up = layers_up[perm_up]
@@ -179,18 +178,6 @@ function _sort_neighbours(NeighbourMatrix::AbstractMatrix,
     return sortedNeighbours
 end
 
-function inv_dist_itp_test(idxs, dists, p, sites::VoronoiSites)
-    avg_inv_dist = 0
-    f = 0
-    for i in 1:length(idxs)
-        idx = idxs[i]
-        inv_dist = 1/dists[i]^p
-        avg_inv_dist += inv_dist
-        f += values[idx]*inv_dist
-    end
-    f = f/avg_inv_dist
-end
-
 function beam(v::AbstractVector,
               v0::AbstractVector,
               R0::Float64,
@@ -204,29 +191,6 @@ function beam(v::AbstractVector,
     else
         return 0.1
     end
-end
-
-function inv_dist_itp(idxs::AbstractVector,
-                      dists::AbstractVector,
-                      p::AbstractFloat,
-                      values::AbstractVector)
-    avg_inv_dist = 0
-    f = 0
-    for i in 1:length(idxs)
-        idx = idxs[i]
-        if idx > 0
-            inv_dist = 1/dists[i]^p
-            avg_inv_dist += inv_dist
-            f += values[idx]*inv_dist
-        elseif idx == -5
-            # lower boundary
-            f+=0
-        elseif idx == -6
-            # upper boundary
-            f+=0
-        end
-    end
-    f = f/avg_inv_dist
 end
 
 function sample_beam(n_sites::Int,
@@ -326,77 +290,6 @@ function upwind_distances(neighbours::Vector{Int},
     return distances
 end
 
-function ray_intersection(k::AbstractArray,
-                          neighbours::Vector{Int},
-                          position::Vector{Float64},
-                          sites::VoronoiSites, ID)
-    # k is unit vector towards upwind direction of the ray
-
-    p_r = position
-
-    n_neighbours = length(neighbours)
-
-    x_r_r = abs(sites.x_max - p_r[2])
-    x_r_l = abs(p_r[2] - sites.x_min)
-
-    y_r_r = abs(sites.y_max - p_r[3])
-    y_r_l = abs(p_r[3] - sites.y_min)
-
-    s = Vector{Float64}(undef, n_neighbours)
-    for (i, neighbour) in enumerate(neighbours)
-        if neighbour > 0
-            # Natural neighbor position
-            p_i = sites.positions[:, neighbour]
-
-            x_i_r = abs(sites.x_max - p_i[2])
-            x_i_l = abs(p_i[2] - sites.x_min)
-
-            # Test for periodic
-            if x_r_r + x_i_l < p_r[2] - p_i[2]
-                p_i[2] = sites.x_max + p_i[2] - sites.x_min
-            elseif x_r_l + x_i_r < p_i[2] - p_r[2]
-                p_i[2] = sites.x_min + sites.x_max - p_i[2]
-            end
-
-            y_i_r = abs(sites.y_max - p_i[3])
-            y_i_l = abs(p_i[3] - sites.y_min)
-
-            # Test for periodic
-            if y_r_r + y_i_l < p_r[3] - p_i[3]
-                p_i[3] = sites.y_max + p_i[3] - sites.y_min
-            elseif y_r_l + y_i_r < p_i[3] - p_r[3]
-                p_i[3] = sites.y_min + sites.y_max - p_i[3]
-            end
-
-            # Calculate plane bisecting site and neighbor
-            # Normal vector
-            n = p_i .- p_r
-
-            # Point on the plane
-            p = (p_i .+ p_r) ./ 2
-            s[i] = dot(n, p .- p_r)/dot(n, k)
-        elseif neighbour == -6
-            # Boundary
-            z_upwind = sites.z_max
-            z = p_r[1]
-            s[i] = (z_upwind - z)/k[1]
-        elseif neighbour == -5
-            # Boundary
-            z_upwind = sites.z_min
-            z = p_r[1]
-            s[i] = (z_upwind - z)/k[1]
-        end
-    end
-
-
-
-    # Find the smallst non-negative s
-    index, s_q = smallest_non_negative(s)
-    q = p_r .+ s_q .* k
-
-    return q, neighbours[index]
-end
-
 function smallest_angle(position::Vector{<:Unitful.Length},
                         neighbours::Vector{Int},
                         k::Vector{Float64},
@@ -488,7 +381,7 @@ function Voronoi_to_Raster(sites::VoronoiSites,
 
     temperature = Array{Float64, 3}(undef, (nz, ny, nx))u"K"
     electron_density = Array{Float64, 3}(undef, (nz, ny, nx))u"m^-3"
-    hydrogen_density = Array{Float64, 3}(undef, (nz, ny, nx))u"m^-3"
+    hydrogen_populations = Array{Float64, 3}(undef, (nz, ny, nx))u"m^-3"
     velocity_z = Array{Float64, 3}(undef, (nz, ny, nx))u"m*s^-1"
     velocity_x = copy(velocity_z)
     velocity_y = copy(velocity_z)
@@ -504,7 +397,7 @@ function Voronoi_to_Raster(sites::VoronoiSites,
                 idx, dist = nn(tree, ustrip(grid_point))
                 temperature[k, i, j] = sites.temperature[idx]
                 electron_density[k, i, j] = sites.electron_density[idx]
-                hydrogen_density[k, i, j] = sites.hydrogen_density[idx]
+                hydrogen_populations[k, i, j] = sites.hydrogen_populations[idx]
                 velocity_z[k, i, j] = sites.velocity_z[idx]
                 velocity_x[k, i, j] = sites.velocity_x[idx]
                 velocity_y[k, i, j] = sites.velocity_y[idx]
@@ -516,7 +409,7 @@ function Voronoi_to_Raster(sites::VoronoiSites,
     end
 
     voronoi_atmos = Atmosphere(z, x, y, temperature, electron_density,
-                           hydrogen_density, velocity_z, velocity_x, velocity_y)
+                           hydrogen_populations, velocity_z, velocity_x, velocity_y)
 
     return voronoi_atmos, S_λ_grid, α_grid, populations_grid
 end
@@ -536,7 +429,7 @@ function _initialise(p_vec, atmos::Atmosphere)
         zk, xk, yk = p_vec[:, k]
         temperature_new[k] = trilinear(zk, xk, yk, atmos, atmos.temperature)
         N_e_new[k] = trilinear(zk, xk, yk, atmos, atmos.electron_density)
-        N_H_new[k] = trilinear(zk, xk, yk, atmos, atmos.hydrogen_density)
+        N_H_new[k] = trilinear(zk, xk, yk, atmos, atmos.hydrogen_populations)
         velocity_z_new[k] = trilinear(zk, xk, yk, atmos, atmos.velocity_z)
         velocity_x_new[k] = trilinear(zk, xk, yk, atmos, atmos.velocity_x)
         velocity_y_new[k] = trilinear(zk, xk, yk, atmos, atmos.velocity_y)

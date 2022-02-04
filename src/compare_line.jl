@@ -73,7 +73,7 @@ function compare(DATA, quadrature)
         ny = length(atmos.y)
 
         n_sites = floor(Int, nz*nx*ny)
-        positions = rejection_sampling(n_sites, atmos, log10.(ustrip.(atmos.hydrogen_density)))
+        positions = rejection_sampling(n_sites, atmos, log10.(ustrip.(atmos.hydrogen_populations)))
 
         sites_file = "../data/sites_compare.txt"
         neighbours_file = "../data/neighbours_compare.txt"
@@ -148,7 +148,7 @@ function compare(DATA, quadrature)
         return 0
     end
 
-    # regular();
+    regular();
     voronoi();
 end
 

@@ -34,7 +34,7 @@ function LTE_populations(line::HydrogenicLine,
     χ = [line.χi, line.χj, line.χ∞]
     # Ionised hydrogen -> g = 1
     g = [line.gi, line.gj, 1]
-    atom_density = atmos.hydrogen_density
+    atom_density = atmos.hydrogen_populations
     nz, nx, ny = size(atom_density)
 
     n_levels = 3
@@ -62,7 +62,7 @@ function LTE_populations(line::HydrogenicLine,
     χ = [line.χi, line.χj, line.χ∞]
     # Ionised hydrogen -> g = 1
     g = [line.gi, line.gj, 1]
-    atom_density = sites.hydrogen_density
+    atom_density = sites.hydrogen_populations
     n = length(atom_density)
 
     n_levels = 3

@@ -216,12 +216,12 @@ function find_sites(z_new::Array, x_new::Array, y_new::Array,
 end
 
 @doc raw"""
-    trilinear(x_mrk, y_mrk, z_mrk, hydrogen_density)
+    trilinear(x_mrk, y_mrk, z_mrk, hydrogen_populations)
 
 Three-dimensional linear interpolation. Takes a function
 $f: \mathbb{R}^3 -> \mathbb{R}$ and returns the trilinear interpolation in the
 coordinates (x, y, z). Assumes an original cartesian grid (x, y, z), and
-values for each grid point (hydrogen_density) are defined
+values for each grid point (hydrogen_populations) are defined
 """
 function trilinear(z_mrk, x_mrk, y_mrk,
                    atmos::Atmosphere, vals::AbstractArray)
@@ -348,19 +348,19 @@ end
 
 Finds the mass of a cell by taking the average mass density over all cell
 corners and multiplies with the volume of the cell. Assumes an original
-cartesian grid (x, y, z) and a corresponding value (hydrogen_density) for
+cartesian grid (x, y, z) and a corresponding value (hydrogen_populations) for
 each grid point
 """
 function mass_function(k::Int64, i::Int64, j::Int64, atmos::Atmosphere)
     volume = (atmos.z[k+1] - atmos.z[k])*(atmos.x[i+1] - atmos.x[i])*(atmos.y[j+1] - atmos.y[j])
-    avg_density = (atmos.hydrogen_density[k, i, j] +
-                   atmos.hydrogen_density[k, i, j+1] +
-                   atmos.hydrogen_density[k, i+1, j+1] +
-                   atmos.hydrogen_density[k, i+1, j] +
-                   atmos.hydrogen_density[k+1, i, j] +
-                   atmos.hydrogen_density[k+1, i, j+1] +
-                   atmos.hydrogen_density[k+1, i+1, j+1] +
-                   atmos.hydrogen_density[k+1, i+1, j])/8*m_p
+    avg_density = (atmos.hydrogen_populations[k, i, j] +
+                   atmos.hydrogen_populations[k, i, j+1] +
+                   atmos.hydrogen_populations[k, i+1, j+1] +
+                   atmos.hydrogen_populations[k, i+1, j] +
+                   atmos.hydrogen_populations[k+1, i, j] +
+                   atmos.hydrogen_populations[k+1, i, j+1] +
+                   atmos.hydrogen_populations[k+1, i+1, j+1] +
+                   atmos.hydrogen_populations[k+1, i+1, j])/8*m_p
     mass = volume*avg_density
     return mass
 end

@@ -199,7 +199,7 @@ function Λ_regular(ϵ::AbstractFloat,
         #############################
         #    Update populations     #
         #############################
-        populations = get_revised_populations(R, C, atmos.hydrogen_density*1.0)
+        populations = get_revised_populations(R, C, atmos.hydrogen_populations*1.0)
 
         ############################
         #     Iteration is done    #
@@ -282,7 +282,7 @@ function Λ_voronoi(ϵ::AbstractFloat,
         #############################
         #    Update populations     #
         #############################
-        populations = get_revised_populations(R, C, sites.hydrogen_density)
+        populations = get_revised_populations(R, C, sites.hydrogen_populations)
 
         i+=1
     end

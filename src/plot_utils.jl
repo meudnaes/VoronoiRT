@@ -74,23 +74,10 @@ end
 
 read quantities from simulation from a hdf5 file
 """
-function read_quantities(DATA::String)
-    local S_λ, populations, atmos
+function read_quantities(DATA::String; periodic=true)
+    atmos = Atmosphere(get_atmos(DATA; periodic=periodic, skip=1)...)
+    local S_λ, populations
     h5open(DATA, "r") do file
-        z = read(file, "z")[:]*u"m"
-        x = read(file, "x")[:]*u"m"
-        y = read(file, "y")[:]*u"m"
-
-        velocity_z = read(file, "velocity_z")[:, :, :]*u"m/s"
-        velocity_x = read(file, "velocity_x")[:, :, :]*u"m/s"
-        velocity_y = read(file, "velocity_y")[:, :, :]*u"m/s"
-
-        temperature = read(file, "temperature")[:, :, :]*u"K"
-        electron_density = read(file, "electron_density")[:, :, :]*u"m^-3"
-        hydrogen_density = read(file, "hydrogen_density")[:, :, :]*u"m^-3"
-
-        atmos = Atmosphere(z, x, y, temperature, electron_density, hydrogen_density, velocity_z, velocity_x, velocity_y)
-
         S_λ = read(file, "source_function")[:, :, :, :]*u"kW*m^-2*nm^-1"
         populations = read(file, "populations")[:, :, :, :]*u"m^-3"
     end
@@ -110,15 +97,13 @@ function plotter(atmos::Atmosphere,
                  S_λ::Array{<:UnitsIntensity_λ, 4},
                  populations::Array{<:NumberDensity, 4},
                  θ::Float64,
-                 ϕ::Float64)
-
-    title="Line at Top"
+                 ϕ::Float64,
+                 title::String)
 
     idx = 15
     idy = 20
 
     line = HydrogenicLine(test_atom()..., atmos.temperature)
-    println(line.λ)
     γ = γ_constant(line,
                    atmos.temperature,
                    (populations[:, :, :, 1].+populations[:, :, :, 2]),
@@ -156,4 +141,5 @@ function plotter(atmos::Atmosphere,
     plot_top_line(atmos, line, S_λ, α_tot, populations, θ, ϕ, idx, idy, title)
 end
 
-plotter(read_quantities("../data/voronoi_line.h5")..., 10., 10.)
+plotter(read_quantities("../data/voronoi_line.h5", periodic=true)..., 10., 10., "Voronoi Line")
+# plotter(read_quantities("../data/regular_line.h5", periodic=true)..., 10., 10., "Regular Line")

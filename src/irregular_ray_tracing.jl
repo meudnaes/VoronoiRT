@@ -5,11 +5,11 @@ using Distances
 using LinearAlgebra
 
 function Delaunay_up(sites::VoronoiSites,
-                        I_0::AbstractVector,
-                        S::AbstractVector,
-                        α::AbstractVector,
-                        k::AbstractVector,
-                        n_sweeps::Int)
+                     I_0::AbstractVector,
+                     S::AbstractVector,
+                     α::AbstractVector,
+                     k::AbstractVector,
+                     n_sweeps::Int)
 
     # Weighting parameter
     p = 10.0
@@ -81,11 +81,11 @@ function Delaunay_up(sites::VoronoiSites,
 end
 
 function Delaunay_down(sites::VoronoiSites,
-                        I_0::AbstractVector,
-                        S::AbstractVector,
-                        α::AbstractVector,
-                        k::AbstractVector,
-                        n_sweeps::Int)
+                       I_0::AbstractVector,
+                       S::AbstractVector,
+                       α::AbstractVector,
+                       k::AbstractVector,
+                       n_sweeps::Int)
 
     # Weighting parameter
     p = 7.0

@@ -413,6 +413,10 @@ function searchlight_irregular_2()
     electron_density = zeros(n_sites)*1u"m^-3"
     hydrogen_density = zeros(n_sites)*1u"m^-3"
 
+    velocity_z = zeros(n_sites)u"m/s"
+    velocity_x = zeros(n_sites)u"m/s"
+    velocity_y = zeros(n_sites)u"m/s"
+
     println("---Computing grid---")
     positions = rand(3, n_sites)u"m"
 
@@ -420,7 +424,6 @@ function searchlight_irregular_2()
     R0 = 0.1u"m"
 
     n_sweeps = 3
-    Nran = 3
     # positions = sample_beam(n_sites, bounds, beam, v0, R0, k)
 
     sites_file = "../data/searchlight_sites.txt"
@@ -443,6 +446,7 @@ function searchlight_irregular_2()
     # Voronoi grid
     sites = VoronoiSites(read_cell(neighbours_file, n_sites, positions)...,
                          temperature, electron_density, hydrogen_density,
+                         velocity_z, velocity_x, velocity_y,
                          bounds[1,1]*1u"m", bounds[1,2]*1u"m",
                          bounds[2,1]*1u"m", bounds[2,2]*1u"m",
                          bounds[3,1]*1u"m", bounds[3,2]*1u"m",
@@ -481,8 +485,7 @@ function searchlight_irregular_2()
     k = -[cos(θ), cos(ϕ)*sin(θ), sin(ϕ)*sin(θ)]
 
     println("---Ray-tracing---")
-    @time I = Delaunay_up(sites, I_0,
-                                S, α, k, n_sweeps, Nran)
+    @time I = Delaunay_up(sites, I_0, S, α, k, n_sweeps)
 
     bottom_x = collect(0:0.001:1)
     bottom_y = collect(0:0.001:1)
@@ -571,8 +574,7 @@ function searchlight_irregular_2()
 
     # Unit vector towards upwind direction of the ray
     k = -[cos(θ), cos(ϕ)*sin(θ), sin(ϕ)*sin(θ)]
-    @time I = Delaunay_down(sites, I_0,
-                                S, α, k, n_sweeps, Nran)
+    @time I = Delaunay_down(sites, I_0, S, α, k, n_sweeps)
 
     bottom_I = zeros(length(bottom_x), length(bottom_y))u"kW*nm^-1*m^-2"
 

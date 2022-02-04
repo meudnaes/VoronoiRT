@@ -52,7 +52,7 @@ function create_output_file(output_path::String, nλ::Int64, atmosphere_size::Tu
         write(file, "y", Vector{Float64}(undef, ny))
 
         write(file, "temperature", Array{Float64, 3}(undef, (nz, nx, ny)))
-        write(file, "hydrogen_density", Array{Float64, 3}(undef, (nz, nx, ny)))
+        write(file, "hydrogen_populations", Array{Float64, 3}(undef, (nz, nx, ny)))
         write(file, "electron_density", Array{Float64, 3}(undef, (nz, nx, ny)))
 
         write(file, "velocity_z", Array{Float64, 3}(undef, (nz, nx, ny)))
