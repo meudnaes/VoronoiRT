@@ -63,7 +63,21 @@ function read_cell(fname::String, n_sites::Int, positions::AbstractMatrix)
     NeighbourMatrix = NeighbourMatrix[:,1:max_neighbours+1]
 
     layers_up = _sort_by_layer_up(NeighbourMatrix, n_sites)
+    ######################
+    # Preparing to make code more efficient
+    # Remember to make searchlight test work first!!!
+    # I need the permutation vectors, and the sorted vectors.
+    # Layer sorting is unneccessary after this function
+    #######################
+
+
+    # perm_up = sortperm(layers_up)
+    # layers_sorted_up = layers_up[perm_up]
+
     layers_down = _sort_by_layer_down(NeighbourMatrix, n_sites)
+    # perm_down = sortperm(layers_down)
+    # layers_sorted = layers_down[perm_down]
+
     # Sorting works for layers and sites, but loses neighbour information!
     return positions, NeighbourMatrix, layers_up, layers_down
 end
