@@ -43,7 +43,8 @@ function short_characteristics_up(θ, ϕ, S_0, α, atmos; degrees=true, I_0=fals
     end
 
     # Allocate array for new intensity
-    I = zero(S_0)
+    I = Array{UnitsIntensity_λ, 3}(undef, size(S_0))
+    fill!(I, 0u"kW*m^-2*nm^-1")
 
     nz = length(atmos.z)
     Δx = atmos.x[2] - atmos.x[1]
@@ -131,7 +132,8 @@ function short_characteristics_down(θ, ϕ, S_0, α, atmos; degrees=true, I_0=fa
     end
 
     # Allocate array for new intensity
-    I = zero(S_0)
+    I = Array{UnitsIntensity_λ, 3}(undef, size(S_0))
+    fill!(I, 0u"kW*m^-2*nm^-1")
 
     # sweeps
     n_sweeps = 2
@@ -149,7 +151,8 @@ function short_characteristics_down(θ, ϕ, S_0, α, atmos; degrees=true, I_0=fa
 
     if I_0 == false
         # Boundary condition
-        I[end,:,:] = zero(S_0[end,:,:])
+        I[end,:,:] = Matrix{UnitsIntensity_λ}(undef, size(S_0[end, :, :]))
+        fill!(I[end, :, :], 0u"kW*m^-2*nm^-1")
     else
         I[end,:,:] = I_0
     end
@@ -198,7 +201,8 @@ function xy_up_ray(θ::AbstractFloat, ϕ::AbstractFloat, idz::Int, sign_x::Int,
                    α::AbstractArray, atmos::Atmosphere)
 
     # Allocate space for intensity
-    I = zero(I_0)
+    I = Matrix{UnitsIntensity_λ}(undef, size(I_0))
+    fill!(I, 0u"kW*m^-2*nm^-1")
 
     nx = length(atmos.x)
     ny = length(atmos.y)
@@ -301,7 +305,8 @@ function xy_down_ray(θ::AbstractFloat, ϕ::AbstractFloat, idz::Integer, sign_x:
                      α::AbstractArray, atmos::Atmosphere)
 
     # Allocate space for intensity
-    I = zero(I_0)
+    I = Matrix{UnitsIntensity_λ}(undef, size(I_0))
+    fill!(I, 0u"kW*m^-2*nm^-1")
 
     nx = length(atmos.x)
     ny = length(atmos.y)
@@ -407,10 +412,12 @@ function yz_up_ray(θ::AbstractFloat, ϕ::AbstractFloat, idz::Int, sign_x::Int,
     start_y, stop_y = range_bounds(sign_y, ny)
 
     # Allocate space for intensity
-    I = zero(I_0)
+    I = Matrix{UnitsIntensity_λ}(undef, size(I_0))
+    fill!(I, 0u"kW*m^-2*nm^-1")
 
 
-    I_upper = zero(I_0[end,:])
+    I_upper = Vector{UnitsIntensity_λ}(undef, size(I_0[end,:]))
+    fill!(I_upper, 0u"kW*m^-2*nm^-1")
 
     # Z center and interpolation position
     z_centre = atmos.z[idz]
@@ -580,9 +587,11 @@ function yz_down_ray(θ::AbstractFloat, ϕ::AbstractFloat, idz::Int, sign_x::Int
     start_y, stop_y = range_bounds(sign_y, ny)
 
     # Allocate space for intensity
-    I = zero(I_0)
+    I = Matrix{UnitsIntensity_λ}(undef, size(I_0))
+    fill!(I, 0u"kW*m^-2*nm^-1")
 
-    I_lower = zero(I_0[end,:])
+    I_lower = Vector{UnitsIntensity_λ}(undef, size(I_0[end,:]))
+    fill!(I_lower, 0u"kW*m^-2*nm^-1")
 
     # Z center and interpolation position
     z_centre = atmos.z[idz]
@@ -755,10 +764,12 @@ function xz_up_ray(θ::AbstractFloat, ϕ::AbstractFloat, idz::Int, sign_x::Int,
     start_y, stop_y = range_bounds(sign_y, ny)
 
     # Allocate space for intensity
-    I = zero(I_0)
+    I = Matrix{UnitsIntensity_λ}(undef, size(I_0))
+    fill!(I, 0u"kW*m^-2*nm^-1")
 
 
-    I_upper = zero(I_0[end,:])
+    I_upper = Vector{UnitsIntensity_λ}(undef, size(I_0[end,:]))
+    fill!(I_upper, 0u"kW*m^-2*nm^-1")
 
     # Z center and interpolation position
     z_centre = atmos.z[idz]
@@ -928,10 +939,12 @@ function xz_down_ray(θ::AbstractFloat, ϕ::AbstractFloat, idz::Int, sign_x::Int
     start_y, stop_y = range_bounds(sign_y, ny)
 
     # Allocate space for intensity
-    I = zero(I_0)
+    I = Matrix{UnitsIntensity_λ}(undef, size(I_0))
+    fill!(I, 0u"kW*m^-2*nm^-1")
 
 
-    I_lower = zero(I_0[end,:])
+    I_lower = Vector{UnitsIntensity_λ}(undef, size(I_0[end,:]))
+    fill!(I_lower, 0u"kW*m^-2*nm^-1")
 
     # Z center and interpolation position
     z_centre = atmos.z[idz]

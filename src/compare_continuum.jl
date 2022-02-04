@@ -45,7 +45,7 @@ function compare(DATA, quadrature)
         ny = length(atmos.y)
 
         n_sites = floor(Int, nz*nx*ny/8)
-        positions = rejection_sampling(n_sites, atmos, log10.(ustrip.(atmos.hydrogen_populations)))
+        positions = rejection_sampling(n_sites, atmos, log10.(ustrip.(atmos.hydrogen_density)))
 
         sites_file = "../data/sites_compare.txt"
         neighbours_file = "../data/neighbours_compare.txt"
@@ -118,7 +118,7 @@ function compare_top_intensity(DATA)
 
         S_λ = B_λ.(λ, atmos.temperature)
         α_tot = α_cont.(λ, atmos.temperature*1.0, atmos.electron_density*1.0,
-                        atmos.hydrogen_populations*1.0, atmos.hydrogen_populations*1.0)
+                        atmos.hydrogen_density*1.0, atmos.hydrogen_density*1.0)
 
         θ = 10
         ϕ = 10
@@ -151,7 +151,7 @@ function compare_top_intensity(DATA)
 
         S_λ = B_λ.(λ, atmos.temperature)
         α_tot = α_cont.(λ, atmos.temperature*1.0, atmos.electron_density*1.0,
-                        atmos.hydrogen_populations*1.0, atmos.hydrogen_populations*1.0)
+                        atmos.hydrogen_density*1.0, atmos.hydrogen_density*1.0)
 
         nx = length(atmos.x)
         nz = length(atmos.z)
@@ -192,7 +192,7 @@ function compare_top_intensity(DATA)
         S_λ = B_λ.(λ, sites.temperature)
 
         α_tot = α_cont.(λ, sites.temperature*1.0, sites.electron_density*1.0,
-                        sites.hydrogen_populations*1.0, sites.hydrogen_populations*1.0)
+                        sites.hydrogen_density*1.0, sites.hydrogen_density*1.0)
 
         atmos_from_voronoi, S_λ_grid, α_grid = Voronoi_to_Raster(sites, atmos, S_λ, α_tot, 1)
 

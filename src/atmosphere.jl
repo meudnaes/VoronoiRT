@@ -1,4 +1,13 @@
-include("functions.jl")
+import PhysicalConstants.CODATA2018: c_0, h, k_B, m_u, m_e, R_∞, ε_0, e
+const E_∞ = R_∞ * c_0 * h
+const hc = h * c_0
+
+@derived_dimension PerLength Unitful.𝐋^-1
+@derived_dimension PerArea Unitful.𝐋^-2
+@derived_dimension NumberDensity Unitful.𝐋^-3
+@derived_dimension ColumnDensity Unitful.𝐋^-2
+@derived_dimension Volume Unitful.𝐋^3
+@derived_dimension UnitsIntensity_λ Unitful.𝐋^-1 * Unitful.𝐌 * Unitful.𝐓^-3
 
 """
     Structure containing atmospheric grid and physical values at grid point
@@ -10,7 +19,9 @@ struct Atmosphere
     temperature::Array{<:Unitful.Temperature, 3}
     electron_density::Array{<:NumberDensity, 3}
     hydrogen_populations::Array{<:NumberDensity, 3}
-    velocity::Array{Unitful.Velocity, 3}    # absolute value of velocity
+    velocity_z::Array{Unitful.Velocity, 3}
+    velocity_x::Array{Unitful.Velocity, 3}
+    velocity_y::Array{Unitful.Velocity, 3}
     # Would be nice to include these things in the structure, but I couldn't get it to work
     # nz::Integer
     # nx::Integer
@@ -45,18 +56,17 @@ Original author: Ida Risnes Hansen
 """
 function get_atmos(file_path; periodic=true, skip=1)
     println("---Extracting atmospheric data---")
-    local x, y, z, temperature, electron_density, hydrogen_populations, velocity
+
+    local x, y, z, temperature, electron_density, hydrogen_populations, velocity_z, velocity_x, velocity_y
 
     h5open(file_path, "r") do atmos
         z = read(atmos, "z")[1:skip:end]*u"m"
         x = read(atmos, "x")[1:skip:end]*u"m"
         y = read(atmos, "y")[1:skip:end]*u"m"
 
+        velocity_z = read(atmos, "velocity_z")[1:skip:end, 1:skip:end, 1:skip:end]*u"m/s"
         velocity_x = read(atmos, "velocity_x")[1:skip:end, 1:skip:end, 1:skip:end]*u"m/s"
         velocity_y = read(atmos, "velocity_y")[1:skip:end, 1:skip:end, 1:skip:end]*u"m/s"
-        velocity_z = read(atmos, "velocity_z")[1:skip:end, 1:skip:end, 1:skip:end]*u"m/s"
-
-        velocity = sqrt.(velocity_x.^2 + velocity_y.^2 + velocity_z.^2)
 
         temperature = read(atmos, "temperature")[1:skip:end, 1:skip:end, 1:skip:end]u"K"
         electron_density = read(atmos, "electron_density")[1:skip:end, 1:skip:end, 1:skip:end]u"m^-3"
@@ -77,10 +87,9 @@ function get_atmos(file_path; periodic=true, skip=1)
 
     if z[1] > z[end]
         reverse!(z)
-        # reverse!(velocity_x, dims=1)
-        # reverse!(velocity_y, dims=1)
-        # reverse!(velocity_z, dims=1)
-        reverse!(velocity, dims=1)
+        reverse!(velocity_x, dims=1)
+        reverse!(velocity_y, dims=1)
+        reverse!(velocity_z, dims=1)
         reverse!(temperature, dims=1)
         reverse!(electron_density, dims=1)
         reverse!(hydrogen_populations, dims=1)
@@ -88,10 +97,9 @@ function get_atmos(file_path; periodic=true, skip=1)
 
     if x[1] > x[end]
         reverse!(x)
-        reverse!(velocity, dims=2)
-        # reverse!(velocity_x, dims=2)
-        # reverse!(velocity_y, dims=2)
-        # reverse!(velocity_z, dims=2)
+        reverse!(velocity_x, dims=2)
+        reverse!(velocity_y, dims=2)
+        reverse!(velocity_z, dims=2)
         reverse!(temperature, dims=2)
         reverse!(electron_density, dims=2)
         reverse!(hydrogen_populations, dims=2)
@@ -99,10 +107,9 @@ function get_atmos(file_path; periodic=true, skip=1)
 
     if y[1] > y[end]
         reverse!(y)
-        reverse!(velocity, dims=3)
-        # reverse!(velocity_x, dims=3)
-        # reverse!(velocity_y, dims=3)
-        # reverse!(velocity_z, dims=3)
+        reverse!(velocity_x, dims=3)
+        reverse!(velocity_y, dims=3)
+        reverse!(velocity_z, dims=3)
         reverse!(temperature, dims=3)
         reverse!(electron_density, dims=3)
         reverse!(hydrogen_populations, dims=3)
@@ -174,24 +181,53 @@ function get_atmos(file_path; periodic=true, skip=1)
         hydrogen_populations_periodic[:,end,1] .= hydrogen_populations[:,1,end]
         hydrogen_populations_periodic[:,end,end] .= hydrogen_populations[:,1,1]
 
-        # velocity
-        # Temperature
-        velocity_periodic = Array{Unitful.Velocity, 3}(undef, size(velocity) .+ size_add)
-        velocity_periodic[:, 2:end-1, 2:end-1] = velocity
+        # velocity_z
+        velocity_z_periodic = Array{Unitful.Velocity, 3}(undef, size(velocity_z) .+ size_add)
+        velocity_z_periodic[:, 2:end-1, 2:end-1] = velocity_z
         # x-direction
-        velocity_periodic[:,1,2:end-1] = velocity[:,end,:]
-        velocity_periodic[:,end,2:end-1] = velocity[:,1,:]
+        velocity_z_periodic[:,1,2:end-1] = velocity_z[:,end,:]
+        velocity_z_periodic[:,end,2:end-1] = velocity_z[:,1,:]
         # y-direction
-        velocity_periodic[:,2:end-1,end] = velocity[:,:,1]
-        velocity_periodic[:,2:end-1,1] = velocity[:,:,end]
+        velocity_z_periodic[:,2:end-1,end] = velocity_z[:,:,1]
+        velocity_z_periodic[:,2:end-1,1] = velocity_z[:,:,end]
         # fix corners
-        velocity_periodic[:,1,1] .= velocity[:,end,end]
-        velocity_periodic[:,1,end] .= velocity[:,end,1]
-        velocity_periodic[:,end,1] .= velocity[:,1,end]
-        velocity_periodic[:,end,end] .= velocity[:,1,1]
+        velocity_z_periodic[:,1,1] .= velocity_z[:,end,end]
+        velocity_z_periodic[:,1,end] .= velocity_z[:,end,1]
+        velocity_z_periodic[:,end,1] .= velocity_z[:,1,end]
+        velocity_z_periodic[:,end,end] .= velocity_z[:,1,1]
 
-        return z, x_periodic, y_periodic, temperature_periodic, electron_density_periodic, hydrogen_populations_periodic, velocity_periodic
+        # velocity_z
+        velocity_x_periodic = Array{Unitful.Velocity, 3}(undef, size(velocity_x) .+ size_add)
+        velocity_x_periodic[:, 2:end-1, 2:end-1] = velocity_x
+        # x-direction
+        velocity_x_periodic[:,1,2:end-1] = velocity_x[:,end,:]
+        velocity_x_periodic[:,end,2:end-1] = velocity_x[:,1,:]
+        # y-direction
+        velocity_x_periodic[:,2:end-1,end] = velocity_x[:,:,1]
+        velocity_x_periodic[:,2:end-1,1] = velocity_x[:,:,end]
+        # fix corners
+        velocity_x_periodic[:,1,1] .= velocity_x[:,end,end]
+        velocity_x_periodic[:,1,end] .= velocity_x[:,end,1]
+        velocity_x_periodic[:,end,1] .= velocity_x[:,1,end]
+        velocity_x_periodic[:,end,end] .= velocity_x[:,1,1]
+
+        # velocity_z
+        velocity_y_periodic = Array{Unitful.Velocity, 3}(undef, size(velocity_y) .+ size_add)
+        velocity_y_periodic[:, 2:end-1, 2:end-1] = velocity_y
+        # x-direction
+        velocity_y_periodic[:,1,2:end-1] = velocity_y[:,end,:]
+        velocity_y_periodic[:,end,2:end-1] = velocity_y[:,1,:]
+        # y-direction
+        velocity_y_periodic[:,2:end-1,end] = velocity_y[:,:,1]
+        velocity_y_periodic[:,2:end-1,1] = velocity_y[:,:,end]
+        # fix corners
+        velocity_y_periodic[:,1,1] .= velocity_y[:,end,end]
+        velocity_y_periodic[:,1,end] .= velocity_y[:,end,1]
+        velocity_y_periodic[:,end,1] .= velocity_y[:,1,end]
+        velocity_y_periodic[:,end,end] .= velocity_y[:,1,1]
+
+        return z, x_periodic, y_periodic, temperature_periodic, electron_density_periodic, hydrogen_populations_periodic, velocity_z_periodic, velocity_x_periodic, velocity_y_periodic
     end
 
-    return z, x, y, temperature, electron_density, hydrogen_populations, velocity
+    return z, x, y, temperature, electron_density, hydrogen_populations, velocity_z, velocity_x, velocity_y
 end

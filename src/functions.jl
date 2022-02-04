@@ -5,14 +5,7 @@ using Distances
 using Transparency
 using LinearAlgebra
 
-import PhysicalConstants.CODATA2018: h, c_0, k_B, m_p
-
-@derived_dimension PerLength Unitful.𝐋^-1
-@derived_dimension PerArea Unitful.𝐋^-2
-@derived_dimension NumberDensity Unitful.𝐋^-3
-@derived_dimension ColumnDensity Unitful.𝐋^-2
-@derived_dimension Volume Unitful.𝐋^3
-@derived_dimension UnitsIntensity_λ Unitful.P * Unitful.L^-3
+include("atmosphere.jl")
 
 """
     function B_ν(ν, T)
@@ -30,7 +23,7 @@ end
 Planck's law! Radiation in LTE. Takes wavelength and temperature, returns
 specific intensity
 """
-function B_λ(λ, T)
+function B_λ(λ::Unitful.Length, T::Unitful.Temperature)
     return 2*h*c_0^2/λ^5 * 1/(exp(h*c_0/(λ*k_B*T)) - 1)
 end
 
@@ -412,11 +405,11 @@ end
 
 Continuum extinction.
 """
-function α_cont(λ::Unitful.Length, temperature::Unitful.Temperature,
+function α_continuum(λ::Unitful.Length, temperature::Unitful.Temperature,
                electron_density::NumberDensity, h_ground_density::NumberDensity,
                proton_density::NumberDensity)
 
-    α = max.(0u"m^-1", Transparency.hminus_ff_stilley(λ, temperature, h_ground_density, electron_density))
+    α = max(0u"m^-1", Transparency.hminus_ff_stilley(λ, temperature, h_ground_density, electron_density))
     α += Transparency.hminus_bf_wbr(λ, temperature, h_ground_density, electron_density)
     α += hydrogenic_ff(c_0 / λ, temperature, electron_density, proton_density, 1)
     α += h2plus_ff(λ, temperature, h_ground_density, proton_density)
@@ -453,7 +446,7 @@ function α_absorption(λ::Unitful.Length, temperature::Unitful.Temperature,
                electron_density::NumberDensity, h_ground_density::NumberDensity,
                proton_density::NumberDensity)
 
-    α = max.(0u"m^-1", Transparency.hminus_ff_stilley(λ, temperature, h_ground_density, electron_density))
+    α = max(0u"m^-1", Transparency.hminus_ff_stilley(λ, temperature, h_ground_density, electron_density))
     α += Transparency.hminus_bf_wbr(λ, temperature, h_ground_density, electron_density)
     α += hydrogenic_ff(c_0 / λ, temperature, electron_density, proton_density, 1)
     α += h2plus_ff(λ, temperature, h_ground_density, proton_density)
@@ -643,4 +636,21 @@ function arg_where(arr, num)
         end
     end
     return indices[1:j]
+end
+
+function line_of_sight_velocity(atmos::Atmosphere, k::Vector)
+    v_los = Array{Unitful.Velocity, 3}(undef, size(atmos.velocity_z))
+
+    for kk in 1:length(atmos.z)
+        for ii in 1:length(atmos.x)
+            for jj in 1:length(atmos.y)
+                velocity = [atmos.velocity_z[kk, ii, jj],
+                            atmos.velocity_x[kk, ii, jj],
+                            atmos.velocity_y[kk, ii, jj]]
+
+                v_los[kk, ii, jj] = dot(velocity, k)
+            end
+        end
+    end
+    return v_los::Array{Unitful.Velocity, 3}
 end

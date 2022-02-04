@@ -10,7 +10,9 @@ struct VoronoiSites
     temperature::Vector{<:Unitful.Temperature}
     electron_density::Vector{<:NumberDensity}
     hydrogen_populations::Vector{<:NumberDensity}
-    velocity::Vector{<:Unitful.Velocity}
+    velocity_z::Vector{<:Unitful.Velocity}
+    velocity_x::Vector{<:Unitful.Velocity}
+    velocity_y::Vector{<:Unitful.Velocity}
     z_min::Unitful.Length
     z_max::Unitful.Length
     x_min::Unitful.Length
@@ -18,24 +20,6 @@ struct VoronoiSites
     y_min::Unitful.Length
     y_max::Unitful.Length
     n::Int
-end
-
-mutable struct Boundaries
-    I_bottom::Matrix{<:UnitsIntensity_λ}
-    I_top::Matrix{<:UnitsIntensity_λ}
-    S_bottom::Matrix{<:UnitsIntensity_λ}
-    S_top::Matrix{<:UnitsIntensity_λ}
-    α_bottom::Matrix{<:PerLength}
-    α_top::Matrix{<:PerLength}
-end
-
-struct VoronoiCell
-    ID::Int
-    position::Vector{Float64}
-    volume::Float64 # Volume of the cell
-    neighbours::Vector{Int}
-    faces::Vector{Float64}  # Area of the faces
-    n::Int # Number of neighbours
 end
 
 """
@@ -79,7 +63,20 @@ function read_cell(fname::String, n_sites::Int, positions::AbstractMatrix)
     NeighbourMatrix = NeighbourMatrix[:,1:max_neighbours+1]
 
     layers_up = _sort_by_layer_up(NeighbourMatrix, n_sites)
+    ######################
+    # Preparing to make code more efficient
+    # Remember to make searchlight test work first!!!
+    # I need the permutation vectors, and the sorted vectors.
+    # Layer sorting is unneccessary after this function
+    #######################
+
+    # perm_up = sortperm(layers_up)
+    # layers_sorted_up = layers_up[perm_up]
+
     layers_down = _sort_by_layer_down(NeighbourMatrix, n_sites)
+    # perm_down = sortperm(layers_down)
+    # layers_sorted = layers_down[perm_down]
+
     # Sorting works for layers and sites, but loses neighbour information!
     return positions, NeighbourMatrix, layers_up, layers_down
 end
@@ -161,7 +158,8 @@ function _sort_by_layer_down(neighbours::AbstractMatrix, n_sites::Int)
     return layers
 end
 
-function _sort_neighbours(NeighbourMatrix::AbstractMatrix, permVec::AbstractVector)
+function _sort_neighbours(NeighbourMatrix::AbstractMatrix,
+                          permVec::AbstractVector)
 
     sortedNeighbours = zero(NeighbourMatrix)
     sortedIdx = sortperm(permVec)
@@ -180,19 +178,10 @@ function _sort_neighbours(NeighbourMatrix::AbstractMatrix, permVec::AbstractVect
     return sortedNeighbours
 end
 
-function inv_dist_itp_test(idxs, dists, p, sites::VoronoiSites)
-    avg_inv_dist = 0
-    f = 0
-    for i in 1:length(idxs)
-        idx = idxs[i]
-        inv_dist = 1/dists[i]^p
-        avg_inv_dist += inv_dist
-        f += values[idx]*inv_dist
-    end
-    f = f/avg_inv_dist
-end
-
-function beam(v::AbstractVector, v0::AbstractVector, R0::Float64, k::AbstractVector)
+function beam(v::AbstractVector,
+              v0::AbstractVector,
+              R0::Float64,
+              k::AbstractVector)
     r = abs(v[1] - v0[1])/k[1]
 
     vh = v0 .+ r .* k
@@ -204,28 +193,12 @@ function beam(v::AbstractVector, v0::AbstractVector, R0::Float64, k::AbstractVec
     end
 end
 
-function inv_dist_itp(idxs::AbstractVector, dists::AbstractVector,
-                      p::AbstractFloat, values::AbstractVector)
-    avg_inv_dist = 0
-    f = 0
-    for i in 1:length(idxs)
-        idx = idxs[i]
-        if idx > 0
-            inv_dist = 1/dists[i]^p
-            avg_inv_dist += inv_dist
-            f += values[idx]*inv_dist
-        elseif idx == -5
-            # lower boundary
-            f+=0
-        elseif idx == -6
-            # upper boundary
-            f+=0
-        end
-    end
-    f = f/avg_inv_dist
-end
-
-function sample_beam(n_sites::Int, boundaries::Matrix, func, v0::AbstractVector, R0::Float64, k::AbstractVector)
+function sample_beam(n_sites::Int,
+                     boundaries::Matrix,
+                     func,
+                     v0::AbstractVector,
+                     R0::Float64,
+                     k::AbstractVector)
     # Find max and min to convert random number between 0 and 1 to coordinate
     println("---Sampling new sites---")
     z_min = boundaries[1,1]; z_max = boundaries[1,2]
@@ -263,8 +236,11 @@ function sample_beam(n_sites::Int, boundaries::Matrix, func, v0::AbstractVector,
     return p_vec
 end
 
-function upwind_distances(neighbours::Vector{Int}, n_neighbours::Integer, id::Integer,
-                upwind_position::Vector{Float64}, sites::VoronoiSites)
+function upwind_distances(neighbours::Vector{Int},
+                          n_neighbours::Integer,
+                          id::Integer,
+                          upwind_position::Vector{Float64},
+                          sites::VoronoiSites)
 
     p_r = sites.positions[:, id]
 
@@ -314,76 +290,11 @@ function upwind_distances(neighbours::Vector{Int}, n_neighbours::Integer, id::In
     return distances
 end
 
-function ray_intersection(k::AbstractArray, neighbours::Vector{Int}, position::Vector{Float64},
-                          sites::VoronoiSites, ID)
-    # k is unit vector towards upwind direction of the ray
-
-    p_r = position
-
-    n_neighbours = length(neighbours)
-
-    x_r_r = abs(sites.x_max - p_r[2])
-    x_r_l = abs(p_r[2] - sites.x_min)
-
-    y_r_r = abs(sites.y_max - p_r[3])
-    y_r_l = abs(p_r[3] - sites.y_min)
-
-    s = Vector{Float64}(undef, n_neighbours)
-    for (i, neighbour) in enumerate(neighbours)
-        if neighbour > 0
-            # Natural neighbor position
-            p_i = sites.positions[:, neighbour]
-
-            x_i_r = abs(sites.x_max - p_i[2])
-            x_i_l = abs(p_i[2] - sites.x_min)
-
-            # Test for periodic
-            if x_r_r + x_i_l < p_r[2] - p_i[2]
-                p_i[2] = sites.x_max + p_i[2] - sites.x_min
-            elseif x_r_l + x_i_r < p_i[2] - p_r[2]
-                p_i[2] = sites.x_min + sites.x_max - p_i[2]
-            end
-
-            y_i_r = abs(sites.y_max - p_i[3])
-            y_i_l = abs(p_i[3] - sites.y_min)
-
-            # Test for periodic
-            if y_r_r + y_i_l < p_r[3] - p_i[3]
-                p_i[3] = sites.y_max + p_i[3] - sites.y_min
-            elseif y_r_l + y_i_r < p_i[3] - p_r[3]
-                p_i[3] = sites.y_min + sites.y_max - p_i[3]
-            end
-
-            # Calculate plane bisecting site and neighbor
-            # Normal vector
-            n = p_i .- p_r
-
-            # Point on the plane
-            p = (p_i .+ p_r) ./ 2
-            s[i] = dot(n, p .- p_r)/dot(n, k)
-        elseif neighbour == -6
-            # Boundary
-            z_upwind = sites.z_max
-            z = p_r[1]
-            s[i] = (z_upwind - z)/k[1]
-        elseif neighbour == -5
-            # Boundary
-            z_upwind = sites.z_min
-            z = p_r[1]
-            s[i] = (z_upwind - z)/k[1]
-        end
-    end
-
-
-
-    # Find the smallst non-negative s
-    index, s_q = smallest_non_negative(s)
-    q = p_r .+ s_q .* k
-
-    return q, neighbours[index]
-end
-
-function smallest_angle(position::AbstractVector, neighbours::AbstractVector, k::AbstractVector, sites::VoronoiSites, n::Int)
+function smallest_angle(position::Vector{<:Unitful.Length},
+                        neighbours::Vector{Int},
+                        k::Vector{Float64},
+                        sites::VoronoiSites,
+                        n::Int)
 
     dots = Vector{Float64}(undef, length(neighbours))
     upwind_positions = Matrix{Float64}(undef, (3, length(neighbours)))u"m"
@@ -449,18 +360,34 @@ function choose_random(angles::AbstractVector, indices::AbstractVector)
     return argmax([p1, p2])
 end
 
-function Voronoi_to_Raster(sites::VoronoiSites, atmos::Atmosphere, S_λ::AbstractVector, α_tot::AbstractVector, r_factor)
+function Voronoi_to_Raster(sites::VoronoiSites,
+                           atmos::Atmosphere,
+                           S_λ::Array{<:UnitsIntensity_λ},
+                           α_tot::Array{<:PerLength},
+                           populations::Array{<:NumberDensity},
+                           r_factor)
 
-    z = collect(LinRange(sites.z_min, sites.z_max, floor(Int, r_factor*length(atmos.z))))
-    x = collect(LinRange(sites.x_min, sites.x_max, floor(Int, r_factor*length(atmos.x))))
-    y = collect(LinRange(sites.y_min, sites.y_max, floor(Int, r_factor*length(atmos.y))))
+    z = collect(LinRange(sites.z_min, sites.z_max,
+                         floor(Int, r_factor*length(atmos.z))))
+    x = collect(LinRange(sites.x_min, sites.x_max,
+                         floor(Int, r_factor*length(atmos.x))))
+    y = collect(LinRange(sites.y_min, sites.y_max,
+                         floor(Int, r_factor*length(atmos.y))))
 
-    temperature = Array{Unitful.Temperature, 3}(undef, (length(z), length(x), length(y)))
-    electron_density = Array{NumberDensity, 3}(undef, (length(z), length(x), length(y)))
-    hydrogen_populations = Array{NumberDensity, 3}(undef, (length(z), length(x), length(y)))
-    velocity = Array{Unitful.Velocity, 3}(undef, (length(z), length(x), length(y)))
-    S_λ_grid = zeros(length(z), length(x), length(y))u"kW*nm^-1*m^-2"
-    α_grid = zeros(length(z), length(x), length(y))u"m^-1"
+    nz = length(z)
+    nx = length(x)
+    ny = length(y)
+    nλ = size(S_λ)[1]
+
+    temperature = Array{Float64, 3}(undef, (nz, ny, nx))u"K"
+    electron_density = Array{Float64, 3}(undef, (nz, ny, nx))u"m^-3"
+    hydrogen_populations = Array{Float64, 3}(undef, (nz, ny, nx))u"m^-3"
+    velocity_z = Array{Float64, 3}(undef, (nz, ny, nx))u"m*s^-1"
+    velocity_x = copy(velocity_z)
+    velocity_y = copy(velocity_z)
+    S_λ_grid = Array{Float64, 4}(undef, (nλ, nz, nx, ny))u"kW*nm^-1*m^-2"
+    α_grid = Array{Float64, 4}(undef, (nλ, nz, nx, ny))u"m^-1"
+    populations_grid = Array{Float64, 4}(undef, (nz, nx, ny, 3))u"m^-3"
 
     tree = KDTree(ustrip(sites.positions))
     for k in 1:length(z)
@@ -471,30 +398,53 @@ function Voronoi_to_Raster(sites::VoronoiSites, atmos::Atmosphere, S_λ::Abstrac
                 temperature[k, i, j] = sites.temperature[idx]
                 electron_density[k, i, j] = sites.electron_density[idx]
                 hydrogen_populations[k, i, j] = sites.hydrogen_populations[idx]
-                velocity[k, i, j] = sites.velocity[idx]
-                S_λ_grid[k, i, j] = S_λ[idx]
-                α_grid[k, i, j] = α_tot[idx]
+                velocity_z[k, i, j] = sites.velocity_z[idx]
+                velocity_x[k, i, j] = sites.velocity_x[idx]
+                velocity_y[k, i, j] = sites.velocity_y[idx]
+                S_λ_grid[:, k, i, j] = S_λ[:, idx]
+                α_grid[:, k, i, j] = α_tot[:, idx]
+                populations_grid[k, i, j, :] = populations[idx, :]
             end
         end
     end
 
-    return Atmosphere(z, x, y, temperature, electron_density, hydrogen_populations, velocity), S_λ_grid, α_grid
+    voronoi_atmos = Atmosphere(z, x, y, temperature, electron_density,
+                           hydrogen_populations, velocity_z, velocity_x, velocity_y)
+
+    return voronoi_atmos, S_λ_grid, α_grid, populations_grid
 end
 
 function _initialise(p_vec, atmos::Atmosphere)
     println("---Interpolating quantities to new grid---")
     n_sites = length(p_vec[1,:])
 
-    temperature_new = Vector{Unitful.Temperature}(undef, n_sites)
-    N_e_new = Vector{NumberDensity}(undef, n_sites)
-    N_H_new = Vector{NumberDensity}(undef, n_sites)
-    velocity_new = Vector{Unitful.Velocity}(undef, n_sites)
+    temperature_new = Vector{Float64}(undef, n_sites)u"K"
+    N_e_new = Vector{Float64}(undef, n_sites)u"m^-3"
+    N_H_new = Vector{Float64}(undef, n_sites)u"m^-3"
+    velocity_z_new = Vector{Float64}(undef, n_sites)u"m*s^-1"
+    velocity_x_new = Vector{Float64}(undef, n_sites)u"m*s^-1"
+    velocity_y_new = Vector{Float64}(undef, n_sites)u"m*s^-1"
 
     for k in 1:n_sites
-        temperature_new[k] = trilinear(p_vec[1, k], p_vec[2, k], p_vec[3, k], atmos, atmos.temperature)
-        N_e_new[k] = trilinear(p_vec[1, k], p_vec[2, k], p_vec[3, k], atmos, atmos.electron_density)
-        N_H_new[k] = trilinear(p_vec[1, k], p_vec[2, k], p_vec[3, k], atmos, atmos.hydrogen_populations)
-        velocity_new[k] = trilinear(p_vec[1, k], p_vec[2, k], p_vec[3, k], atmos, atmos.velocity)
+        zk, xk, yk = p_vec[:, k]
+        temperature_new[k] = trilinear(zk, xk, yk, atmos, atmos.temperature)
+        N_e_new[k] = trilinear(zk, xk, yk, atmos, atmos.electron_density)
+        N_H_new[k] = trilinear(zk, xk, yk, atmos, atmos.hydrogen_populations)
+        velocity_z_new[k] = trilinear(zk, xk, yk, atmos, atmos.velocity_z)
+        velocity_x_new[k] = trilinear(zk, xk, yk, atmos, atmos.velocity_x)
+        velocity_y_new[k] = trilinear(zk, xk, yk, atmos, atmos.velocity_y)
     end
-    return temperature_new, N_e_new, N_H_new, velocity_new
+    return temperature_new, N_e_new, N_H_new, velocity_z_new, velocity_x_new, velocity_y_new
+end
+
+function line_of_sight_velocity(sites::VoronoiSites, k::Vector)
+    v_los = Vector{Unitful.Velocity}(undef, sites.n)
+
+    for ii in 1:sites.n
+        velocity = [sites.velocity_z[ii],
+                    sites.velocity_x[ii],
+                    sites.velocity_y[ii]]
+        v_los[ii] = dot(velocity, k)
+    end
+    return v_los::Vector{Unitful.Velocity}
 end
