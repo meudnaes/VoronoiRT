@@ -22,17 +22,16 @@ function Delaunay_up(sites::VoronoiSites,
     y_min = sites.y_min
     y_max = sites.y_max
 
-    perm = sortperm(sites.layers_up)
-    layers_sorted = sites.layers_up[perm]
-    max_layer = layers_sorted[end]
+    perm = sites.perm_up
+    max_layer = length(sites.layers_up)
 
-    lower_idx = searchsortedfirst(layers_sorted, 2)-1
+    lower_idx = sites.layers_up[2]-1
 
     I[perm[1:lower_idx]] = I_0
 
-    for layer in 2:max_layer
-        lower_idx = searchsortedfirst(layers_sorted, layer)
-        upper_idx = searchsortedfirst(layers_sorted, layer+1)
+    for layer in 2:max_layer-1
+        lower_idx = sites.layers_up[layer]
+        upper_idx = sites.layers_up[layer+1]
         for sweep in 1:n_sweeps
             for i in lower_idx:upper_idx-1
                 # coordinate
@@ -98,17 +97,16 @@ function Delaunay_down(sites::VoronoiSites,
     y_min = sites.y_min
     y_max = sites.y_max
 
-    perm = sortperm(sites.layers_down)
-    layers_sorted = sites.layers_down[perm]
-    max_layer = layers_sorted[end]
+    perm = sites.perm_down
+    max_layer = length(sites.layers_down)
 
-    lower_idx = searchsortedfirst(layers_sorted, 2)-1
+    lower_idx = sites.layers_down[2] - 1
 
     I[perm[1:lower_idx]] = I_0
 
-    for layer in 2:max_layer
-        lower_idx = searchsortedfirst(layers_sorted, layer)
-        upper_idx = searchsortedfirst(layers_sorted, layer+1)
+    for layer in 2:max_layer-1
+        lower_idx = sites.layers_down[layer]
+        upper_idx = sites.layers_down[layer+1]
         for sweep in 1:n_sweeps
             for i in upper_idx-1:-1:lower_idx
                 # coordinate

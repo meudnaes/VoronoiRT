@@ -7,6 +7,8 @@ struct VoronoiSites
     neighbours::Matrix{Int}
     layers_up::Vector{Int}
     layers_down::Vector{Int}
+    perm_up::Vector{Int}
+    perm_down::Vector{Int}
     temperature::Vector{<:Unitful.Temperature}
     electron_density::Vector{<:NumberDensity}
     hydrogen_populations::Vector{<:NumberDensity}
@@ -63,22 +65,17 @@ function read_cell(fname::String, n_sites::Int, positions::AbstractMatrix)
     NeighbourMatrix = NeighbourMatrix[:,1:max_neighbours+1]
 
     layers_up = _sort_by_layer_up(NeighbourMatrix, n_sites)
-    ######################
-    # Preparing to make code more efficient
-    # Remember to make searchlight test work first!!!
-    # I need the permutation vectors, and the sorted vectors.
-    # Layer sorting is unneccessary after this function
-    #######################
-
-    # perm_up = sortperm(layers_up)
-    # layers_sorted_up = layers_up[perm_up]
+    perm_up = sortperm(layers_up)
+    layers_up = layers_up[perm_up]
+    layers_up = reduce_layers(layers_up)
 
     layers_down = _sort_by_layer_down(NeighbourMatrix, n_sites)
-    # perm_down = sortperm(layers_down)
-    # layers_sorted = layers_down[perm_down]
+    perm_down = sortperm(layers_down)
+    layers_down = layers_down[perm_down]
+    layers_down = reduce_layers(layers_down)
 
     # Sorting works for layers and sites, but loses neighbour information!
-    return positions, NeighbourMatrix, layers_up, layers_down
+    return positions, NeighbourMatrix, layers_up, layers_down, perm_up, perm_down
 end
 
 function _sort_by_layer_up(neighbours::AbstractMatrix, n_sites::Int)
@@ -178,116 +175,22 @@ function _sort_neighbours(NeighbourMatrix::AbstractMatrix,
     return sortedNeighbours
 end
 
-function beam(v::AbstractVector,
-              v0::AbstractVector,
-              R0::Float64,
-              k::AbstractVector)
-    r = abs(v[1] - v0[1])/k[1]
+function reduce_layers(layers::Vector{Int})
+    reduced_layers = Vector{Int}(undef, maximum(layers)+1)
 
-    vh = v0 .+ r .* k
+    reduced_layers[1] = 1
 
-    if sqrt((v[2] - vh[2])^2 + (v[3] - vh[3])^2) < R0
-        return 1
-    else
-        return 0.1
-    end
-end
-
-function sample_beam(n_sites::Int,
-                     boundaries::Matrix,
-                     func,
-                     v0::AbstractVector,
-                     R0::Float64,
-                     k::AbstractVector)
-    # Find max and min to convert random number between 0 and 1 to coordinate
-    println("---Sampling new sites---")
-    z_min = boundaries[1,1]; z_max = boundaries[1,2]
-    x_min = boundaries[2,1]; x_max = boundaries[2,2]
-    y_min = boundaries[3,1]; y_max = boundaries[3,2]
-
-    Δz = z_max - z_min
-    Δx = x_max - x_min
-    Δy = y_max - y_min
-
-    # allocate arrays for new sites
-    p_vec = Matrix{Float64}(undef, (3, n_sites))
-
-    for i in 1:n_sites
-        print("site $i/$n_sites \r")
-        while true
-            ref_vec = rand(Float64, 3)
-            z_ref = ref_vec[1]*Δz + z_min
-            x_ref = ref_vec[2]*Δx + x_min
-            y_ref = ref_vec[3]*Δy + y_min
-
-            # acceptance criterion, "reference"
-            density_ref = beam(ref_vec, v0, R0, k)
-            # random sample, compare to reference
-            density_ran = rand(Float64)
-            if density_ref > density_ran
-                # a point is accepted, store position and move on
-                p_vec[:, i] .= (z_ref, x_ref, y_ref)
-                # break to find next site
-                break
-            end
-        end
-    end
-    print("                                                                 \r")
-    return p_vec
-end
-
-function upwind_distances(neighbours::Vector{Int},
-                          n_neighbours::Integer,
-                          id::Integer,
-                          upwind_position::Vector{Float64},
-                          sites::VoronoiSites)
-
-    p_r = sites.positions[:, id]
-
-    distances = Vector{Float64}(undef, n_neighbours)
-
-    # This has length = cell.n - 1
-    cell_neighbours = neighbours[neighbours .> 0]
-
-    x_r_r = sites.x_max - p_r[2]
-    x_r_l = p_r[2] - sites.x_min
-
-    y_r_r = sites.y_max - p_r[3]
-    y_r_l = p_r[3] - sites.y_min
-
-    for (j, neighbour) in enumerate(cell_neighbours)
-        if neighbour > 0
-            p_n = sites.positions[:, neighbour]
-
-            x_n_r = sites.x_max - p_n[2]
-            x_n_l = p_n[2] - sites.x_min
-
-            # Test for periodic
-            if x_r_r + x_n_l < p_r[2] - p_n[2]
-                p_n[2] = sites.x_max + p_n[2] - sites.x_min
-            elseif x_r_l + x_n_r < p_n[2] - p_r[2]
-                p_n[2] = sites.x_min + sites.x_max - p_n[2]
-            end
-
-            y_n_r = sites.y_max - p_n[3]
-            y_n_l = p_n[3] - sites.y_min
-
-            # Test for periodic
-            if y_r_r + y_n_l < p_r[3] - p_n[3]
-                p_n[3] = sites.y_max + p_n[3] - sites.y_min
-            elseif y_r_l + y_n_r < p_n[3] - p_r[3]
-                p_n[3] = sites.y_min + sites.y_max - p_n[3]
-            end
-            distances[j] = euclidean(upwind_position, p_n)
-        elseif neighbour == -5
-            continue
-        elseif neighbour == -6
-            continue
+    layer = 2
+    for i in eachindex(layers)
+        if layers[i] == layer
+            reduced_layers[layer] = i
+            layer += 1
         end
     end
 
-    distances[n_neighbours] = euclidean(upwind_position, p_r)
-    return distances
+    reduced_layers[end] = length(layers)
+
+    return reduced_layers
 end
 
 function smallest_angle(position::Vector{<:Unitful.Length},
@@ -414,7 +317,7 @@ function Voronoi_to_Raster(sites::VoronoiSites,
     return voronoi_atmos, S_λ_grid, α_grid, populations_grid
 end
 
-function _initialise(p_vec, atmos::Atmosphere)
+function _initialise(p_vec::Matrix{<:Unitful.Length}, atmos::Atmosphere)
     println("---Interpolating quantities to new grid---")
     n_sites = length(p_vec[1,:])
 
@@ -437,7 +340,7 @@ function _initialise(p_vec, atmos::Atmosphere)
     return temperature_new, N_e_new, N_H_new, velocity_z_new, velocity_x_new, velocity_y_new
 end
 
-function line_of_sight_velocity(sites::VoronoiSites, k::Vector)
+function line_of_sight_velocity(sites::VoronoiSites, k::Vector{Float64})
     v_los = Vector{Unitful.Velocity}(undef, sites.n)
 
     for ii in 1:sites.n
