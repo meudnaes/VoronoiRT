@@ -56,9 +56,9 @@ function compare(DATA, quadrature)
 
         create_output_file(REGULAR_DATA, size(S_λ)[1], size(atmos.temperature))
 
-        write_to_file(populations, REGULAR_DATA)
-        write_to_file(S_λ, REGULAR_DATA)
-        write_to_file(atmos, REGULAR_DATA)
+        write_to_file(populations[:, 2:end-1, 2:end-1, :], REGULAR_DATA)
+        write_to_file(S_λ[:, :, 2:end-1, 2:end-1], REGULAR_DATA)
+        write_to_file(atmos, REGULAR_DATA, ghost_cells=true)
 
         return 0
     end
@@ -149,7 +149,7 @@ function compare(DATA, quadrature)
     end
 
     regular();
-    voronoi();
+    # voronoi();
 end
 
 DATA = "../data/bifrost_qs006023_s525_quarter.hdf5"

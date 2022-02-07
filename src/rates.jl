@@ -340,6 +340,7 @@ function Rji(J::Matrix{<:UnitsIntensity_λ},
 
     # Trapezoid rule
     for l=1:(nλ-1)
+        @assert λ[l+1] - λ[l] > 0u"nm" "Negative Δλ"
         R += 2π/hc * (σij[l].*Gij[l,:].*λ[l].*(2*hc*c_0/λ[l]^5 .+ J[l,:]) .+
                       σij[l+1].*Gij[l+1,:].*λ[l+1].*(2*hc*c_0/λ[l+1]^5 .+ J[l+1,:])).*(λ[l+1] - λ[l])
     end
