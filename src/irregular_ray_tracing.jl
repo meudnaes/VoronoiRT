@@ -104,7 +104,7 @@ function Delaunay_down(sites::VoronoiSites,
 
     I[perm[1:lower_idx]] = I_0
 
-    for layer in 2:max_layer
+    for layer in 2:max_layer-1
         lower_idx = sites.layers_down[layer]
         upper_idx = sites.layers_down[layer+1]
         for sweep in 1:n_sweeps
