@@ -343,7 +343,8 @@ function criterion(S_new::Matrix{<:UnitsIntensity_λ},
                    ϵ::Float64,
                    i::Int,
                    maxiter::Int,
-                   indcs)
+                   indcs,
+                   DATA::String)
     diff = 0
     nλ = size(S_new)[1]
     for l in 1:nλ
@@ -357,5 +358,9 @@ function criterion(S_new::Matrix{<:UnitsIntensity_λ},
         println("   Rel. diff.: $diff")
     end
     println("Iteration $(i+1)...")
+
+    # Write convergence history to file
+    write_to_file(diff, i+1, DATA)
+
     diff > ϵ && i < maxiter
 end
