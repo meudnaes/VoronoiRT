@@ -115,16 +115,13 @@ function J_λ_voronoi(S_λ::Matrix{<:UnitsIntensity_λ},
 
         for l in eachindex(line.λ)
             if θ_array[i] > 90
-                perm = sortperm(sites.layers_up)
-                layers_sorted = sites.layers_up[perm]
-                bottom_layer = searchsortedfirst(layers_sorted, 2)-1
-                I_0 = B_λ.(500u"nm", sites.temperature[1:bottom_layer])
+                bottom_layer = sites.layers_up[2] - 1
+                bottom_layer_idx = sites.perm_up[1:bottom_layer]
+                I_0 = B_λ.(500u"nm", sites.temperature[bottom_layer_idx])
                 J_λ[l,:] += weights[i]*Delaunay_up(sites, I_0,
                                                    S_λ[l,:], α_tot[l,:], k, n_sweeps)
             elseif θ_array[i] < 90
-                perm = sortperm(sites.layers_down)
-                layers_sorted = sites.layers_down[perm]
-                top_layer = searchsortedfirst(layers_sorted, 2)-1
+                top_layer = sites.layers_down[2] - 1
                 I_0 = zeros(top_layer)u"kW*nm^-1*m^-2"
                 J_λ[l,:] += weights[i]*Delaunay_down(sites, I_0,
                                                      S_λ[l,:], α_tot[l,:], k, n_sweeps)
@@ -139,7 +136,8 @@ function Λ_regular(ϵ::AbstractFloat,
                    maxiter::Integer,
                    atmos::Atmosphere,
                    line::HydrogenicLine,
-                   quadrature::String)
+                   quadrature::String,
+                   DATA::String)
 
     # Start in LTE
 
@@ -179,7 +177,7 @@ function Λ_regular(ϵ::AbstractFloat,
 
     local J_new
     # check where ε < 5e-3, cut above heights
-    while criterion(S_new, S_old, ϵ, i, maxiter, thick)
+    while criterion(S_new, S_old, ϵ, i, maxiter, thick, DATA)
         #############################
         # Calculate radiation field #
         #############################
@@ -221,7 +219,8 @@ function Λ_voronoi(ϵ::AbstractFloat,
                    maxiter::Integer,
                    sites::VoronoiSites,
                    line::HydrogenicLine,
-                   quadrature::String)
+                   quadrature::String,
+                   DATA::String)
     println("---Iterating---")
 
     # Start in LTE
@@ -262,7 +261,7 @@ function Λ_voronoi(ϵ::AbstractFloat,
 
     local J_new
     # check where ε < 1e-2, cut above heights
-    while criterion(S_new, S_old, ϵ, i, maxiter, thick)
+    while criterion(S_new, S_old, ϵ, i, maxiter, thick, DATA)
         #############################
         # Calculate radiation field #
         #############################
@@ -314,7 +313,8 @@ function criterion(S_new::Array{<:UnitsIntensity_λ, 4},
                    ϵ::Float64,
                    i::Int,
                    maxiter::Int,
-                   indcs)
+                   indcs,
+                   DATA::String)
     diff = 0
     nλ = size(S_new)[1]
     for l in 1:nλ
@@ -331,6 +331,10 @@ function criterion(S_new::Array{<:UnitsIntensity_λ, 4},
         println("   Rel. diff.: $diff")
     end
     println("Iteration $(i+1)...")
+
+    # Write convergence history to file
+    write_to_file(diff, i+1, DATA)
+
     diff > ϵ && i < maxiter
 end
 

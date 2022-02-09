@@ -9,6 +9,21 @@ include("lambda_iteration.jl")
 global my_seed = 2022
 Random.seed!(my_seed)
 
+function sample_from_extinction(atmos::Atmosphere,
+                                λ0::Unitful.Length,
+                                n_sites::Int)
+
+    # Find continuum extinction and absorption extinction (without Thomson and Rayleigh)
+    α_cont = α_continuum.(λ0,
+                          atmos.temperature*1.0,
+                          atmos.electron_density*1.0,
+                          atmos.hydrogen_populations*1.0,
+                          atmos.hydrogen_populations*1.0)
+
+    positions = rejection_sampling(n_sites, atmos, ustrip.(α_cont))
+    return positions
+end
+
 function compare(DATA, quadrature)
     maxiter = 100
     ϵ = 1e-3
@@ -18,13 +33,22 @@ function compare(DATA, quadrature)
 
     n_skip = 4
 
+    nλ_bb = 50
+    nλ_bf = 20
+
     function regular()
+
         atmos = Atmosphere(get_atmos(DATA; periodic=true, skip=n_skip)...)
 
-        global line
-        line = HydrogenicLine(test_atom()..., atmos.temperature)
+        line = HydrogenicLine(test_atom(nλ_bb, nλ_bf)..., atmos.temperature)
 
-        J_mean, S_λ, α_cont, populations = Λ_regular(ϵ, maxiter, atmos, line, quadrature)
+        REGULAR_DATA = "../data/regular_line_test-threads.h5"
+
+        create_output_file(REGULAR_DATA, length(line.λ), size(atmos.temperature[:, 2:end-1, 2:end-1]), maxiter)
+        write_to_file(nλ_bb, "n_bb", REGULAR_DATA)
+        write_to_file(nλ_bf, "n_bf", REGULAR_DATA)
+
+        J_mean, S_λ, α_cont, populations = Λ_regular(ϵ, maxiter, atmos, line, quadrature, REGULAR_DATA)
 
         γ = γ_constant(line,
                        atmos.temperature,
@@ -52,9 +76,7 @@ function compare(DATA, quadrature)
 
         # plot_top_intensity(I_top, atmos.x, atmos.y, "regular_top")
 
-        REGULAR_DATA = "../data/regular_line.h5"
 
-        create_output_file(REGULAR_DATA, size(S_λ)[1], size(atmos.temperature))
 
         write_to_file(populations[:, 2:end-1, 2:end-1, :], REGULAR_DATA)
         write_to_file(S_λ[:, :, 2:end-1, 2:end-1], REGULAR_DATA)
@@ -73,7 +95,9 @@ function compare(DATA, quadrature)
         ny = length(atmos.y)
 
         n_sites = floor(Int, nz*nx*ny)
-        positions = rejection_sampling(n_sites, atmos, log10.(ustrip.(atmos.hydrogen_populations)))
+
+        global positions
+        positions = sample_from_extinction(atmos, 121.0u"nm", n_sites)
 
         sites_file = "../data/sites_compare.txt"
         neighbours_file = "../data/neighbours_compare.txt"
@@ -108,9 +132,14 @@ function compare(DATA, quadrature)
                              y_min*1u"m", y_max*1u"m",
                              n_sites)
 
-        line = HydrogenicLine(test_atom()..., sites.temperature)
+        line = HydrogenicLine(test_atom(nλ_bb, nλ_bf)..., sites.temperature)
 
-        J_mean, S_λ, α_cont, populations = Λ_voronoi(ϵ, maxiter, sites, line, quadrature)
+        VORONOI_DATA = "../data/voronoi_line_12.h5"
+        create_output_file(VORONOI_DATA, length(line.λ), size(atmos_from_voronoi.temperature), maxiter)
+        write_to_file(nλ_bb, "n_bb", VORONOI_DATA)
+        write_to_file(nλ_bf, "n_bf", VORONOI_DATA)
+
+        J_mean, S_λ, α_cont, populations = Λ_voronoi(ϵ, maxiter, sites, line, quadrature, VORONOI_DATA)
 
         γ = γ_constant(line,
                        sites.temperature,
@@ -137,9 +166,7 @@ function compare(DATA, quadrature)
 
         # plot_top_intensity(I_top, atmos_voronoi.x, atmos_voronoi.y, "irregular_top")
 
-        VORONOI_DATA = "../data/voronoi_line.h5"
 
-        create_output_file(VORONOI_DATA, size(S_λ_grid)[1], size(atmos_from_voronoi.temperature))
 
         write_to_file(populations_grid, VORONOI_DATA)
         write_to_file(S_λ_grid, VORONOI_DATA)
@@ -153,7 +180,7 @@ function compare(DATA, quadrature)
 end
 
 DATA = "../data/bifrost_qs006023_s525_quarter.hdf5"
-QUADRATURE = "../quadratures/ul2n3.dat"
+QUADRATURE = "../quadratures/ul7n12.dat"
 
 compare(DATA, QUADRATURE);
 print("")

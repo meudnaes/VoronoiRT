@@ -59,7 +59,7 @@ function rejection_sampling(n_sites::Int, atmos::Atmosphere, quantity::AbstractA
     Δq = q_max - q_min
 
     # allocate arrays for new sites
-    p_vec = Matrix{Unitful.Length}(undef, (3, n_sites))
+    p_vec = Matrix{Float64}(undef, (3, n_sites))u"m"
 
     for i in 1:n_sites
         print("site $i/$n_sites \r")
@@ -75,7 +75,7 @@ function rejection_sampling(n_sites::Int, atmos::Atmosphere, quantity::AbstractA
             density_ran = rand(Float64)*Δq + q_min
             if density_ref > density_ran
                 # a point is accepted, store position and move on
-                p_vec[:, i] .= (z_ref, x_ref, y_ref)
+                p_vec[:, i] .= (z_ref, x_ref, y_ref).*1u"m"
                 # break to find next site
                 break
             end
@@ -135,7 +135,7 @@ function rejection_sampling(n_sites::Int, boundaries::Matrix, quantity::Abstract
     Δq = q_max - q_min
 
     # allocate arrays for new sites
-    p_vec = Matrix{Unitful.Length}(undef, (3, n_sites))
+    p_vec = Matrix{Float64}(undef, (3, n_sites))
 
     for i in 1:n_sites
         print("site $i/$n_sites \r")
@@ -158,7 +158,7 @@ function rejection_sampling(n_sites::Int, boundaries::Matrix, quantity::Abstract
         end
     end
     print("                                                                 \r")
-    return p_vec
+    return p_vec*1u"m"
 end
 
 
@@ -223,7 +223,7 @@ $f: \mathbb{R}^3 -> \mathbb{R}$ and returns the trilinear interpolation in the
 coordinates (x, y, z). Assumes an original cartesian grid (x, y, z), and
 values for each grid point (hydrogen_populations) are defined
 """
-function trilinear(z_mrk, x_mrk, y_mrk,
+function trilinear(z_mrk::Unitful.Length, x_mrk::Unitful.Length, y_mrk::Unitful.Length,
                    atmos::Atmosphere, vals::AbstractArray)
     # Returns the index of the first value in a greater than or equal to x
     # Subtract by 1 to get coordinate of lower corner
@@ -266,8 +266,9 @@ function trilinear(z_mrk, x_mrk, y_mrk,
     return c
 end
 
-function trilinear(z_mrk::AbstractFloat, x_mrk::AbstractFloat, y_mrk::AbstractFloat,
-                   x::AbstractVector, y::AbstractVector, z::AbstractVector, vals::AbstractArray)
+function trilinear(z_mrk::Unitful.Length, x_mrk::Unitful.Length, y_mrk::Unitful.Length,
+                   x::Vector{<:Unitful.Length}, y::Vector{<:Unitful.Length}, z::Vector{<:Unitful.Length},
+                   vals::AbstractArray)
     # Returns the index of the first value in a greater than or equal to x
     # Subtract by 1 to get coordinate of lower corner
     idz = searchsortedfirst(z, z_mrk) - 1
@@ -318,7 +319,9 @@ coordinates (x_mrk, y_mrk). Assumes an underlying cartesian grid (x_i, y_i)
 Values are defined on the corners of the rectangle spanned by x_bounds and
 y_bounds. x_mrk and y_mrk have to lie inside this rectangle.
 """
-function bilinear(x_mrk, y_mrk, x_bounds, y_bounds, vals)
+function bilinear(x_mrk::Unitful.Length, y_mrk::Unitful.Length,
+                  x_bounds::Tuple, y_bounds::Tuple,
+                  vals::AbstractMatrix)
 
     # corner coordinates
     x1 = x_bounds[1]; x2 = x_bounds[2]
@@ -372,7 +375,7 @@ end
 Writes the arrays z, x, and y to a file with filename fname.
 Arrays are written in columns [ row number ] [ x ] [ y ] [ z ]
 """
-function write_arrays(x::AbstractArray, y::AbstractArray, z::AbstractArray,
+function write_arrays(x::Vector{Float64}, y::Vector{Float64}, z::Vector{Float64},
                       fname::String)
 
     if length(z) != length(y) || length(y) != length(x)
@@ -406,8 +409,8 @@ end
 Continuum extinction.
 """
 function α_continuum(λ::Unitful.Length, temperature::Unitful.Temperature,
-               electron_density::NumberDensity, h_ground_density::NumberDensity,
-               proton_density::NumberDensity)
+                     electron_density::NumberDensity, h_ground_density::NumberDensity,
+                     proton_density::NumberDensity)
 
     α = max(0u"m^-1", Transparency.hminus_ff_stilley(λ, temperature, h_ground_density, electron_density))
     α += Transparency.hminus_bf_wbr(λ, temperature, h_ground_density, electron_density)
@@ -427,8 +430,8 @@ end
 Extinction from scattering processes.
 """
 function α_scattering(λ::Unitful.Length, temperature::Unitful.Temperature,
-               electron_density::NumberDensity, h_ground_density::NumberDensity,
-               proton_density::NumberDensity)
+                      electron_density::NumberDensity, h_ground_density::NumberDensity,
+                      proton_density::NumberDensity)
 
    α = thomson(electron_density)
    α += rayleigh_h(λ, h_ground_density)
@@ -443,8 +446,8 @@ end
 Extinction from photon destruction processes.
 """
 function α_absorption(λ::Unitful.Length, temperature::Unitful.Temperature,
-               electron_density::NumberDensity, h_ground_density::NumberDensity,
-               proton_density::NumberDensity)
+                      electron_density::NumberDensity, h_ground_density::NumberDensity,
+                      proton_density::NumberDensity)
 
     α = max(0u"m^-1", Transparency.hminus_ff_stilley(λ, temperature, h_ground_density, electron_density))
     α += Transparency.hminus_bf_wbr(λ, temperature, h_ground_density, electron_density)

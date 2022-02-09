@@ -11,7 +11,7 @@ Random.seed!(my_seed)
 
 function main()
     DATA = "../data/bifrost_qs006023_s525_quarter.hdf5"
-    atmos = Atmosphere(get_atmos(DATA; periodic=true, skip=4)...)
+    atmos = Atmosphere(get_atmos(DATA; periodic=false)...)
 
     ϵ = 1e-3
     maxiter = 100
@@ -76,7 +76,12 @@ function searchlight()
     electron_density = zeros(nz, nx, ny)u"m^-3"
     hydrogen_density = zeros(nz, nx, ny)u"m^-3"
 
-    atmos = Atmosphere(z, x, y, temperature, electron_density, hydrogen_density)
+    velocity_z = zeros(nz, nx, ny)u"m/s"
+    velocity_x = zeros(nz, nx, ny)u"m/s"
+    velocity_y = zeros(nz, nx, ny)u"m/s"
+
+    atmos = Atmosphere(z, x, y, temperature, electron_density, hydrogen_density,
+                       velocity_z, velocity_x, velocity_y)
 
     S_0 = zeros(nz, nx, ny)u"kW*m^-2*nm^-1"
     α = zeros(nz, nx, ny)u"m^-1"
@@ -98,7 +103,9 @@ function searchlight()
     θ_array = [170, 120, 110, 70,  70,  10]
     ϕ_array = [10,  30,  50,  310, 330, 350]
 
-    for (θ, ϕ) in zip(θ_array, ϕ_array)
+    for i in eachindex(θ_array)
+        θ = θ_array[i]
+        ϕ = ϕ_array[i]
         # Unit vector pointing in the direction of the ray
         k = -[cos(θ*π/180), cos(ϕ*π/180)*sin(θ*π/180), sin(ϕ*π/180)*sin(θ*π/180)]
         if θ > 90
@@ -168,7 +175,7 @@ function searchlight()
                   linecolor=:red,
                   lw=2)
 
-            println("Top: $(I_light*100), Bottom: $(sum(I))")
+            println("Top: $(I_light*75), Bottom: $(sum(I))")
         end
         savefig("../img/searchlight/searchlight_$(θ)_$(ϕ)")
     end
@@ -176,5 +183,5 @@ function searchlight()
     print("")
 end
 
-# searchlight()
-main()
+searchlight()
+# main()

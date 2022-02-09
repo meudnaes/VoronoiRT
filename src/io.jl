@@ -23,15 +23,40 @@ function write_to_file(populations::Array{<:NumberDensity, 4},
 end
 
 function write_to_file(atmos::Atmosphere,
-                       output_path::String)
+                       output_path::String;
+                       ghost_cells=false)
     h5open(output_path, "r+") do file
         for field in fieldnames(Atmosphere)
             if String(field) in ["z", "x", "y"]
-                file[String(field)][:] = ustrip.(getfield(atmos, field))
+                if ghost_cells && String(field) in ["x", "y"]
+                    file[String(field)][:] = ustrip.(getfield(atmos, field))[2:end-1]
+                else
+                    file[String(field)][:] = ustrip.(getfield(atmos, field))
+                end
             else
-                file[String(field)][:, :, :] = ustrip.(getfield(atmos, field))
+                if ghost_cells
+                    file[String(field)][:, :, :] = ustrip.(getfield(atmos, field))[:, 2:end-1, 2:end-1]
+                else
+                    file[String(field)][:, :, :] = ustrip.(getfield(atmos, field))
+                end
             end
         end
+    end
+end
+
+function write_to_file(difference::Float64,
+                       iteration::Int,
+                       output_path::String)
+    h5open(output_path, "r+") do file
+       file["convergence"][iteration] = difference
+    end
+end
+
+function write_to_file(n::Int,
+                       field::String,
+                       output_path::String)
+    h5open(output_path, "r+") do file
+       file[field][:] = n
     end
 end
 
@@ -39,7 +64,8 @@ end
     create_output_file(output_path::String, nλ::Int64, atmosphere_size::Tuple)
 Initialise all output variables for the full atom mode.
 """
-function create_output_file(output_path::String, nλ::Int64, atmosphere_size::Tuple)
+function create_output_file(output_path::String, nλ::Int64, atmosphere_size::Tuple,
+                            maxiter::Int)
 
     nz, nx, ny = atmosphere_size
 
@@ -58,5 +84,10 @@ function create_output_file(output_path::String, nλ::Int64, atmosphere_size::Tu
         write(file, "velocity_z", Array{Float64, 3}(undef, (nz, nx, ny)))
         write(file, "velocity_x", Array{Float64, 3}(undef, (nz, nx, ny)))
         write(file, "velocity_y", Array{Float64, 3}(undef, (nz, nx, ny)))
+
+        write(file, "convergence", zeros(Float64, maxiter+1))
+
+        write(file, "n_bb", Vector{Int}(undef, 1))
+        write(file, "n_bf", Vector{Int}(undef, 1))
     end
 end

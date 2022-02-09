@@ -148,8 +148,8 @@ function calculate_R(sites::VoronoiSites,
 
     # ionization
     for level = 1:n_levels
-        start = line.λidx[level+1]
-        stop = line.λidx[level+2]-1
+        start = line.λidx[level+1]+1
+        stop = line.λidx[level+2]
         σ = σic(level, line, line.λ[start:stop])
         G = Gij(level, n_levels+1, line.λ[start:stop], sites.temperature*1.0, LTE_pops)
 
@@ -161,8 +161,8 @@ function calculate_R(sites::VoronoiSites,
     # for l=1:n_levels-1
         # for u=(l+1):n_levels
 
-    start = line.λidx[1]
-    stop = line.λidx[2]-1
+    start = line.λidx[1]+1
+    stop = line.λidx[2]
 
     l = 1
     u = 2
@@ -340,7 +340,6 @@ function Rji(J::Matrix{<:UnitsIntensity_λ},
 
     # Trapezoid rule
     for l=1:(nλ-1)
-        @assert λ[l+1] - λ[l] > 0u"nm" "Negative Δλ"
         R += 2π/hc * (σij[l].*Gij[l,:].*λ[l].*(2*hc*c_0/λ[l]^5 .+ J[l,:]) .+
                       σij[l+1].*Gij[l+1,:].*λ[l+1].*(2*hc*c_0/λ[l+1]^5 .+ J[l+1,:])).*(λ[l+1] - λ[l])
     end

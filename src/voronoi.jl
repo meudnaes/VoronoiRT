@@ -86,9 +86,9 @@ function searchlight_irregular_2()
     neighbours_file = "../data/searchlight_neighbours.txt"
 
     # write sites to file
-    write_arrays(ustrip(positions[2, :]),
-                 ustrip(positions[3, :]),
-                 ustrip(positions[1, :]),
+    write_arrays(ustrip.(positions[2, :]),
+                 ustrip.(positions[3, :]),
+                 ustrip.(positions[1, :]),
                  sites_file)
 
     # compute neigbours

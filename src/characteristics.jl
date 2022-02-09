@@ -234,7 +234,7 @@ function xy_up_ray(θ::AbstractFloat, ϕ::AbstractFloat, idz::Int, sign_x::Int,
         x_centre = atmos.x[idx]
         x_upwind = x_centre + x_increment
 
-        x_bounds = [atmos.x[idx_lower], atmos.x[idx_upper]]
+        x_bounds = (atmos.x[idx_lower], atmos.x[idx_upper])
 
         for idy in start_y:-sign_y:stop_y
             # Centre point (c)
@@ -247,7 +247,7 @@ function xy_up_ray(θ::AbstractFloat, ϕ::AbstractFloat, idz::Int, sign_x::Int,
             idy_lower = idy + Int((sign_y-1)/2)
             idy_upper = idy+1
 
-            y_bounds = [atmos.y[idy_lower], atmos.y[idy_upper]]
+            y_bounds = (atmos.y[idy_lower], atmos.y[idy_upper])
 
             # Do linear interpolation to find τ and S
 
@@ -338,7 +338,7 @@ function xy_down_ray(θ::AbstractFloat, ϕ::AbstractFloat, idz::Integer, sign_x:
         x_centre = atmos.x[idx]
         x_upwind = x_centre + x_increment
 
-        x_bounds = [atmos.x[idx_lower], atmos.x[idx_upper]]
+        x_bounds = (atmos.x[idx_lower], atmos.x[idx_upper])
 
         for idy in start_y:-sign_y:stop_y
             idy_lower = idy + Int((sign_y-1)/2)
@@ -347,7 +347,7 @@ function xy_down_ray(θ::AbstractFloat, ϕ::AbstractFloat, idz::Integer, sign_x:
             y_centre = atmos.y[idy]
             y_upwind = y_centre + y_increment
 
-            y_bounds = [atmos.y[idy_lower], atmos.y[idy_upper]]
+            y_bounds = (atmos.y[idy_lower], atmos.y[idy_upper])
             # Do linear interpolation to find τ and S
 
             # exinction at centre and upwind point
@@ -430,7 +430,7 @@ function yz_up_ray(θ::AbstractFloat, ϕ::AbstractFloat, idz::Int, sign_x::Int,
 
     z_upwind = z_centre + z_increment
 
-    z_bounds = [atmos.z[idz_lower], z_centre]
+    z_bounds = (atmos.z[idz_lower], z_centre)
 
     α_lower = α[idz_lower,:,:]
     α_upper = α[idz,:,:]
@@ -457,7 +457,7 @@ function yz_up_ray(θ::AbstractFloat, ϕ::AbstractFloat, idz::Int, sign_x::Int,
 
         y_upwind = y_centre + y_increment
 
-        y_bounds = [atmos.y[idy_lower], atmos.y[idy_upper]]
+        y_bounds = (atmos.y[idy_lower], atmos.y[idy_upper])
 
         # Do linear interpolation to find τ and S
 
@@ -513,7 +513,7 @@ function yz_up_ray(θ::AbstractFloat, ϕ::AbstractFloat, idz::Int, sign_x::Int,
 
                 y_upwind = y_centre + y_increment
 
-                y_bounds = [atmos.y[idy_lower], atmos.y[idy_upper]]
+                y_bounds = (atmos.y[idy_lower], atmos.y[idy_upper])
 
                 # Do linear interpolation to find τ and S
 
@@ -607,7 +607,7 @@ function yz_down_ray(θ::AbstractFloat, ϕ::AbstractFloat, idz::Int, sign_x::Int
 
     z_upwind = z_centre + z_increment
 
-    z_bounds = [z_centre, atmos.z[idz_upper]]
+    z_bounds = (z_centre, atmos.z[idz_upper])
 
     α_lower = α[idz,:,:]
     α_upper = α[idz_upper,:,:]
@@ -633,7 +633,7 @@ function yz_down_ray(θ::AbstractFloat, ϕ::AbstractFloat, idz::Int, sign_x::Int
 
         y_upwind = y_centre + y_increment
 
-        y_bounds = [atmos.y[idy_lower], atmos.y[idy_upper]]
+        y_bounds = (atmos.y[idy_lower], atmos.y[idy_upper])
 
         # Do linear interpolation to find τ and S
 
@@ -690,7 +690,7 @@ function yz_down_ray(θ::AbstractFloat, ϕ::AbstractFloat, idz::Int, sign_x::Int
 
                 y_upwind = y_centre + y_increment
 
-                y_bounds = [atmos.y[idy_lower], atmos.y[idy_upper]]
+                y_bounds = (atmos.y[idy_lower], atmos.y[idy_upper])
 
                 # Do linear interpolation to find τ and S
 
@@ -782,7 +782,7 @@ function xz_up_ray(θ::AbstractFloat, ϕ::AbstractFloat, idz::Int, sign_x::Int,
 
     z_upwind = z_centre + z_increment
 
-    z_bounds = [atmos.z[idz_lower], z_centre]
+    z_bounds = (atmos.z[idz_lower], z_centre)
 
     α_lower = α[idz_lower,:,:]
     α_upper = α[idz,:,:]
@@ -809,7 +809,7 @@ function xz_up_ray(θ::AbstractFloat, ϕ::AbstractFloat, idz::Int, sign_x::Int,
 
         x_upwind = x_centre + x_increment
 
-        x_bounds = [atmos.x[idx_lower], atmos.x[idx_upper]]
+        x_bounds = (atmos.x[idx_lower], atmos.x[idx_upper])
 
         # Do linear interpolation to find τ and S
 
@@ -865,7 +865,7 @@ function xz_up_ray(θ::AbstractFloat, ϕ::AbstractFloat, idz::Int, sign_x::Int,
 
                 x_upwind = x_centre + x_increment
 
-                x_bounds = [atmos.x[idx_lower], atmos.x[idx_upper]]
+                x_bounds = (atmos.x[idx_lower], atmos.x[idx_upper])
 
                 # Do linear interpolation to find τ and S
 
@@ -960,7 +960,7 @@ function xz_down_ray(θ::AbstractFloat, ϕ::AbstractFloat, idz::Int, sign_x::Int
 
     z_upwind = z_centre + z_increment
 
-    z_bounds = [z_centre, atmos.z[idz_upper]]
+    z_bounds = (z_centre, atmos.z[idz_upper])
 
     α_lower = α[idz,:,:]
     α_upper = α[idz_upper,:,:]
@@ -986,7 +986,7 @@ function xz_down_ray(θ::AbstractFloat, ϕ::AbstractFloat, idz::Int, sign_x::Int
 
         x_upwind = x_centre + x_increment
 
-        x_bounds = [atmos.x[idx_lower], atmos.x[idx_upper]]
+        x_bounds = (atmos.x[idx_lower], atmos.x[idx_upper])
 
         # Do linear interpolation to find τ and S
 
@@ -1041,7 +1041,7 @@ function xz_down_ray(θ::AbstractFloat, ϕ::AbstractFloat, idz::Int, sign_x::Int
 
                 x_upwind = x_centre + x_increment
 
-                x_bounds = [atmos.x[idx_lower], atmos.x[idx_upper]]
+                x_bounds = (atmos.x[idx_lower], atmos.x[idx_upper])
 
                 # Do linear interpolation to find τ and S
 
