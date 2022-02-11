@@ -23,7 +23,7 @@ struct HydrogenicLine{T <: AbstractFloat}
     function HydrogenicLine(χu::Quantity{T}, χl::Quantity{T}, χ∞::Quantity{T},
                             nλ_bb::Int, nλ_bf::Int,
                             gu::Int, gl::Int, f_value::T, atom_weight::Unitful.Mass{T},
-                            Z::Int, temperature::Array{<: Unitful.Temperature})  where T <: AbstractFloat
+                            Z::Int, temperature::Array{<:Unitful.Temperature})  where T <: AbstractFloat
         # Add conversion from cm^-1 to aJ, if type of χu is L^-1
         χu = Transparency.wavenumber_to_energy(χu)
         χl = Transparency.wavenumber_to_energy(χl)

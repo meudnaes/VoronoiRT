@@ -469,81 +469,42 @@ end
 """
     xy_intersect(ϕ::AbstractFloat)
 
-Finds quadrant defined by the azimuthal angle ϕ
+Finds x and y direction ray is moving in defined by the azimuthal angle ϕ
 """
 function xy_intersect(ϕ::AbstractFloat)
     local sign_x, sign_y
-    if ϕ < π/2
-        # 1st quadrant. Positive x, positive y
-        sign_x = 1
-        sign_y = 1
+    @assert 0 <= ϕ < 2π "Bad angle. Expects ϕ ∈ [0, 2π), but ϕ = $ϕ"
+    if 0 <= ϕ < π/2
+        # 1st quadrant. Negative x, negative y
+        sign_x = -1
+        sign_y = -1
     elseif π/2 < ϕ < π
-        # 2nd quadrant. Negative x, positive y
-        sign_x = -1
-        sign_y = 1
-    elseif π < ϕ < 3π/2
-        # 3rd quadrant. Negative x, negative y
-        sign_x = -1
-        sign_y = -1
-    elseif 3π/2 < ϕ < 2π
-        # 4th quadrant. Positive x, negative y
+        # 2nd quadrant. Positive x, negative y
         sign_x = 1
         sign_y = -1
+    elseif π < ϕ < 3π/2
+        # 3rd quadrant. Positive x, positive y
+        sign_x = 1
+        sign_y = 1
+    elseif 3π/2 < ϕ < 2π
+        # 4th quadrant. Negative x, positive y
+        sign_x = -1
+        sign_y = 1
     end
     return sign_x::Int, sign_y::Int
-end
-
-"""
-    function read_quadrature(fname::String)
-
-Read quarature weights and angles from file. Returns weights, horizontal angle,
-azimuthal angle, and number of quadrature points. Quadratures found in
-https://cdsarc.cds.unistra.fr/viz-bin/cat/J/A+A/645/A101#/browse
-from Bestard & Bueno (2021)
-"""
-function read_quadrature(fname::String)
-    n_points = ""
-    switch = false
-    for (i, char) in enumerate(fname)
-        if char == 'n'
-            switch = true
-        elseif switch == true
-            try parse(Int, char)
-                n_points = string(n_points, char)
-            catch
-                break
-            end
-        end
-    end
-
-    n_points = parse(Int, n_points)
-
-    weights = zeros(n_points)
-    θ_array = zeros(n_points)
-    ϕ_array = zeros(n_points)
-
-    open(fname, "r") do io
-        for (i, line) in enumerate(eachline(fname))
-            weights[i] = parse(Float64, split(line)[1])
-            θ_array[i] = parse(Float64, split(line)[2])
-            ϕ_array[i] = parse(Float64, split(line)[3])
-        end
-    end
-
-    return weights::AbstractArray, θ_array::AbstractArray, ϕ_array::AbstractArray, n_points::Int
 end
 
 """
     function range_bounds(sign::Int, bound::Int)
 
 Given a quadrant from sign_x and sign_x from xy_intersect(), this function
-determines the loop start end stop point for the short characteristics ray.
+determines the loop start and stop point for the short characteristics rays.
 """
 function range_bounds(sign::Int, bound::Int)
-    if sign == -1
+    if sign == 1
         start = 2
         stop = bound-1
-    elseif sign == 1
+    elseif sign == -1
         start = bound-1
         stop = 2
     end
@@ -604,17 +565,6 @@ function smallest_non_negative(arr::AbstractArray)
         end
     end
     return index::Int, minVal::Float64
-end
-
-"""
-    function circle_shape(x, y, r)
-
-Function for a circle with centre coordinates (x, y) and radius r. Useful for
-plotting purposes.
-"""
-function circle_shape(x, y, r)
-    θ = LinRange(0, 2π, 500)
-    x .+ r*cos.(θ), y .+ r*sin.(θ)
 end
 
 function less_than(arr::AbstractArray, treshold)

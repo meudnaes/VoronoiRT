@@ -1,4 +1,5 @@
 using Plots
+using UnitfulRecipes
 
 include("line.jl")
 include("functions.jl")
@@ -6,6 +7,52 @@ include("atmosphere.jl")
 include("broadening.jl")
 include("populations.jl")
 include("characteristics.jl")
+
+"""
+    function circle_shape(x, y, r)
+
+Function for a circle with centre coordinates (x, y) and radius r.
+"""
+function circle_shape(x, y, r)
+    θ = LinRange(0, 2π, 500)
+    x .+ r*cos.(θ), y .+ r*sin.(θ)
+end
+
+function plot_searchlight(k::Vector{Float64},
+                          x,
+                          y,
+                          I,
+                          R0,
+                          title::String)
+
+    @assert norm(k) ≈ 1 "Wrong direction vector!"
+
+    RES = 300
+    x_r = 0.5 - sign(k[1])*k[2]/k[1]
+    if x_r < 0
+        x_r = 1 - (ceil(x_r) - x_r)
+    elseif x_r > 1
+        x_r = x_r - floor(x_r)
+    end
+
+    y_r = 0.5 - sign(k[1])*k[3]/k[1]
+    if y_r < 0
+        y_r = 1 - (ceil(y_r) - y_r)
+    elseif y_r > 1
+        y_r = y_r - floor(y_r)
+    end
+
+    heatmap(ustrip.(x), ustrip.(y), ustrip.(transpose(I)),
+            dpi=RES, title=title, xaxis="x", yaxis="y",
+            aspect_ratio= :equal, clim=(0.,1.))
+    plot!(circle_shape(ustrip(x_r), ustrip(y_r), ustrip(R0)),
+          aspect_ratio = :equal,
+          linecolor=:red,
+          lw=2,
+          label="")
+    savefig("../img/compare_searchlight/$title")
+
+end
 
 function plot_top_intensity(atmos::Atmosphere,
                             S_λ::Array{<:UnitsIntensity_λ, 4},
@@ -187,4 +234,4 @@ function plotter(atmos::Atmosphere,
 end
 
 # plotter(read_quantities("../data/linedata/voronoi_line.h5", periodic=true)..., 10., 10., "Voronoi-Line")
-plotter(read_quantities("../data/linedata/regular_line_91.h5", periodic=true)..., 10., 10., "Regular-Line")
+# plotter(read_quantities("../data/linedata/regular_line_91.h5", periodic=true)..., 10., 10., "Regular-Line")

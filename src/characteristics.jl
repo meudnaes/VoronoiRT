@@ -3,11 +3,6 @@ Short characteristic method to solve intensity along rays going through all grid
 points.
 =#
 
-# Think about the interpolation when the ray does not hit lower or upper
-# plane. This is solved through an 'extra' iteration for now, but I think that is
-# a bad idea, especially in high gradient regions. Doesn't work well for
-# searchlight test
-
 include("functions.jl")
 
 """
@@ -36,6 +31,8 @@ function short_characteristics_up(θ, ϕ, S_0, α, atmos; degrees=true, I_0=fals
     #                             upwind point
     ############################################################################
 
+    ϕ = ϕ - 180
+
     # Convert to radians if input angle is in degrees...
     if degrees == true
         θ = θ*π/180
@@ -43,15 +40,14 @@ function short_characteristics_up(θ, ϕ, S_0, α, atmos; degrees=true, I_0=fals
     end
 
     # Allocate array for new intensity
-    I = Array{UnitsIntensity_λ, 3}(undef, size(S_0))
-    fill!(I, 0u"kW*m^-2*nm^-1")
+    I = zero(S_0)
 
     nz = length(atmos.z)
     Δx = atmos.x[2] - atmos.x[1]
     Δy = atmos.y[2] - atmos.y[1]
 
     # sweeps
-    n_sweeps = 2
+    n_sweeps = 3
 
     # I know that Δx = Δy = constant for all grid points
     # Δxy = atmos.x[2] - atmos.x[1]
@@ -62,12 +58,11 @@ function short_characteristics_up(θ, ϕ, S_0, α, atmos; degrees=true, I_0=fals
     sign_x, sign_y = xy_intersect(ϕ)
 
     if I_0 == false
-        # Boundary condition, planck function...
+        # Boundary condition, (S = planck function at bottom...)
         I[1,:,:] = S_0[1,:,:]
     else
         I[1,:,:] = I_0
     end
-
 
     # loop upwards through atmosphere
     for idz in 2:nz
@@ -125,18 +120,19 @@ function short_characteristics_down(θ, ϕ, S_0, α, atmos; degrees=true, I_0=fa
     #
     ############################################################################
 
+    ϕ = 180+ϕ
+
     # Convert to radians if input angle is in degrees...
     if degrees == true
-        θ = θ*pi/180
-        ϕ = ϕ*pi/180
+        θ = θ*π/180
+        ϕ = ϕ*π/180
     end
 
     # Allocate array for new intensity
-    I = Array{UnitsIntensity_λ, 3}(undef, size(S_0))
-    fill!(I, 0u"kW*m^-2*nm^-1")
+    I = zero(S_0)
 
     # sweeps
-    n_sweeps = 2
+    n_sweeps = 3
 
     nz = length(atmos.z)
     Δx = atmos.x[2] - atmos.x[1]
@@ -151,8 +147,7 @@ function short_characteristics_down(θ, ϕ, S_0, α, atmos; degrees=true, I_0=fa
 
     if I_0 == false
         # Boundary condition
-        I[end,:,:] = Matrix{UnitsIntensity_λ}(undef, size(S_0[end, :, :]))
-        fill!(I[end, :, :], 0u"kW*m^-2*nm^-1")
+        I[end,:,:] = zero(S_0[end,:,:])
     else
         I[end,:,:] = I_0
     end
@@ -201,8 +196,7 @@ function xy_up_ray(θ::AbstractFloat, ϕ::AbstractFloat, idz::Int, sign_x::Int,
                    α::AbstractArray, atmos::Atmosphere)
 
     # Allocate space for intensity
-    I = Matrix{UnitsIntensity_λ}(undef, size(I_0))
-    fill!(I, 0u"kW*m^-2*nm^-1")
+    I = zero(I_0)
 
     nx = length(atmos.x)
     ny = length(atmos.y)
@@ -223,12 +217,8 @@ function xy_up_ray(θ::AbstractFloat, ϕ::AbstractFloat, idz::Int, sign_x::Int,
 
     S_lower = S_0[idz_upwind,:,:]
 
-    # Loop direction
-    start_x, stop_x = range_bounds(sign_x, nx)
-    start_y, stop_y = range_bounds(sign_y, ny)
-
-    for idx in start_x:-sign_x:stop_x
-        idx_lower = idx + Int((sign_x-1)/2)
+    for idx in 2:nx-1
+        idx_lower = idx - Int((sign_x+1)/2)
         idx_upper = idx_lower + 1
 
         x_centre = atmos.x[idx]
@@ -236,7 +226,7 @@ function xy_up_ray(θ::AbstractFloat, ϕ::AbstractFloat, idz::Int, sign_x::Int,
 
         x_bounds = (atmos.x[idx_lower], atmos.x[idx_upper])
 
-        for idy in start_y:-sign_y:stop_y
+        for idy in 2:ny-1
             # Centre point (c)
             y_centre = atmos.y[idy]
 
@@ -244,8 +234,11 @@ function xy_up_ray(θ::AbstractFloat, ϕ::AbstractFloat, idz::Int, sign_x::Int,
             y_upwind = y_centre + y_increment
 
             # Lower corner to interpolate from
-            idy_lower = idy + Int((sign_y-1)/2)
-            idy_upper = idy+1
+            idy_lower = idy - Int((sign_y+1)/2)
+            #######################
+            ## what happens here???
+            #######################
+            idy_upper = idy_lower + 1
 
             y_bounds = (atmos.y[idy_lower], atmos.y[idy_upper])
 
@@ -305,8 +298,7 @@ function xy_down_ray(θ::AbstractFloat, ϕ::AbstractFloat, idz::Integer, sign_x:
                      α::AbstractArray, atmos::Atmosphere)
 
     # Allocate space for intensity
-    I = Matrix{UnitsIntensity_λ}(undef, size(I_0))
-    fill!(I, 0u"kW*m^-2*nm^-1")
+    I = zero(I_0)
 
     nx = length(atmos.x)
     ny = length(atmos.y)
@@ -331,8 +323,8 @@ function xy_down_ray(θ::AbstractFloat, ϕ::AbstractFloat, idz::Integer, sign_x:
     start_x, stop_x = range_bounds(sign_x, nx)
     start_y, stop_y = range_bounds(sign_y, ny)
 
-    for idx in start_x:-sign_x:stop_x
-        idx_lower = idx + Int((sign_x-1)/2)
+    for idx in 2:nx-1
+        idx_lower = idx - Int((sign_x+1)/2)
         idx_upper = idx_lower+1
 
         x_centre = atmos.x[idx]
@@ -340,8 +332,8 @@ function xy_down_ray(θ::AbstractFloat, ϕ::AbstractFloat, idz::Integer, sign_x:
 
         x_bounds = (atmos.x[idx_lower], atmos.x[idx_upper])
 
-        for idy in start_y:-sign_y:stop_y
-            idy_lower = idy + Int((sign_y-1)/2)
+        for idy in 2:ny-1
+            idy_lower = idy - Int((sign_y+1)/2)
             idy_upper = idy_lower+1
 
             y_centre = atmos.y[idy]
@@ -412,12 +404,9 @@ function yz_up_ray(θ::AbstractFloat, ϕ::AbstractFloat, idz::Int, sign_x::Int,
     start_y, stop_y = range_bounds(sign_y, ny)
 
     # Allocate space for intensity
-    I = Matrix{UnitsIntensity_λ}(undef, size(I_0))
-    fill!(I, 0u"kW*m^-2*nm^-1")
+    I = zero(I_0)
 
-
-    I_upper = Vector{UnitsIntensity_λ}(undef, size(I_0[end,:]))
-    fill!(I_upper, 0u"kW*m^-2*nm^-1")
+    I_upper = zero(I_0[end,:])
 
     # Z center and interpolation position
     z_centre = atmos.z[idz]
@@ -447,12 +436,12 @@ function yz_up_ray(θ::AbstractFloat, ϕ::AbstractFloat, idz::Int, sign_x::Int,
     x_upwind = atmos.x[idx_upwind]
 
 
-    for idy in start_y:-sign_y:stop_y
+    for idy in start_y:sign_y:stop_y
         # Centre point (c)
         y_centre = atmos.y[idy]
 
         # Lower corner to interpolate from
-        idy_lower = idy+Int((sign_y-1)/2)
+        idy_lower = idy-Int((sign_y+1)/2)
         idy_upper = idy_lower+1
 
         y_upwind = y_centre + y_increment
@@ -498,17 +487,17 @@ function yz_up_ray(θ::AbstractFloat, ϕ::AbstractFloat, idz::Int, sign_x::Int,
     I_upper[end] = I_upper[2]
 
     for sweep in 1:n_sweeps
-        for idx in start_x:-sign_x:stop_x
+        for idx in start_x:sign_x:stop_x
             x_centre = atmos.x[idx]
             # x upwind position
             idx_upwind = idx+sign_x
             x_upwind = atmos.x[idx_upwind]
-            for idy in start_y:-sign_y:stop_y
+            for idy in start_y:sign_y:stop_y
                 # Centre point (c)
                 y_centre = atmos.y[idy]
 
                 # Lower corner to interpolate from
-                idy_lower = idy+Int((sign_y-1)/2)
+                idy_lower = idy-Int((sign_y+1)/2)
                 idy_upper = idy_lower+1
 
                 y_upwind = y_centre + y_increment
@@ -587,11 +576,10 @@ function yz_down_ray(θ::AbstractFloat, ϕ::AbstractFloat, idz::Int, sign_x::Int
     start_y, stop_y = range_bounds(sign_y, ny)
 
     # Allocate space for intensity
-    I = Matrix{UnitsIntensity_λ}(undef, size(I_0))
-    fill!(I, 0u"kW*m^-2*nm^-1")
+    I = zero(I_0)
 
-    I_lower = Vector{UnitsIntensity_λ}(undef, size(I_0[end,:]))
-    fill!(I_lower, 0u"kW*m^-2*nm^-1")
+    I_lower = zero(I_0[end,:])
+
 
     # Z center and interpolation position
     z_centre = atmos.z[idz]
@@ -623,12 +611,12 @@ function yz_down_ray(θ::AbstractFloat, ϕ::AbstractFloat, idz::Int, sign_x::Int
     idx_upwind = idx+sign_x
     x_upwind = atmos.x[idx_upwind]
 
-    for idy in start_y:-sign_y:stop_y
+    for idy in start_y:sign_y:stop_y
         # Centre point (c)
         y_centre = atmos.y[idy]
 
         # Lower corner to interpolate from
-        idy_lower = idy+Int((sign_y-1)/2)
+        idy_lower = idy-Int((sign_y+1)/2)
         idy_upper = idy_lower+1
 
         y_upwind = y_centre + y_increment
@@ -674,18 +662,18 @@ function yz_down_ray(θ::AbstractFloat, ϕ::AbstractFloat, idz::Int, sign_x::Int
     I_lower[end] = I_lower[2]
 
     for sweep in 1:n_sweeps
-        for idx in start_x:-sign_x:stop_x
+        for idx in start_x:sign_x:stop_x
             x_centre = atmos.x[idx]
             # X upwind position
             idx_upwind = idx+sign_x
             x_upwind = atmos.x[idx_upwind]
 
-            for idy in start_y:-sign_y:stop_y
+            for idy in start_y:sign_y:stop_y
                 # Centre point (c)
                 y_centre = atmos.y[idy]
 
                 # Lower corner to interpolate from
-                idy_lower = idy+Int((sign_y-1)/2)
+                idy_lower = idy-Int((sign_y+1)/2)
                 idy_upper = idy_lower+1
 
                 y_upwind = y_centre + y_increment
@@ -764,12 +752,10 @@ function xz_up_ray(θ::AbstractFloat, ϕ::AbstractFloat, idz::Int, sign_x::Int,
     start_y, stop_y = range_bounds(sign_y, ny)
 
     # Allocate space for intensity
-    I = Matrix{UnitsIntensity_λ}(undef, size(I_0))
-    fill!(I, 0u"kW*m^-2*nm^-1")
+    I = zero(I_0)
 
+    I_upper = zero(I_0[end,:])
 
-    I_upper = Vector{UnitsIntensity_λ}(undef, size(I_0[end,:]))
-    fill!(I_upper, 0u"kW*m^-2*nm^-1")
 
     # Z center and interpolation position
     z_centre = atmos.z[idz]
@@ -799,12 +785,12 @@ function xz_up_ray(θ::AbstractFloat, ϕ::AbstractFloat, idz::Int, sign_x::Int,
     y_upwind = atmos.y[idy_upwind]
 
 
-    for idx in start_x:-sign_x:stop_x
+    for idx in start_x:sign_x:stop_x
         # Centre point (c)
         x_centre = atmos.x[idx]
 
         # Lower corner to interpolate from
-        idx_lower = idx+Int((sign_x-1)/2)
+        idx_lower = idx-Int((sign_x+1)/2)
         idx_upper = idx_lower+1
 
         x_upwind = x_centre + x_increment
@@ -850,17 +836,17 @@ function xz_up_ray(θ::AbstractFloat, ϕ::AbstractFloat, idz::Int, sign_x::Int,
     I_upper[end] = I_upper[2]
 
     for sweep in 1:n_sweeps
-        for idy in start_y:-sign_y:stop_y
+        for idy in start_y:sign_y:stop_y
             y_centre = atmos.y[idy]
             # x upwind position
             idy_upwind = idy+sign_y
             y_upwind = atmos.y[idy_upwind]
-            for idx in start_x:-sign_x:stop_x
+            for idx in start_x:sign_x:stop_x
                 # Centre point (c)
                 x_centre = atmos.x[idx]
 
                 # Lower corner to interpolate from
-                idx_lower = idx+Int((sign_x-1)/2)
+                idx_lower = idx-Int((sign_x+1)/2)
                 idx_upper = idx_lower+1
 
                 x_upwind = x_centre + x_increment
@@ -939,12 +925,10 @@ function xz_down_ray(θ::AbstractFloat, ϕ::AbstractFloat, idz::Int, sign_x::Int
     start_y, stop_y = range_bounds(sign_y, ny)
 
     # Allocate space for intensity
-    I = Matrix{UnitsIntensity_λ}(undef, size(I_0))
-    fill!(I, 0u"kW*m^-2*nm^-1")
+    I = zero(I_0)
 
+    I_lower = zero(I_0[end,:])
 
-    I_lower = Vector{UnitsIntensity_λ}(undef, size(I_0[end,:]))
-    fill!(I_lower, 0u"kW*m^-2*nm^-1")
 
     # Z center and interpolation position
     z_centre = atmos.z[idz]
@@ -976,12 +960,12 @@ function xz_down_ray(θ::AbstractFloat, ϕ::AbstractFloat, idz::Int, sign_x::Int
     idy_upwind = idy+sign_y
     y_upwind = atmos.y[idy_upwind]
 
-    for idx in start_x:-sign_x:stop_x
+    for idx in start_x:sign_x:stop_x
         # Centre point (c)
         x_centre = atmos.x[idx]
 
         # Lower corner to interpolate from
-        idx_lower = idx+Int((sign_x-1)/2)
+        idx_lower = idx-Int((sign_x+1)/2)
         idx_upper = idx_lower+1
 
         x_upwind = x_centre + x_increment
@@ -1026,17 +1010,17 @@ function xz_down_ray(θ::AbstractFloat, ϕ::AbstractFloat, idz::Int, sign_x::Int
     I_lower[end] = I_lower[2]
 
     for sweep in 1:n_sweeps
-        for idy in start_y:-sign_y:stop_y
+        for idy in start_y:sign_y:stop_y
             y_centre = atmos.y[idy]
             # x upwind position
             idy_upwind = idy+sign_y
             y_upwind = atmos.y[idy_upwind]
-            for idx in start_x:-sign_x:stop_x
+            for idx in start_x:sign_x:stop_x
                 # Centre point (c)
                 x_centre = atmos.x[idx]
 
                 # Lower corner to interpolate from
-                idx_lower = idx+Int((sign_x-1)/2)
+                idx_lower = idx-Int((sign_x+1)/2)
                 idx_upper = idx_lower+1
 
                 x_upwind = x_centre + x_increment

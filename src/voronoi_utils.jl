@@ -193,6 +193,18 @@ function reduce_layers(layers::Vector{Int})
     return reduced_layers
 end
 
+"""
+    smallest_angle(position::Vector{<:Unitful.Length},
+                        neighbours::Vector{Int},
+                        k::Vector{Float64},
+                        sites::VoronoiSites,
+                        n::Int)
+
+Calculates the dot product between a the Delaunay lines connecting a site and
+every neighbour, and the ray travelling in direction k. Keep in mind that k
+is not toward the ray, but with the direction of the ray. Returns the two
+Delaunay lines with the largest dot products, and the indices of their sites.
+"""
 function smallest_angle(position::Vector{<:Unitful.Length},
                         neighbours::Vector{Int},
                         k::Vector{Float64},
