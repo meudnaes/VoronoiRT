@@ -108,7 +108,7 @@ function searchlight_irregular()
         end
     end
 
-    npzwrite("../data/searchlight_data/I_$(θ)_$(ϕ)_voronoi.npy", ustrip(top_I))
+    # npzwrite("../data/searchlight_data/I_$(θ)_$(ϕ)_voronoi.npy", ustrip(top_I))
     plot_searchlight(k, x, y, top_I, R0, "irregular_$(θ)_$(ϕ)_HR")
 
     # Top to bottom
@@ -143,11 +143,11 @@ function searchlight_irregular()
         end
     end
 
-    npzwrite("../data/searchlight_data/I_$(θ)_$(ϕ)_voronoi.npy", ustrip.(bottom_I))
+    # npzwrite("../data/searchlight_data/I_$(θ)_$(ϕ)_voronoi.npy", ustrip.(bottom_I))
     plot_searchlight(k, x, y, bottom_I, R0, "irregular_$(θ)_$(ϕ)_HR")
 
-    npzwrite("../data/searchlight_data/x_voronoi.npy", x)
-    npzwrite("../data/searchlight_data/y_voronoi.npy", y)
+    # npzwrite("../data/searchlight_data/x_voronoi.npy", x)
+    # npzwrite("../data/searchlight_data/y_voronoi.npy", y)
 
 end
 
@@ -158,8 +158,8 @@ function searchlight_regular()
     x = collect(LinRange(0,1,ny))u"m"
     y = collect(LinRange(0,1,nz))u"m"
 
-    npzwrite("../data/searchlight_data/x_regular.npy", ustrip.(x))
-    npzwrite("../data/searchlight_data/y_regular.npy", ustrip.(y))
+    # npzwrite("../data/searchlight_data/x_regular.npy", ustrip.(x))
+    # npzwrite("../data/searchlight_data/y_regular.npy", ustrip.(y))
 
     temperature = ones(nz, nx, ny)u"K"
     electron_density = zeros(nz, nx, ny)u"m^-3"
@@ -189,28 +189,28 @@ function searchlight_regular()
         end
     end
 
-    θ_array = [20, 160]
-    ϕ_array = [15,  330]
+    θ_array = [20, 160, 60, 120, 50, 130]
+    ϕ_array = [150,  30, 75, 270, 23, 203]
 
     for i in eachindex(θ_array)
         θ = θ_array[i]
         ϕ = ϕ_array[i]
         # Unit vector pointing in the direction of the ray
-        k = -[cos(θ*π/180), cos(ϕ*π/180)*sin(θ*π/180), sin(ϕ*π/180)*sin(θ*π/180)]
+        k = [cos(θ*π/180), cos(ϕ*π/180)*sin(θ*π/180), sin(ϕ*π/180)*sin(θ*π/180)]
         if θ > 90
-            I = short_characteristics_up(θ, ϕ, S_0, α, atmos;
-                            degrees=true, I_0=I_0, pt=true)[:, 2:end-1, 2:end-1]
+            I = short_characteristics_up(k, S_0, α, atmos;
+                                         I_0=I_0, pt=true, n_sweeps=3)[:, 2:end-1, 2:end-1]
 
             I = I[end, :, :]
-            npzwrite("../data/searchlight_data/I_$(θ)_$(ϕ)_regular.npy", ustrip.(I))
+            # npzwrite("../data/searchlight_data/I_$(θ)_$(ϕ)_regular.npy", ustrip.(I))
             plot_searchlight(k, x[2:end-1], y[2:end-1], I, R0, "regular_$(θ)_$(ϕ)")
             println("Bottom: $(I_light*80), Top: $(sum(I))")
         elseif θ < 90
-            I = short_characteristics_down(θ, ϕ, S_0, α, atmos;
-                            degrees=true, I_0=I_0, pt=true)[:, 2:end-1, 2:end-1]
+            I = short_characteristics_down(k, S_0, α, atmos;
+                                           I_0=I_0, pt=true, n_sweeps=3)[:, 2:end-1, 2:end-1]
 
             I = I[1, :, :]
-            npzwrite("../data/searchlight_data/I_$(θ)_$(ϕ)_regular.npy", ustrip.(I))
+            # npzwrite("../data/searchlight_data/I_$(θ)_$(ϕ)_regular.npy", ustrip.(I))
             plot_searchlight(k, x[2:end-1], y[2:end-1], I, R0, "regular_$(θ)_$(ϕ)")
             println("Top: $(I_light*80), Bottom: $(sum(I))")
         end
@@ -221,4 +221,4 @@ end
 
 gr()
 searchlight_regular()
-searchlight_irregular()
+# searchlight_irregular()

@@ -12,7 +12,7 @@ Computes intensity along rays traveling upwards from the bottom to the top
 through all grid points in the atmosphere. Initial intensity I_0 = B_λ(T) at the
 bottom of the domain.
 """
-function short_characteristics_up(θ, ϕ, S_0, α, atmos; degrees=true, I_0=false, pt=false)
+function short_characteristics_up(k, S_0, α, atmos; I_0=false, pt=false, n_sweeps=3)
     ############################################################################
     # | and - : Grid
     #     x   : Grid points
@@ -31,14 +31,6 @@ function short_characteristics_up(θ, ϕ, S_0, α, atmos; degrees=true, I_0=fals
     #                             upwind point
     ############################################################################
 
-    ϕ = ϕ - 180
-
-    # Convert to radians if input angle is in degrees...
-    if degrees == true
-        θ = θ*π/180
-        ϕ = ϕ*π/180
-    end
-
     # Allocate array for new intensity
     I = zero(S_0)
 
@@ -46,16 +38,13 @@ function short_characteristics_up(θ, ϕ, S_0, α, atmos; degrees=true, I_0=fals
     Δx = atmos.x[2] - atmos.x[1]
     Δy = atmos.y[2] - atmos.y[1]
 
-    # sweeps
-    n_sweeps = 3
-
     # I know that Δx = Δy = constant for all grid points
     # Δxy = atmos.x[2] - atmos.x[1]
-    r_x = abs(Δx/(cos(ϕ)*sin(θ)))
-    r_y = abs(Δy/(sin(ϕ)*sin(θ)))
+    r_x = abs(Δx/k[2])
+    r_y = abs(Δy/k[3])
 
     # find out direction in xy the ray moves (1 for positive, -1 for negative)
-    sign_x, sign_y = xy_intersect(ϕ)
+    sign_x, sign_y = xy_intersect(k)
 
     if I_0 == false
         # Boundary condition, (S = planck function at bottom...)
@@ -70,22 +59,22 @@ function short_characteristics_up(θ, ϕ, S_0, α, atmos; degrees=true, I_0=fals
         Δz = atmos.z[idz] - atmos.z[idz-1]
 
         # calculate length until ray hits z plane
-        r_z = abs(Δz/cos(θ))
+        r_z = abs(Δz/k[1])
 
         # This finds which plane the ray intersects with
         plane_cut = argmin([r_z, r_x, r_y])
         if plane_cut == 1
-            I[idz,:,:] = xy_up_ray(θ, ϕ, idz, sign_x, sign_y, I[idz-1,:,:], S_0, α, atmos)
+            I[idz,:,:] = xy_up_ray(k, idz, sign_x, sign_y, I[idz-1,:,:], S_0, α, atmos)
             if idz==2 && pt == true
                 println("xy_up_ray")
             end
         elseif plane_cut==2
-            I[idz,:,:] = yz_up_ray(θ, ϕ, idz, sign_x, sign_y, I[idz-1,:,:], S_0, α, atmos, n_sweeps)
+            I[idz,:,:] = yz_up_ray(k, idz, sign_x, sign_y, I[idz-1,:,:], S_0, α, atmos, n_sweeps)
             if idz==2 && pt == true
                 println("yz_up_ray")
             end
         elseif plane_cut==3
-            I[idz,:,:] = xz_up_ray(θ, ϕ, idz, sign_x, sign_y, I[idz-1,:,:], S_0, α, atmos, n_sweeps)
+            I[idz,:,:] = xz_up_ray(k, idz, sign_x, sign_y, I[idz-1,:,:], S_0, α, atmos, n_sweeps)
             if idz==2 && pt == true
                 println("xz_up_ray")
             end
@@ -102,7 +91,7 @@ Computes intensity along rays traveling downwards from the top to the bottom
 through all grid points in the atmosphere. Initial intensity I_0 = 0 at the top
 of the domain.
 """
-function short_characteristics_down(θ, ϕ, S_0, α, atmos; degrees=true, I_0=false, pt=false)
+function short_characteristics_down(k, S_0, α, atmos; I_0=false, pt=false, n_sweeps=3)
     ############################################################################
     # | and - : Grid
     #     x   : Grid points
@@ -120,30 +109,19 @@ function short_characteristics_down(θ, ϕ, S_0, α, atmos; degrees=true, I_0=fa
     #
     ############################################################################
 
-    ϕ = 180+ϕ
-
-    # Convert to radians if input angle is in degrees...
-    if degrees == true
-        θ = θ*π/180
-        ϕ = ϕ*π/180
-    end
-
     # Allocate array for new intensity
     I = zero(S_0)
-
-    # sweeps
-    n_sweeps = 3
 
     nz = length(atmos.z)
     Δx = atmos.x[2] - atmos.x[1]
     Δy = atmos.y[2] - atmos.y[1]
 
     # I know that Δx = Δy = constant for all grid points
-    r_x = abs(Δx/(cos(ϕ)*sin(θ)))
-    r_y = abs(Δy/(sin(ϕ)*sin(θ)))
+    r_x = abs(Δx/k[2])
+    r_y = abs(Δy/k[3])
 
     # find out which plane the upwind part of the ray intersects
-    sign_x, sign_y = xy_intersect(ϕ)
+    sign_x, sign_y = xy_intersect(k)
 
     if I_0 == false
         # Boundary condition
@@ -158,22 +136,22 @@ function short_characteristics_down(θ, ϕ, S_0, α, atmos; degrees=true, I_0=fa
         Δz = atmos.z[idz+1] - atmos.z[idz]
 
         # calculate length until ray hits z plane
-        r_z = abs(Δz/cos(θ))
+        r_z = abs(Δz/k[1])
 
         # This finds which plane the ray intersects with
         plane_cut = argmin([r_z, r_x, r_y])
         if plane_cut == 1
-            I[idz,:,:] = xy_down_ray(θ, ϕ, idz, sign_x, sign_y, I[idz+1,:,:], S_0, α, atmos)
+            I[idz,:,:] = xy_down_ray(k, idz, sign_x, sign_y, I[idz+1,:,:], S_0, α, atmos)
             if idz==nz-1 && pt == true
                 println("xy_down_ray")
             end
         elseif plane_cut==2
-            I[idz,:,:] = yz_down_ray(θ, ϕ, idz, sign_x, sign_y, I[idz+1,:,:], S_0, α, atmos, n_sweeps)
+            I[idz,:,:] = yz_down_ray(k, idz, sign_x, sign_y, I[idz+1,:,:], S_0, α, atmos, n_sweeps)
             if idz==nz-1 && pt == true
                 println("yz_down_ray")
             end
         elseif plane_cut==3
-            I[idz,:,:] = xz_down_ray(θ, ϕ, idz, sign_x, sign_y, I[idz+1,:,:], S_0, α, atmos, n_sweeps)
+            I[idz,:,:] = xz_down_ray(k, idz, sign_x, sign_y, I[idz+1,:,:], S_0, α, atmos, n_sweeps)
             if idz==nz-1 && pt == true
                 println("xz_down_ray")
             end
@@ -191,7 +169,7 @@ end
 Ray moving upwards, upwind point intersecting with lower xy plane. Assumes angle
 in radians.
 """
-function xy_up_ray(θ::AbstractFloat, ϕ::AbstractFloat, idz::Int, sign_x::Int,
+function xy_up_ray(k::Vector{Float64}, idz::Int, sign_x::Int,
                    sign_y::Int, I_0::AbstractArray, S_0::AbstractArray,
                    α::AbstractArray, atmos::Atmosphere)
 
@@ -208,10 +186,10 @@ function xy_up_ray(θ::AbstractFloat, ϕ::AbstractFloat, idz::Int, sign_x::Int,
 
     # Length to plane
     Δz = z_upwind-z_centre
-    r = abs(Δz/cos(θ))
+    r = abs(Δz/k[1])
 
-    x_increment = r*cos(ϕ)*sin(θ)
-    y_increment = r*sin(ϕ)*sin(θ)
+    x_increment = r*k[2]
+    y_increment = r*k[3]
 
     α_lower = α[idz_upwind,:,:]
 
@@ -235,9 +213,6 @@ function xy_up_ray(θ::AbstractFloat, ϕ::AbstractFloat, idz::Int, sign_x::Int,
 
             # Lower corner to interpolate from
             idy_lower = idy - Int((sign_y+1)/2)
-            #######################
-            ## what happens here???
-            #######################
             idy_upper = idy_lower + 1
 
             y_bounds = (atmos.y[idy_lower], atmos.y[idy_upper])
@@ -293,7 +268,7 @@ end
 Ray moving downwards, upwind point intersecting with upper xy plane. Assumes
 angle in radians.
 """
-function xy_down_ray(θ::AbstractFloat, ϕ::AbstractFloat, idz::Integer, sign_x::Integer,
+function xy_down_ray(k::Vector{Float64}, idz::Integer, sign_x::Integer,
                      sign_y::Integer, I_0::AbstractArray, S_0::AbstractArray,
                      α::AbstractArray, atmos::Atmosphere)
 
@@ -310,18 +285,14 @@ function xy_down_ray(θ::AbstractFloat, ϕ::AbstractFloat, idz::Integer, sign_x:
 
     # Length to plane
     Δz = z_upwind - z_centre
-    r = abs(Δz/cos(θ))
+    r = abs(Δz/k[1])
 
-    x_increment = r*cos(ϕ)*sin(θ)
-    y_increment = r*sin(ϕ)*sin(θ)
+    x_increment = r*k[2]
+    y_increment = r*k[3]
 
     α_upper = α[idz_upwind,:,:]
 
     S_upper = S_0[idz_upwind,:,:]
-
-    # Loop direction
-    start_x, stop_x = range_bounds(sign_x, nx)
-    start_y, stop_y = range_bounds(sign_y, ny)
 
     for idx in 2:nx-1
         idx_lower = idx - Int((sign_x+1)/2)
@@ -390,7 +361,7 @@ end
 Ray moving upwards, upwind point intersecting with yz plane. Assumes angle
 in radians.
 """
-function yz_up_ray(θ::AbstractFloat, ϕ::AbstractFloat, idz::Int, sign_x::Int,
+function yz_up_ray(k::Vector{Float64}, idz::Int, sign_x::Int,
                    sign_y::Int, I_0::AbstractArray, S_0::AbstractArray,
                    α::AbstractArray, atmos::Atmosphere, n_sweeps::Int)
 
@@ -413,9 +384,9 @@ function yz_up_ray(θ::AbstractFloat, ϕ::AbstractFloat, idz::Int, sign_x::Int,
     idz_lower = idz-1
 
     # calculate the length to upwind position
-    r = abs(Δx/(cos(ϕ)*sin(θ)))
-    z_increment = r*cos(θ)
-    y_increment = r*sin(ϕ)*sin(θ)
+    r = abs(Δx/k[2])
+    z_increment = r*k[1]
+    y_increment = r*k[3]
 
     z_upwind = z_centre + z_increment
 
@@ -434,57 +405,6 @@ function yz_up_ray(θ::AbstractFloat, ϕ::AbstractFloat, idz::Int, sign_x::Int,
     # X upwind position
     idx_upwind = idx+sign_x
     x_upwind = atmos.x[idx_upwind]
-
-
-    for idy in start_y:sign_y:stop_y
-        # Centre point (c)
-        y_centre = atmos.y[idy]
-
-        # Lower corner to interpolate from
-        idy_lower = idy-Int((sign_y+1)/2)
-        idy_upper = idy_lower+1
-
-        y_upwind = y_centre + y_increment
-
-        y_bounds = (atmos.y[idy_lower], atmos.y[idy_upper])
-
-        # Do linear interpolation to find τ and S
-
-        # exinction at centre and upwind point
-        # z is 1st coordinate, changes rows in vals. y is 2nd coordinate
-        α_vals = [α_lower[idx_upwind, idy_lower]   α_lower[idx_upwind, idy_upper]
-                  α_upper[idx_upwind, idy_lower]   α_upper[idx_upwind, idy_upper]]
-
-        α_centre = α_upper[idx, idy]
-        α_upwind = bilinear(z_upwind, y_upwind, z_bounds, y_bounds, α_vals)
-
-        # Find the Δτ optical path from upwind to grid point
-        Δτ_upwind = trapezoidal(r, α_centre, α_upwind)
-
-        # Find source function at grid point and upwind point (intepolate)
-        S_vals = [S_lower[idx_upwind, idy_lower]    S_lower[idx_upwind, idy_upper]
-                  S_upper[idx_upwind, idy_lower]    S_upper[idx_upwind, idy_upper]]
-
-        S_centre = S_upper[idx, idy]
-        S_upwind = bilinear(z_upwind, y_upwind, z_bounds, y_bounds, S_vals)
-
-        w1, w2 =  weights(Δτ_upwind)
-        a_ijk, b_ijk, c_ijk = coefficients(w1, w2, Δτ_upwind)
-
-        # Interpolate to find intensity at upwind point
-        # I_0 is from the top
-        I_vals = [I_0[idx_upwind, idy_lower]     I_0[idx_upwind, idy_upper]
-                  S_upper[idx_upwind, idy_lower] S_upper[idx_upwind, idy_upper]]
-
-
-        I_upwind = bilinear(z_upwind, y_upwind, z_bounds, y_bounds, I_vals)
-
-        # Integrate intensity from two-point quadrature
-        I_upper[idy_lower] = a_ijk*S_upwind + b_ijk*S_centre + c_ijk*I_upwind
-    end
-
-    I_upper[1] = I_upper[end-1]
-    I_upper[end] = I_upper[2]
 
     for sweep in 1:n_sweeps
         for idx in start_x:sign_x:stop_x
@@ -562,7 +482,7 @@ end
 Ray moving downwards, upwind point intersecting with yz plane. Assumes angle
 in radians
 """
-function yz_down_ray(θ::AbstractFloat, ϕ::AbstractFloat, idz::Int, sign_x::Int,
+function yz_down_ray(k::Vector{Float64}, idz::Int, sign_x::Int,
                        sign_y::Int, I_0::AbstractArray, S_0::AbstractArray,
                        α::AbstractArray, atmos::Atmosphere, n_sweeps)
 
@@ -589,9 +509,9 @@ function yz_down_ray(θ::AbstractFloat, ϕ::AbstractFloat, idz::Int, sign_x::Int
     # Δx = atmos.x[2] - atmos.x[1]
 
     # calculate the length to upwind position
-    r = abs(Δx/(cos(ϕ)*sin(θ)))
-    z_increment = r*cos(θ)
-    y_increment = r*sin(ϕ)*sin(θ)
+    r = abs(Δx/k[2])
+    z_increment = r*k[1]
+    y_increment = r*k[3]
 
     z_upwind = z_centre + z_increment
 
@@ -610,56 +530,6 @@ function yz_down_ray(θ::AbstractFloat, ϕ::AbstractFloat, idz::Int, sign_x::Int
     # X upwind position
     idx_upwind = idx+sign_x
     x_upwind = atmos.x[idx_upwind]
-
-    for idy in start_y:sign_y:stop_y
-        # Centre point (c)
-        y_centre = atmos.y[idy]
-
-        # Lower corner to interpolate from
-        idy_lower = idy-Int((sign_y+1)/2)
-        idy_upper = idy_lower+1
-
-        y_upwind = y_centre + y_increment
-
-        y_bounds = (atmos.y[idy_lower], atmos.y[idy_upper])
-
-        # Do linear interpolation to find τ and S
-
-        # exinction at centre and upwind point
-        # z is 1st coordinate, changes rows in vals. y is 2nd coordinate
-        α_vals = [α_lower[idx_upwind, idy_lower]   α_lower[idx_upwind, idy_upper]
-                  α_upper[idx_upwind, idy_lower]   α_upper[idx_upwind, idy_upper]]
-
-        α_centre = α_lower[idx, idy]
-        α_upwind = bilinear(z_upwind, y_upwind, z_bounds, y_bounds, α_vals)
-
-        # Find the Δτ optical path from upwind to grid point
-        Δτ_upwind = trapezoidal(r, α_centre, α_upwind)
-
-        # Find source function at grid point and upwind point (intepolate)
-        S_vals = [S_lower[idx_upwind, idy_lower]    S_lower[idx_upwind, idy_upper]
-                  S_upper[idx_upwind, idy_lower]    S_upper[idx_upwind, idy_upper]]
-
-        S_centre = S_lower[idx, idy]
-        S_upwind = bilinear(z_upwind, y_upwind, z_bounds, y_bounds, S_vals)
-
-        w1, w2 =  weights(Δτ_upwind)
-        a_ijk, b_ijk, c_ijk = coefficients(w1, w2, Δτ_upwind)
-
-        # Interpolate to find intensity at upwind point
-        # I_0 is from the top
-        I_vals = [S_lower[idx_upwind, idy_lower]    S_lower[idx_upwind, idy_upper]
-                  I_0[idx_upwind, idy_lower]        I_0[idx_upwind, idy_upper]    ]
-
-
-        I_upwind = bilinear(z_upwind, y_upwind, z_bounds, y_bounds, I_vals)
-
-        # Integrate intensity from two-point quadrature
-        I_lower[idy_lower] = a_ijk*S_upwind + b_ijk*S_centre + c_ijk*I_upwind
-    end
-
-    I_lower[1] = I_lower[end-1]
-    I_lower[end] = I_lower[2]
 
     for sweep in 1:n_sweeps
         for idx in start_x:sign_x:stop_x
@@ -738,7 +608,7 @@ end
 Ray moving upwards, upwind point intersecting with xz plane. Assumes angle
 in radians.
 """
-function xz_up_ray(θ::AbstractFloat, ϕ::AbstractFloat, idz::Int, sign_x::Int,
+function xz_up_ray(k::Vector{Float64}, idz::Int, sign_x::Int,
                    sign_y::Int, I_0::AbstractArray, S_0::AbstractArray,
                    α::AbstractArray, atmos::Atmosphere, n_sweeps::Int)
 
@@ -762,9 +632,9 @@ function xz_up_ray(θ::AbstractFloat, ϕ::AbstractFloat, idz::Int, sign_x::Int,
     idz_lower = idz-1
 
     # calculate the length to upwind position
-    r = abs(Δy/(sin(ϕ)*sin(θ)))
-    z_increment = r*cos(θ)
-    x_increment = r*cos(ϕ)*sin(θ)
+    r = abs(Δy/k[3])
+    z_increment = r*k[1]
+    x_increment = r*k[2]
 
     z_upwind = z_centre + z_increment
 
@@ -783,57 +653,6 @@ function xz_up_ray(θ::AbstractFloat, ϕ::AbstractFloat, idz::Int, sign_x::Int,
     # X upwind position
     idy_upwind = idy+sign_y
     y_upwind = atmos.y[idy_upwind]
-
-
-    for idx in start_x:sign_x:stop_x
-        # Centre point (c)
-        x_centre = atmos.x[idx]
-
-        # Lower corner to interpolate from
-        idx_lower = idx-Int((sign_x+1)/2)
-        idx_upper = idx_lower+1
-
-        x_upwind = x_centre + x_increment
-
-        x_bounds = (atmos.x[idx_lower], atmos.x[idx_upper])
-
-        # Do linear interpolation to find τ and S
-
-        # exinction at centre and upwind point
-        # z is 1st coordinate, changes rows in vals. y is 2nd coordinate
-        α_vals = [α_lower[idx_lower, idy_upwind]   α_lower[idx_upper, idy_upwind]
-                  α_upper[idx_lower, idy_upwind]   α_upper[idx_upper, idy_upwind]]
-
-        α_centre = α_upper[idx, idy]
-        α_upwind = bilinear(z_upwind, x_upwind, z_bounds, x_bounds, α_vals)
-
-        # Find the Δτ optical path from upwind to grid point
-        Δτ_upwind = trapezoidal(r, α_centre, α_upwind)
-
-        # Find source function at grid point and upwind point (intepolate)
-        S_vals = [S_lower[idx_lower, idy_upwind]    S_lower[idx_upper, idy_upwind]
-                  S_upper[idx_lower, idy_upwind]    S_upper[idx_upper, idy_upwind]]
-
-        S_centre = S_upper[idx, idy]
-        S_upwind = bilinear(z_upwind, x_upwind, z_bounds, x_bounds, S_vals)
-
-        w1, w2 =  weights(Δτ_upwind)
-        a_ijk, b_ijk, c_ijk = coefficients(w1, w2, Δτ_upwind)
-
-        # Interpolate to find intensity at upwind point
-        # I_0 is from the top
-        I_vals = [I_0[idx_lower, idy_upwind]     I_0[idx_upper, idy_upwind]
-                  S_upper[idx_lower, idy_upwind] S_upper[idx_upper, idy_upwind]]
-
-
-        I_upwind = bilinear(z_upwind, x_upwind, z_bounds, x_bounds, I_vals)
-
-        # Integrate intensity from two-point quadrature
-        I_upper[idx_lower] = a_ijk*S_upwind + b_ijk*S_centre + c_ijk*I_upwind
-    end
-
-    I_upper[1] = I_upper[end-1]
-    I_upper[end] = I_upper[2]
 
     for sweep in 1:n_sweeps
         for idy in start_y:sign_y:stop_y
@@ -911,7 +730,7 @@ end
 Ray moving downwards, upwind point intersecting with xz plane. Assumes angle
 in radians.
 """
-function xz_down_ray(θ::AbstractFloat, ϕ::AbstractFloat, idz::Int, sign_x::Int,
+function xz_down_ray(k::Vector{Float64}, idz::Int, sign_x::Int,
                        sign_y::Int, I_0::AbstractArray, S_0::AbstractArray,
                        α::AbstractArray, atmos::Atmosphere, n_sweeps::Int)
 
@@ -938,9 +757,9 @@ function xz_down_ray(θ::AbstractFloat, ϕ::AbstractFloat, idz::Int, sign_x::Int
     # Δx = atmos.x[2] - atmos.x[1]
 
     # calculate the length to upwind position
-    r = abs(Δy/(sin(ϕ)*sin(θ)))
-    z_increment = r*cos(θ)
-    x_increment = r*cos(ϕ)*sin(θ)
+    r = abs(Δy/k[3])
+    z_increment = r*k[1]
+    x_increment = r*k[2]
 
     z_upwind = z_centre + z_increment
 
@@ -959,55 +778,6 @@ function xz_down_ray(θ::AbstractFloat, ϕ::AbstractFloat, idz::Int, sign_x::Int
     # X upwind position
     idy_upwind = idy+sign_y
     y_upwind = atmos.y[idy_upwind]
-
-    for idx in start_x:sign_x:stop_x
-        # Centre point (c)
-        x_centre = atmos.x[idx]
-
-        # Lower corner to interpolate from
-        idx_lower = idx-Int((sign_x+1)/2)
-        idx_upper = idx_lower+1
-
-        x_upwind = x_centre + x_increment
-
-        x_bounds = (atmos.x[idx_lower], atmos.x[idx_upper])
-
-        # Do linear interpolation to find τ and S
-
-        # exinction at centre and upwind point
-        # z is 1st coordinate, changes rows in vals. y is 2nd coordinate
-        α_vals = [α_lower[idx_lower, idy_upwind]   α_lower[idx_upper, idy_upwind]
-                  α_upper[idx_lower, idy_upwind]   α_upper[idx_upper, idy_upwind]]
-
-        α_centre = α_lower[idx, idy]
-        α_upwind = bilinear(z_upwind, x_upwind, z_bounds, x_bounds, α_vals)
-
-        # Find the Δτ optical path from upwind to grid point
-        Δτ_upwind = trapezoidal(r, α_centre, α_upwind)
-
-        # Find source function at grid point and upwind point (intepolate)
-        S_vals = [S_lower[idx_lower, idy_upwind]    S_lower[idx_upper, idy_upwind]
-                  S_upper[idx_lower, idy_upwind]    S_upper[idx_upper, idy_upwind]]
-
-        S_centre = S_lower[idx, idy]
-        S_upwind = bilinear(z_upwind, x_upwind, z_bounds, x_bounds, S_vals)
-
-        w1, w2 =  weights(Δτ_upwind)
-        a_ijk, b_ijk, c_ijk = coefficients(w1, w2, Δτ_upwind)
-
-        # Interpolate to find intensity at upwind point
-        # I_0 is from the top
-        I_vals = [S_lower[idx_lower, idy_upwind]    S_lower[idx_upper, idy_upwind]
-                  I_0[idx_lower, idy_upwind]        I_0[idx_upper, idy_upwind]    ]
-
-        I_upwind = bilinear(z_upwind, x_upwind, z_bounds, x_bounds, I_vals)
-
-        # Integrate intensity from two-point quadrature
-        I_lower[idx_lower] = a_ijk*S_upwind + b_ijk*S_centre + c_ijk*I_upwind
-    end
-
-    I_lower[1] = I_lower[end-1]
-    I_lower[end] = I_lower[2]
 
     for sweep in 1:n_sweeps
         for idy in start_y:sign_y:stop_y

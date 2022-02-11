@@ -31,8 +31,9 @@ function J_λ_regular(S_λ::Array{<:UnitsIntensity_λ, 4},
     for i in 1:n_angles
         θ = θ_array[i]
         ϕ = ϕ_array[i]
+        k = [cos(θ*π/180), cos(ϕ*π/180)*sin(θ*π/180), sin(ϕ*π/180)*sin(θ*π/180)]
 
-        profile = compute_voigt_profile(line, atmos, damping_λ, θ, ϕ)
+        profile = compute_voigt_profile(line, atmos, damping_λ, k)
 
         # total extinction
         α_tot = Array{Float64, 4}(undef, size(profile))u"m^-1"
@@ -46,19 +47,17 @@ function J_λ_regular(S_λ::Array{<:UnitsIntensity_λ, 4},
         end
 
         for l in eachindex(line.λ)
-            if θ_array[i] > 90
+            if θ > 90
                 I_0 =  B_λ.(line.λ[l], atmos.temperature[1,:,:])
-                J_λ[l,:,:,:] .+= weights[i].*short_characteristics_up(θ_array[i],
-                                                                      ϕ_array[i],
+                J_λ[l,:,:,:] .+= weights[i].*short_characteristics_up(k,
                                                                       S_λ[l,:,:,:],
                                                                       α_tot[l,:,:,:],
                                                                       atmos,
                                                                       degrees=true,
                                                                       I_0=I_0)
-            elseif θ_array[i] < 90
+            elseif θ < 90
                 I_0 = zero(S_λ[l, 1, :, :])
-                J_λ[l,:,:,:] .+= weights[i].*short_characteristics_down(θ_array[i],
-                                                                        ϕ_array[i],
+                J_λ[l,:,:,:] .+= weights[i].*short_characteristics_down(k,
                                                                         S_λ[l,:,:,:],
                                                                         α_tot[l,:,:,:],
                                                                         atmos,
@@ -96,11 +95,11 @@ function J_λ_voronoi(S_λ::Matrix{<:UnitsIntensity_λ},
     n_sweeps = 3
 
     for i in 1:n_points
-        θ = θ_array[i]*π/180
-        ϕ = ϕ_array[i]*π/180
-        k = -[cos(θ), cos(ϕ)*sin(θ), sin(ϕ)*sin(θ)]
+        θ = θ_array[i]
+        ϕ = ϕ_array[i]
+        k = -[cos(θ*π/180), cos(ϕ*π/180)*sin(θ*π/180), sin(ϕ*π/180)*sin(θ*π/180)]
 
-        profile = compute_voigt_profile(line, sites, damping_λ, θ, ϕ)
+        profile = compute_voigt_profile(line, sites, damping_λ, -k)
 
         # total extinction
         α_tot = Matrix{Float64}(undef, size(profile))u"m^-1"

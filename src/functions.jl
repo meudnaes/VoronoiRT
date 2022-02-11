@@ -471,7 +471,7 @@ end
 
 Finds x and y direction ray is moving in defined by the azimuthal angle ϕ
 """
-function xy_intersect(ϕ::AbstractFloat)
+function xy_intersect(ϕ::Float64)
     local sign_x, sign_y
     @assert 0 <= ϕ < 2π "Bad angle. Expects ϕ ∈ [0, 2π), but ϕ = $ϕ"
     if 0 <= ϕ < π/2
@@ -493,6 +493,30 @@ function xy_intersect(ϕ::AbstractFloat)
     end
     return sign_x::Int, sign_y::Int
 end
+
+function xy_intersect(k::Vector{Float64})
+    local sign_x, sign_y
+    @assert norm(k) ≈ 1 "Bad direction vector. Expects length to be 1"
+    if k[2] > 0 && k[3] > 0
+        # 1st quadrant. Negative x, negative y
+        sign_x = -1
+        sign_y = -1
+    elseif k[2] < 0 && k[3] > 0
+        # 2nd quadrant. Positive x, negative y
+        sign_x = 1
+        sign_y = -1
+    elseif k[2] > 0 && k[3] < 0
+        # 3rd quadrant. Positive x, positive y
+        sign_x = 1
+        sign_y = 1
+    elseif k[2] < 0 && k[3] < 0
+        # 4th quadrant. Negative x, positive y
+        sign_x = -1
+        sign_y = 1
+    end
+    return sign_x::Int, sign_y::Int
+end
+
 
 """
     function range_bounds(sign::Int, bound::Int)

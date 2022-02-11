@@ -65,10 +65,7 @@ end
 Computes the Voigt line profile
 """
 function compute_voigt_profile(line::HydrogenicLine, atmos::Atmosphere,
-                               damping_λ::Array{Float64, 4},
-                               θ::Float64, ϕ::Float64)
-
-    k = [cos(θ), cos(ϕ)*sin(θ), sin(ϕ)*sin(θ)]
+                               damping_λ::Array{Float64, 4}, k::Vector{Float64})
 
     # calculate line of sight velocity
     v_los = line_of_sight_velocity(atmos, k)
@@ -86,10 +83,7 @@ function compute_voigt_profile(line::HydrogenicLine, atmos::Atmosphere,
     return profile
 end
 function compute_voigt_profile(line::HydrogenicLine, sites::VoronoiSites,
-                               damping_λ::Array{Float64, 2},
-                               θ::Float64, ϕ::Float64)
-
-    k = [cos(θ), cos(ϕ)*sin(θ), sin(ϕ)*sin(θ)]
+                               damping_λ::Array{Float64, 2}, k::Vector{Float64})
 
     # calculate line of sight velocity
     v_los = line_of_sight_velocity(sites, k)
