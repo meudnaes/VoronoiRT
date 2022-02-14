@@ -265,6 +265,66 @@ function smallest_angle(position::Vector{<:Unitful.Length},
     return dots[end-(n-1):end], p[end-(n-1):end], upwind_positions[:, end-(n-1):end]
 end
 
+function smallest_angle(position::Vector{<:Unitful.Length},
+                        neighbours::Vector{Int},
+                        k::Vector{Float64},
+                        sites::VoronoiSites)
+
+    dots = zeros(Float64, 2)
+    indices = Vector{Int}(undef, 2)
+
+    x_r_r = sites.x_max - position[2]
+    x_r_l = position[2] - sites.x_min
+
+    y_r_r = sites.y_max - position[3]
+    y_r_l = position[3] - sites.y_min
+
+    for i in 1:length(neighbours)
+        neighbour = neighbours[i]
+        if neighbour > 0
+            p_n = sites.positions[:, neighbour]
+
+            x_i_r = abs(sites.x_max - p_n[2])
+            x_i_l = abs(p_n[2] - sites.x_min)
+
+            # Test for periodic
+            if x_r_r + x_i_l < position[2] - p_n[2]
+                p_n[2] = sites.x_max + p_n[2] - sites.x_min
+            elseif x_r_l + x_i_r < p_n[2] - position[2]
+                p_n[2] = sites.x_min + sites.x_max - p_n[2]
+            end
+
+            y_i_r = abs(sites.y_max - p_n[3])
+            y_i_l = abs(p_n[3] - sites.y_min)
+
+            # Test for periodic
+            if y_r_r + y_i_l < position[3] - p_n[3]
+                p_n[3] = sites.y_max + p_n[3] - sites.y_min
+            elseif y_r_l + y_i_r < p_n[3] - position[3]
+                p_n[3] = sites.y_min + sites.y_max - p_n[3]
+            end
+
+            direction = position .- p_n
+            norm_dir = direction/(norm(direction))
+            # Two normalized direction vectors, denominator is 1
+            # Save the dot product, don't bother calculating the angle
+            dot_product = dot(k, norm_dir)
+
+            if dot_product > dots[2]
+                if dot_product > dots[1]
+                    dots[1] = dot_products
+                    indices[1] = neighbour
+                else
+                    dots[2] = dot_products
+                    indices[2] = neighbour
+                end
+            end
+        end
+    end
+
+    return dots, indices
+end
+
 function choose_random(angles::AbstractVector, indices::AbstractVector)
 
     p2 = rand()

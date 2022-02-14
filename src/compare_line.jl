@@ -25,13 +25,13 @@ function sample_from_extinction(atmos::Atmosphere,
 end
 
 function compare(DATA, quadrature)
-    maxiter = 100
+    maxiter = 200
     ϵ = 1e-3
 
     θ = 10
     ϕ = 10
 
-    n_skip = 4
+    n_skip = 3
 
     nλ_bb = 50
     nλ_bf = 20
@@ -42,7 +42,7 @@ function compare(DATA, quadrature)
 
         line = HydrogenicLine(test_atom(nλ_bb, nλ_bf)..., atmos.temperature)
 
-        REGULAR_DATA = "../data/regular_line_test-threads.h5"
+        REGULAR_DATA = "../data/regular_line.h5"
 
         create_output_file(REGULAR_DATA, length(line.λ), size(atmos.temperature[:, 2:end-1, 2:end-1]), maxiter)
         write_to_file(nλ_bb, "n_bb", REGULAR_DATA)
@@ -60,7 +60,8 @@ function compare(DATA, quadrature)
             damping_λ[l, :, :, :] = damping.(γ, line.λ[l], line.ΔD)
         end
 
-        profile = compute_voigt_profile(line, atmos, damping_λ, θ*π/180, ϕ*π/180)
+        k = [cos(θ*π/180), cos(ϕ*π/180)*sin(θ*π/180), sin(ϕ*π/180)*sin(θ*π/180)]
+        profile = compute_voigt_profile(line, atmos, damping_λ, k)
 
         α_tot = Array{Float64, 4}(undef, size(profile))u"m^-1"
         for l in eachindex(line.λ)
@@ -71,8 +72,8 @@ function compare(DATA, quadrature)
             α_tot[l,:,:,:] += α_cont
         end
 
-        I_top = short_characteristics_up(θ, ϕ, S_λ[6,:,:,:], α_tot[6,:,:,:],
-                                         atmos, degrees=true, I_0=S_λ[6,1,:,:])
+        I_top = short_characteristics_up(k, S_λ[6,:,:,:], α_tot[6,:,:,:],
+                                         atmos, I_0=S_λ[6,1,:,:])
 
         # plot_top_intensity(I_top, atmos.x, atmos.y, "regular_top")
 
@@ -102,9 +103,9 @@ function compare(DATA, quadrature)
         sites_file = "../data/sites_compare.txt"
         neighbours_file = "../data/neighbours_compare.txt"
         # write sites to file
-        write_arrays(ustrip(positions[2, :]),
-                     ustrip(positions[3, :]),
-                     ustrip(positions[1, :]),
+        write_arrays(positions[2, :],
+                     positions[3, :],
+                     positions[1, :],
                      sites_file)
 
         x_min = ustrip(atmos.x[1])
@@ -134,8 +135,12 @@ function compare(DATA, quadrature)
 
         line = HydrogenicLine(test_atom(nλ_bb, nλ_bf)..., sites.temperature)
 
-        VORONOI_DATA = "../data/voronoi_line_12.h5"
-        create_output_file(VORONOI_DATA, length(line.λ), size(atmos_from_voronoi.temperature), maxiter)
+        VORONOI_DATA = "../data/voronoi_line_1ray.h5"
+
+        r_factor = 3
+        new_size = floor.(Int, r_factor.*size(atmos.temperature))
+
+        create_output_file(VORONOI_DATA, length(line.λ), new_size, maxiter)
         write_to_file(nλ_bb, "n_bb", VORONOI_DATA)
         write_to_file(nλ_bf, "n_bf", VORONOI_DATA)
 
@@ -151,7 +156,9 @@ function compare(DATA, quadrature)
             damping_λ[l, :] = damping.(γ, line.λ[l], line.ΔD)
         end
 
-        profile = compute_voigt_profile(line, sites, damping_λ, θ*π/180, ϕ*π/180)
+        k = [cos(θ*π/180), cos(ϕ*π/180)*sin(θ*π/180), sin(ϕ*π/180)*sin(θ*π/180)]
+
+        profile = compute_voigt_profile(line, sites, damping_λ, k)
 
         α_tot = Matrix{Float64}(undef, size(profile))u"m^-1"
         for l in eachindex(line.λ)
@@ -162,7 +169,7 @@ function compare(DATA, quadrature)
             α_tot[l,:] += α_cont
         end
 
-        atmos_from_voronoi, S_λ_grid, α_grid, populations_grid = Voronoi_to_Raster(sites, atmos, S_λ, α_tot, populations, 3)
+        atmos_from_voronoi, S_λ_grid, α_grid, populations_grid = Voronoi_to_Raster(sites, atmos, S_λ, α_tot, populations, r_factor)
 
         # plot_top_intensity(I_top, atmos_voronoi.x, atmos_voronoi.y, "irregular_top")
 
@@ -176,11 +183,11 @@ function compare(DATA, quadrature)
     end
 
     regular();
-    # voronoi();
+    voronoi();
 end
 
 DATA = "../data/bifrost_qs006023_s525_quarter.hdf5"
-QUADRATURE = "../quadratures/ul7n12.dat"
+QUADRATURE = "../quadratures/n2.dat"
 
 compare(DATA, QUADRATURE);
 print("")

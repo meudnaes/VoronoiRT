@@ -75,7 +75,7 @@ function rejection_sampling(n_sites::Int, atmos::Atmosphere, quantity::AbstractA
             density_ran = rand(Float64)*Δq + q_min
             if density_ref > density_ran
                 # a point is accepted, store position and move on
-                p_vec[:, i] .= (z_ref, x_ref, y_ref).*1u"m"
+                p_vec[:, i] .= (z_ref, x_ref, y_ref)
                 # break to find next site
                 break
             end
@@ -390,6 +390,25 @@ function write_arrays(x::Vector{Float64}, y::Vector{Float64}, z::Vector{Float64}
     end
 end
 
+function write_arrays(x::Vector{<:Unitful.Length}, y::Vector{<:Unitful.Length}, z::Vector{<:Unitful.Length},
+                      fname::String)
+
+    x = ustrip.(x)
+    y = ustrip.(y)
+    z = ustrip.(z)
+
+    if length(z) != length(y) || length(y) != length(x)
+        println("Wrong shapes of input data")
+        exit()
+    end
+
+    open(fname, "w") do io
+        for i in 1:length(z)
+            println(io, "$i\t$(x[i])\t$(y[i])\t$(z[i])")
+        end
+    end
+end
+
 function write_boundaries(z_min, z_max, x_min, x_max, y_min, y_max, fname::String)
     open(fname, "w") do io
         println(io, "z_min = $z_min")
@@ -512,6 +531,12 @@ function xy_intersect(k::Vector{Float64})
     elseif k[2] < 0 && k[3] < 0
         # 4th quadrant. Negative x, positive y
         sign_x = -1
+        sign_y = 1
+    else
+        # phi is 0, ray either straight up or down, doesn't really matter what
+        # the sign is here, interpolation is exact anyways as the ray hits the
+        # grid points...
+        sign_x = 1
         sign_y = 1
     end
     return sign_x::Int, sign_y::Int

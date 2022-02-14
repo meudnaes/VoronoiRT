@@ -63,9 +63,9 @@ function plot_top_intensity(atmos::Atmosphere,
                             idλ::Int,
                             title::String)
 
-
-    I_top = short_characteristics_up(θ, ϕ, S_λ[idλ, :, :, :], α_tot[idλ, :, :, :],
-                                     atmos, degrees=true, I_0=S_λ[idλ, 1, :, :])
+    k = [cos(θ*π/180), cos(ϕ*π/180)*sin(θ*π/180), sin(ϕ*π/180)*sin(θ*π/180)]
+    I_top = short_characteristics_up(k, S_λ[idλ, :, :, :], α_tot[idλ, :, :, :],
+                                     atmos, I_0=S_λ[idλ, 1, :, :])
 
     I_top = ustrip(uconvert.(u"kW*nm^-1*m^-2", I_top[end, 2:end-1, 2:end-1]))
 
@@ -94,26 +94,26 @@ function plot_top_line(atmos::Atmosphere,
     nλ, nz, nx, ny = size(S_λ)
     I_λ = zero(S_λ)
 
-
+    k = [cos(θ*π/180), cos(ϕ*π/180)*sin(θ*π/180), sin(ϕ*π/180)*sin(θ*π/180)]
     for iλ in 1:nλ
-        I_λ[iλ, :, :, :] = short_characteristics_up(θ, ϕ, S_λ[iλ, :, :, :], α_tot[iλ, :, :, :],
-                                                    atmos, degrees=true, I_0=S_λ[iλ, 1, :, :])
+        I_λ[iλ, :, :, :] = short_characteristics_up(k, S_λ[iλ, :, :, :], α_tot[iλ, :, :, :],
+                                                    atmos, I_0=S_λ[iλ, 1, :, :])
     end
 
-    start = line.λidx[1]+5
-    stop = line.λidx[2]-4
+    start = 1
+    stop = size(S_λ)[1]
 
-    for idx in 1:5:50
-        for idy in 1:5:50
+    for idx in 1:5:size(S_λ)[end]
+        for idy in 1:5:size(S_λ)[end-1]
             loc = "_"*string(idx)*"_"*string(idy)
             I_plot = ustrip(uconvert.(u"kW*nm^-1*m^-2", I_λ))[:, end, idx, idy]
             scatter(ustrip.(line.λ)[start:stop],
-                    ustrip.(I_plot)[start:stop],
-                    xaxis="λ [nm]",
-                    yaxis="Iλ [kW m^-2 nm^-1]",
-                    dpi=300,
-                    rightmargin=10Plots.mm,
-                    title=title*loc)
+                 ustrip.(I_plot)[start:stop],
+                 xaxis="λ [nm]",
+                 yaxis="Iλ [kW m^-2 nm^-1]",
+                 dpi=300,
+                 rightmargin=10Plots.mm,
+                 title=title*loc)
 
             savefig("../img/compare_line/lines/"*title*loc)
         end
@@ -202,7 +202,8 @@ function plotter(atmos::Atmosphere,
         damping_λ[l, :, :, :] = damping.(γ, line.λ[l], line.ΔD)
     end
 
-    profile = compute_voigt_profile(line, atmos, damping_λ, θ*π/180, ϕ*π/180)
+    k = [cos(θ*π/180), cos(ϕ*π/180)*sin(θ*π/180), sin(ϕ*π/180)*sin(θ*π/180)]
+    profile = compute_voigt_profile(line, atmos, damping_λ, k)
 
     α_line = Array{Float64, 4}(undef, size(profile))u"m^-1"
     for l in eachindex(line.λ)
@@ -233,5 +234,5 @@ function plotter(atmos::Atmosphere,
     # end
 end
 
-# plotter(read_quantities("../data/linedata/voronoi_line.h5", periodic=true)..., 10., 10., "Voronoi-Line")
-# plotter(read_quantities("../data/linedata/regular_line_91.h5", periodic=true)..., 10., 10., "Regular-Line")
+# plotter(read_quantities("../data/regular_line_1ray.h5", periodic=true)..., 10., 10., "Regular-Line")
+plotter(read_quantities("../data/voronoi_line_1ray.h5", periodic=true)..., 10., 10., "Voronoi-Line")

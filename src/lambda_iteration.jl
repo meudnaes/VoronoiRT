@@ -97,9 +97,9 @@ function J_λ_voronoi(S_λ::Matrix{<:UnitsIntensity_λ},
     for i in 1:n_points
         θ = θ_array[i]
         ϕ = ϕ_array[i]
-        k = -[cos(θ*π/180), cos(ϕ*π/180)*sin(θ*π/180), sin(ϕ*π/180)*sin(θ*π/180)]
+        k = [cos(θ*π/180), cos(ϕ*π/180)*sin(θ*π/180), sin(ϕ*π/180)*sin(θ*π/180)]
 
-        profile = compute_voigt_profile(line, sites, damping_λ, -k)
+        profile = compute_voigt_profile(line, sites, damping_λ, k)
 
         # total extinction
         α_tot = Matrix{Float64}(undef, size(profile))u"m^-1"

@@ -80,8 +80,8 @@ function searchlight_irregular()
     RES=500
 
     # Traces rays through an irregular grid
-    θ = 20
-    ϕ = 15
+    θ = 0
+    ϕ = 180
 
     # start at the bottom
     # shoot rays through every grid cell
@@ -113,8 +113,8 @@ function searchlight_irregular()
 
     # Top to bottom
     # Traces rays through an irregular grid
-    θ = 160
-    ϕ = 330
+    θ = 180
+    ϕ = 0
 
     top_layer = sites.layers_down[2] - 1
 
@@ -153,10 +153,11 @@ end
 
 function searchlight_regular()
     nx = ny = nz = 51
-
-    z = collect(LinRange(0,1,nx))u"m"
-    x = collect(LinRange(0,1,ny))u"m"
-    y = collect(LinRange(0,1,nz))u"m"
+    println("is it working??")
+    return
+    z = collect(LinRange(0,1,nz))u"m"
+    x = collect(LinRange(0,1,nx))u"m"
+    y = collect(LinRange(0,1,ny))u"m"
 
     # npzwrite("../data/searchlight_data/x_regular.npy", ustrip.(x))
     # npzwrite("../data/searchlight_data/y_regular.npy", ustrip.(y))
@@ -189,8 +190,8 @@ function searchlight_regular()
         end
     end
 
-    θ_array = [20, 160, 60, 120, 50, 130]
-    ϕ_array = [150,  30, 75, 270, 23, 203]
+    θ_array = [20, 160, 60, 120, 50, 130, 180, 0]
+    ϕ_array = [150,  30, 75, 270, 23, 203, 0, 0]
 
     for i in eachindex(θ_array)
         θ = θ_array[i]

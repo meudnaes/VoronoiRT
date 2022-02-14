@@ -1,5 +1,5 @@
 using Plots
-include("lambda_iteration.jl")
+include("lambda_continuum.jl")
 
 global my_seed = 1998
 Random.seed!(my_seed)
