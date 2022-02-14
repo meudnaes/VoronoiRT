@@ -53,16 +53,16 @@ function J_λ_regular(S_λ::Array{<:UnitsIntensity_λ, 4},
                                                                       S_λ[l,:,:,:],
                                                                       α_tot[l,:,:,:],
                                                                       atmos,
-                                                                      degrees=true,
-                                                                      I_0=I_0)
+                                                                      I_0=I_0,
+                                                                      n_sweeps=3)
             elseif θ < 90
                 I_0 = zero(S_λ[l, 1, :, :])
                 J_λ[l,:,:,:] .+= weights[i].*short_characteristics_down(k,
                                                                         S_λ[l,:,:,:],
                                                                         α_tot[l,:,:,:],
                                                                         atmos,
-                                                                        degrees=true,
-                                                                        I_0=I_0)
+                                                                        I_0=I_0,
+                                                                        n_sweeps=3)
             end
         end
     end
@@ -117,13 +117,11 @@ function J_λ_voronoi(S_λ::Matrix{<:UnitsIntensity_λ},
                 bottom_layer = sites.layers_up[2] - 1
                 bottom_layer_idx = sites.perm_up[1:bottom_layer]
                 I_0 = B_λ.(500u"nm", sites.temperature[bottom_layer_idx])
-                J_λ[l,:] += weights[i]*Delaunay_up(sites, I_0,
-                                                   S_λ[l,:], α_tot[l,:], k, n_sweeps)
+                J_λ[l,:] += weights[i]*Delaunay_up(k, S_λ[l,:], α_tot[l,:], sites, I_0, n_sweeps)
             elseif θ_array[i] < 90
                 top_layer = sites.layers_down[2] - 1
                 I_0 = zeros(top_layer)u"kW*nm^-1*m^-2"
-                J_λ[l,:] += weights[i]*Delaunay_down(sites, I_0,
-                                                     S_λ[l,:], α_tot[l,:], k, n_sweeps)
+                J_λ[l,:] += weights[i]*Delaunay_down(k, S_λ[l,:], α_tot[l,:], sites, I_0, n_sweeps)
             end
         end
     end

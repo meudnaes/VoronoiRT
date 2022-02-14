@@ -4,11 +4,11 @@ include("functions.jl")
 using Distances
 using LinearAlgebra
 
-function Delaunay_up(sites::VoronoiSites,
-                     I_0::AbstractVector,
+function Delaunay_up(k::AbstractVector,
                      S::AbstractVector,
                      α::AbstractVector,
-                     k::AbstractVector,
+                     sites::VoronoiSites,
+                     I_0::AbstractVector,
                      n_sweeps::Int)
 
     # Weighting parameter
@@ -79,11 +79,11 @@ function Delaunay_up(sites::VoronoiSites,
     return I
 end
 
-function Delaunay_down(sites::VoronoiSites,
-                       I_0::AbstractVector,
+function Delaunay_down(k::AbstractVector,
                        S::AbstractVector,
                        α::AbstractVector,
-                       k::AbstractVector,
+                       sites::VoronoiSites,
+                       I_0::AbstractVector,
                        n_sweeps::Int)
 
     # Weighting parameter
