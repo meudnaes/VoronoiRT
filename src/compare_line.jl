@@ -173,8 +173,6 @@ function compare(DATA, quadrature)
 
         # plot_top_intensity(I_top, atmos_voronoi.x, atmos_voronoi.y, "irregular_top")
 
-
-
         write_to_file(populations_grid, VORONOI_DATA)
         write_to_file(S_λ_grid, VORONOI_DATA)
         write_to_file(atmos_from_voronoi, VORONOI_DATA)

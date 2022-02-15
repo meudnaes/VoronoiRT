@@ -68,7 +68,8 @@ function compute_voigt_profile(line::HydrogenicLine, atmos::Atmosphere,
                                damping_λ::Array{Float64, 4}, k::Vector{Float64})
 
     # calculate line of sight velocity
-    v_los = line_of_sight_velocity(atmos, k)
+    # Remember to use -k!, since k is moving towards the ray
+    v_los = line_of_sight_velocity(atmos, -k)
     v = Array{Float64, 4}(undef, (length(line.λ), size(v_los)...))
     for l in eachindex(line.λ)
         v[l, :, :, :] = (line.λ[l] .- line.λ0 .+ line.λ0.*v_los./c_0)./line.ΔD .|> Unitful.NoUnits
@@ -86,7 +87,8 @@ function compute_voigt_profile(line::HydrogenicLine, sites::VoronoiSites,
                                damping_λ::Array{Float64, 2}, k::Vector{Float64})
 
     # calculate line of sight velocity
-    v_los = line_of_sight_velocity(sites, k)
+    # Remember to use -k!, since k is moving towards the ray
+    v_los = line_of_sight_velocity(sites, -k)
     v = Array{Float64, 2}(undef, (length(line.λ), sites.n))
     for l in eachindex(line.λ)
         v[l, :] = (line.λ[l] .- line.λ0 .+ line.λ0.*v_los./c_0)./line.ΔD .|> Unitful.NoUnits
@@ -99,6 +101,40 @@ function compute_voigt_profile(line::HydrogenicLine, sites::VoronoiSites,
     end
 
     return profile
+end
+
+"""
+    line_of_sight_velocity(method, k::Vector)
+
+Computes the line of sight velocity of the medium, in the direction of the ray.
+"""
+function line_of_sight_velocity(atmos::Atmosphere, k::Vector)
+    v_los = Array{Unitful.Velocity, 3}(undef, size(atmos.velocity_z))
+
+    for kk in 1:length(atmos.z)
+        for ii in 1:length(atmos.x)
+            for jj in 1:length(atmos.y)
+                velocity = [atmos.velocity_z[kk, ii, jj],
+                            atmos.velocity_x[kk, ii, jj],
+                            atmos.velocity_y[kk, ii, jj]]
+
+                v_los[kk, ii, jj] = dot(velocity, k)
+            end
+        end
+    end
+    return v_los::Array{Unitful.Velocity, 3}
+end
+
+function line_of_sight_velocity(sites::VoronoiSites, k::Vector{Float64})
+    v_los = Vector{Unitful.Velocity}(undef, sites.n)
+
+    for ii in 1:sites.n
+        velocity = [sites.velocity_z[ii],
+                    sites.velocity_x[ii],
+                    sites.velocity_y[ii]]
+        v_los[ii] = dot(velocity, k)
+    end
+    return v_los::Vector{Unitful.Velocity}
 end
 
 """

@@ -639,20 +639,3 @@ function arg_where(arr, num)
     end
     return indices[1:j]
 end
-
-function line_of_sight_velocity(atmos::Atmosphere, k::Vector)
-    v_los = Array{Unitful.Velocity, 3}(undef, size(atmos.velocity_z))
-
-    for kk in 1:length(atmos.z)
-        for ii in 1:length(atmos.x)
-            for jj in 1:length(atmos.y)
-                velocity = [atmos.velocity_z[kk, ii, jj],
-                            atmos.velocity_x[kk, ii, jj],
-                            atmos.velocity_y[kk, ii, jj]]
-
-                v_los[kk, ii, jj] = dot(velocity, k)
-            end
-        end
-    end
-    return v_los::Array{Unitful.Velocity, 3}
-end

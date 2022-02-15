@@ -87,10 +87,10 @@ function searchlight_irregular()
     # shoot rays through every grid cell
 
     # Unit vector towards upwind direction of the ray
-    k = -[cos(θ*π/180), cos(ϕ*π/180)*sin(θ*π/180), sin(ϕ*π/180)*sin(θ*π/180)]
+    k = [cos(θ*π/180), cos(ϕ*π/180)*sin(θ*π/180), sin(ϕ*π/180)*sin(θ*π/180)]
 
     println("---Ray-tracing---")
-    @time I = Delaunay_up(k, S, α, sites, I_0, n_sweeps)
+    @time I = Delaunay_upII(k, S, α, sites, I_0, n_sweeps)
 
     tree = KDTree(ustrip(sites.positions))
 
@@ -129,8 +129,8 @@ function searchlight_irregular()
     end
 
     # Unit vector towards upwind direction of the ray
-    k = -[cos(θ*π/180), cos(ϕ*π/180)*sin(θ*π/180), sin(ϕ*π/180)*sin(θ*π/180)]
-    @time I = Delaunay_down(k, S, α, sites, I_0, n_sweeps)
+    k = [cos(θ*π/180), cos(ϕ*π/180)*sin(θ*π/180), sin(ϕ*π/180)*sin(θ*π/180)]
+    @time I = Delaunay_downII(k, S, α, sites, I_0, n_sweeps)
 
     bottom_z = 0
     bottom_I = zeros(length(x), length(y))u"kW*nm^-1*m^-2"
@@ -221,5 +221,5 @@ function searchlight_regular()
 end
 
 gr()
-searchlight_regular()
+# searchlight_regular()
 searchlight_irregular()

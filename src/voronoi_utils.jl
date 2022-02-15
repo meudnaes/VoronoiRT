@@ -270,7 +270,9 @@ function smallest_angle(position::Vector{<:Unitful.Length},
                         k::Vector{Float64},
                         sites::VoronoiSites)
 
-    dots = zeros(Float64, 2)
+    dots = Vector{Float64}(undef, 2)
+    fill!(dots, -1)
+
     indices = Vector{Int}(undef, 2)
 
     x_r_r = sites.x_max - position[2]
@@ -312,10 +314,10 @@ function smallest_angle(position::Vector{<:Unitful.Length},
 
             if dot_product > dots[2]
                 if dot_product > dots[1]
-                    dots[1] = dot_products
+                    dots[1] = dot_product
                     indices[1] = neighbour
                 else
-                    dots[2] = dot_products
+                    dots[2] = dot_product
                     indices[2] = neighbour
                 end
             end
@@ -410,16 +412,4 @@ function _initialise(p_vec::Matrix{<:Unitful.Length}, atmos::Atmosphere)
         velocity_y_new[k] = trilinear(zk, xk, yk, atmos, atmos.velocity_y)
     end
     return temperature_new, N_e_new, N_H_new, velocity_z_new, velocity_x_new, velocity_y_new
-end
-
-function line_of_sight_velocity(sites::VoronoiSites, k::Vector{Float64})
-    v_los = Vector{Unitful.Velocity}(undef, sites.n)
-
-    for ii in 1:sites.n
-        velocity = [sites.velocity_z[ii],
-                    sites.velocity_x[ii],
-                    sites.velocity_y[ii]]
-        v_los[ii] = dot(velocity, k)
-    end
-    return v_los::Vector{Unitful.Velocity}
 end
