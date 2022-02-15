@@ -524,11 +524,11 @@ function xy_intersect(k::Vector{Float64})
         # 2nd quadrant. Positive x, negative y
         sign_x = 1
         sign_y = -1
-    elseif k[2] > 0 && k[3] < 0
+    elseif k[2] < 0 && k[3] < 0
         # 3rd quadrant. Positive x, positive y
         sign_x = 1
         sign_y = 1
-    elseif k[2] < 0 && k[3] < 0
+    elseif k[2] > 0 && k[3] < 0
         # 4th quadrant. Negative x, positive y
         sign_x = -1
         sign_y = 1

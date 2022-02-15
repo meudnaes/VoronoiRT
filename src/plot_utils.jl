@@ -235,4 +235,4 @@ function plotter(atmos::Atmosphere,
 end
 
 # plotter(read_quantities("../data/regular_line_1ray.h5", periodic=true)..., 10., 10., "Regular-Line")
-plotter(read_quantities("../data/voronoi_line_2ray.h5", periodic=true)..., 0.0, 0.0, "Voronoi-Line")
+# plotter(read_quantities("../data/voronoi_line_2ray.h5", periodic=true)..., 0.0, 0.0, "Voronoi-Line")

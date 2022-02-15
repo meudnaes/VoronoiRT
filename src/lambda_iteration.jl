@@ -117,11 +117,11 @@ function J_λ_voronoi(S_λ::Matrix{<:UnitsIntensity_λ},
                 bottom_layer = sites.layers_up[2] - 1
                 bottom_layer_idx = sites.perm_up[1:bottom_layer]
                 I_0 = B_λ.(500u"nm", sites.temperature[bottom_layer_idx])
-                J_λ[l,:] += weights[i]*Delaunay_up(k, S_λ[l,:], α_tot[l,:], sites, I_0, n_sweeps)
+                J_λ[l,:] += weights[i]*Delaunay_upII(k, S_λ[l,:], α_tot[l,:], sites, I_0, n_sweeps)
             elseif θ_array[i] < 90
                 top_layer = sites.layers_down[2] - 1
                 I_0 = zeros(top_layer)u"kW*nm^-1*m^-2"
-                J_λ[l,:] += weights[i]*Delaunay_down(k, S_λ[l,:], α_tot[l,:], sites, I_0, n_sweeps)
+                J_λ[l,:] += weights[i]*Delaunay_downII(k, S_λ[l,:], α_tot[l,:], sites, I_0, n_sweeps)
             end
         end
     end

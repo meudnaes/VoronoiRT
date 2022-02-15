@@ -31,7 +31,7 @@ function compare(DATA, quadrature)
     θ = 10
     ϕ = 10
 
-    n_skip = 3
+    n_skip = 4
 
     nλ_bb = 50
     nλ_bf = 20
@@ -42,7 +42,7 @@ function compare(DATA, quadrature)
 
         line = HydrogenicLine(test_atom(nλ_bb, nλ_bf)..., atmos.temperature)
 
-        REGULAR_DATA = "../data/regular_line.h5"
+        REGULAR_DATA = "../data/regular_ul7n12.h5"
 
         create_output_file(REGULAR_DATA, length(line.λ), size(atmos.temperature[:, 2:end-1, 2:end-1]), maxiter)
         write_to_file(nλ_bb, "n_bb", REGULAR_DATA)
@@ -135,7 +135,7 @@ function compare(DATA, quadrature)
 
         line = HydrogenicLine(test_atom(nλ_bb, nλ_bf)..., sites.temperature)
 
-        VORONOI_DATA = "../data/voronoi_line_1ray.h5"
+        VORONOI_DATA = "../data/voronoi_ul7n12.h5"
 
         r_factor = 3
         new_size = floor.(Int, r_factor.*size(atmos.temperature))
@@ -185,7 +185,7 @@ function compare(DATA, quadrature)
 end
 
 DATA = "../data/bifrost_qs006023_s525_quarter.hdf5"
-QUADRATURE = "../quadratures/n2.dat"
+QUADRATURE = "../quadratures/ul7n12.dat"
 
 compare(DATA, QUADRATURE);
 print("")
