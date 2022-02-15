@@ -246,7 +246,6 @@ function xy_up_ray(k::Vector{Float64}, idz::Int, sign_x::Int,
             I_upwind = bilinear(x_upwind, y_upwind, x_bounds, y_bounds, I_vals)
 
             # Integrate intensity from two-point quadrature
-            # Fix low optical depth
             I[idx, idy] = a_ijk*S_upwind + b_ijk*S_centre + c_ijk*I_upwind
         end
 

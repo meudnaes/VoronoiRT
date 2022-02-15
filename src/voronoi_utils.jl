@@ -324,6 +324,11 @@ function smallest_angle(position::Vector{<:Unitful.Length},
         end
     end
 
+    if dots[2] <= 0
+        dots[2] = 0
+        indices[2] = indices[1]
+    end
+
     return dots, indices
 end
 
@@ -337,6 +342,15 @@ function choose_random(angles::AbstractVector, indices::AbstractVector)
     return argmax([p1, p2])
 end
 
+"""
+    Voronoi_to_Raster(sites::VoronoiSites,
+                           atmos::Atmosphere,
+                           S_λ::Array{<:UnitsIntensity_λ},
+                           α_tot::Array{<:PerLength},
+                           populations::Array{<:NumberDensity},
+                           r_factor)
+Intepolate quantities from an irregular grid back to a regular grid.
+"""
 function Voronoi_to_Raster(sites::VoronoiSites,
                            atmos::Atmosphere,
                            S_λ::Array{<:UnitsIntensity_λ},
@@ -389,6 +403,56 @@ function Voronoi_to_Raster(sites::VoronoiSites,
                            hydrogen_populations, velocity_z, velocity_x, velocity_y)
 
     return voronoi_atmos, S_λ_grid, α_grid, populations_grid
+end
+
+function Voronoi_to_Raster(sites::VoronoiSites,
+                           atmos::Atmosphere,
+                           S_λ::Array{<:UnitsIntensity_λ},
+                           α_tot::Array{<:PerLength},
+                           r_factor)
+
+    z = collect(LinRange(sites.z_min, sites.z_max,
+                         floor(Int, r_factor*length(atmos.z))))
+    x = collect(LinRange(sites.x_min, sites.x_max,
+                         floor(Int, r_factor*length(atmos.x))))
+    y = collect(LinRange(sites.y_min, sites.y_max,
+                         floor(Int, r_factor*length(atmos.y))))
+
+    nz = length(z)
+    nx = length(x)
+    ny = length(y)
+
+    temperature = Array{Float64, 3}(undef, (nz, ny, nx))u"K"
+    electron_density = Array{Float64, 3}(undef, (nz, ny, nx))u"m^-3"
+    hydrogen_populations = Array{Float64, 3}(undef, (nz, ny, nx))u"m^-3"
+    velocity_z = Array{Float64, 3}(undef, (nz, ny, nx))u"m*s^-1"
+    velocity_x = copy(velocity_z)
+    velocity_y = copy(velocity_z)
+    S_λ_grid = Array{Float64, 3}(undef, (nz, nx, ny))u"kW*nm^-1*m^-2"
+    α_grid = Array{Float64, 3}(undef, (nz, nx, ny))u"m^-1"
+
+    tree = KDTree(ustrip(sites.positions))
+    for k in 1:length(z)
+        for i in 1:length(x)
+            for j in 1:length(y)
+                grid_point = [z[k], x[i], y[j]]
+                idx, dist = nn(tree, ustrip(grid_point))
+                temperature[k, i, j] = sites.temperature[idx]
+                electron_density[k, i, j] = sites.electron_density[idx]
+                hydrogen_populations[k, i, j] = sites.hydrogen_populations[idx]
+                velocity_z[k, i, j] = sites.velocity_z[idx]
+                velocity_x[k, i, j] = sites.velocity_x[idx]
+                velocity_y[k, i, j] = sites.velocity_y[idx]
+                S_λ_grid[k, i, j] = S_λ[idx]
+                α_grid[k, i, j] = α_tot[idx]
+            end
+        end
+    end
+
+    voronoi_atmos = Atmosphere(z, x, y, temperature, electron_density,
+                               hydrogen_populations, velocity_z, velocity_x, velocity_y)
+
+    return voronoi_atmos, S_λ_grid, α_grid
 end
 
 function _initialise(p_vec::Matrix{<:Unitful.Length}, atmos::Atmosphere)

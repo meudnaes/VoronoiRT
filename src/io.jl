@@ -1,7 +1,59 @@
-using Unitful
 using HDF5
+using Unitful
 
 include("atmosphere.jl")
+
+"""
+    function write_arrays(x::AbstractArray, y::AbstractArray, z::AbstractArray,
+                          fname::String)
+
+Writes the arrays z, x, and y to a file with filename fname.
+Arrays are written in columns [ row number ] [ x ] [ y ] [ z ]
+"""
+function write_arrays(x::Vector{Float64}, y::Vector{Float64}, z::Vector{Float64},
+                      fname::String)
+
+    if length(z) != length(y) || length(y) != length(x)
+        println("Wrong shapes of input data")
+        exit()
+    end
+
+    open(fname, "w") do io
+        for i in 1:length(z)
+            println(io, "$i\t$(x[i])\t$(y[i])\t$(z[i])")
+        end
+    end
+end
+
+function write_arrays(x::Vector{<:Unitful.Length}, y::Vector{<:Unitful.Length}, z::Vector{<:Unitful.Length},
+                      fname::String)
+
+    x = ustrip.(x)
+    y = ustrip.(y)
+    z = ustrip.(z)
+
+    if length(z) != length(y) || length(y) != length(x)
+        println("Wrong shapes of input data")
+        exit()
+    end
+
+    open(fname, "w") do io
+        for i in 1:length(z)
+            println(io, "$i\t$(x[i])\t$(y[i])\t$(z[i])")
+        end
+    end
+end
+
+function write_boundaries(z_min, z_max, x_min, x_max, y_min, y_max, fname::String)
+    open(fname, "w") do io
+        println(io, "z_min = $z_min")
+        println(io, "z_max = $z_max")
+        println(io, "x_min = $x_min")
+        println(io, "x_max = $x_max")
+        println(io, "y_min = $y_min")
+        println(io, "y_max = $y_max")
+    end
+end
 
 """
     function read_quadrature(fname::String)

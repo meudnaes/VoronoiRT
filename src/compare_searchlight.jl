@@ -221,4 +221,4 @@ end
 
 gr()
 searchlight_regular()
-# searchlight_irregular()
+searchlight_irregular()

@@ -101,7 +101,7 @@ function plot_top_line(atmos::Atmosphere,
     end
 
     start = line.λidx[1]+1
-    stop = line.λidx[2]
+    stop =  line.λidx[2] #size(S_λ)[1]
 
     for idx in 1:5:size(S_λ)[end]
         for idy in 1:5:size(S_λ)[end-1]
@@ -234,5 +234,5 @@ function plotter(atmos::Atmosphere,
     # end
 end
 
-# plotter(read_quantities("../data/regular_line_1ray.h5", periodic=true)..., 10., 10., "Regular-Line")
+# plotter(read_quantities("../data/regular_ul7n12.h5", periodic=true)..., 0.0, 0.0, "Regular-Line")
 # plotter(read_quantities("../data/voronoi_line_2ray.h5", periodic=true)..., 0.0, 0.0, "Voronoi-Line")
