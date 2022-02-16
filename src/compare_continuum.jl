@@ -16,6 +16,7 @@ function compare(DATA, quadrature)
     function regular()
 
         atmos = Atmosphere(get_atmos(DATA; periodic=true, skip=n_skip)...)
+
         J_mean, S_λ, α_tot = Λ_regular(ϵ, maxiter, atmos, quadrature)
 
         k = [cos(θ*π/180), cos(ϕ*π/180)*sin(θ*π/180), sin(ϕ*π/180)*sin(θ*π/180)]
@@ -117,6 +118,54 @@ function compare(DATA, quadrature)
 
 end
 
+function LTE_ray(DATA)
+
+    atmos = Atmosphere(get_atmos(DATA; periodic=false, skip=1)...)
+    line = HydrogenicLine(test_atom(1, 1)..., atmos.temperature)
+
+    # choose a wavelength
+    λ = 500u"nm"  # nm
+
+    # Lte populations
+    LTE_pops = LTE_ionisation(atmos)
+
+    # Find continuum extinction (only with Thomson and Rayleigh)
+    α_cont = α_continuum.(λ, atmos.temperature*1.0, atmos.electron_density*1.0,
+                          LTE_pops[:,:,:,1]*1.0, LTE_pops[:,:,:,3]*1.0)
+
+    # Planck function
+    B_λ = Transparency.blackbody_λ.(λ, atmos.temperature)
+
+    intensity = Array{Float64, 3}(undef, size(α_cont))u"kW*m^-2*nm^-1"
+    for idx in eachindex(atmos.x)
+        for idy in eachindex(atmos.y)
+            intensity[:, idx, idy] = Transparency.piecewise_1D_linear(atmos.z,
+                                              α_cont[:, idx, idy],
+                                              B_λ[:, idx, idy];
+                                              to_end=true,
+                                              initial_condition=:source)
+        end
+    end
+
+    I_top = ustrip(uconvert.(u"kW*nm^-1*m^-2", intensity[end, :, :]))
+
+    heatmap(ustrip(atmos.x),
+            ustrip(atmos.y),
+            transpose(I_top),
+            xaxis="x",
+            yaxis="y",
+            dpi=300,
+            rightmargin=10Plots.mm,
+            title="Continuum at 500 nm",
+            aspect_ratio=:equal)
+
+    savefig("../img/compare_continuum/cont500")
+
+    return 0
+end
+
+
 
 compare("../data/bifrost_qs006023_s525_quarter.hdf5", "../quadratures/n2.dat");
+LTE_ray("../data/bifrost_qs006023_s525_quarter.hdf5")
 print("")
