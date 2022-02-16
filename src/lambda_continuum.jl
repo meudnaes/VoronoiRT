@@ -135,7 +135,7 @@ function Λ_voronoi(ϵ::AbstractFloat,
     # destruction
     ε_λ = α_a ./ α_cont
 
-    thick = ε_λ .> 5e-3
+    thick = ε_λ .> 1e-4
 
     # Start with the source function as the Planck function
     B_0 = blackbody_λ.(λ, sites.temperature)
@@ -257,11 +257,11 @@ function LTE_ionisation(sites::VoronoiSites)
     n_relative = ones(Float64, n_sites, n_levels)
 
     saha_const = (k_B / h) * (2π * m_e) / h
-    saha_factor = 2 * ((saha_const * atmos.temperature).^(3/2) ./ atmos.electron_density) .|> u"m/m"
+    saha_factor = 2 * ((saha_const * sites.temperature).^(3/2) ./ sites.electron_density) .|> u"m/m"
 
     for i=2:n_levels
         ΔE = χ[i] - χ[1]
-        n_relative[:,i] = g[i] / g[1] * exp.(-ΔE ./ (k_B * atmos.temperature))
+        n_relative[:,i] = g[i] / g[1] * exp.(-ΔE ./ (k_B * sites.temperature))
     end
 
     # Last level is ionised stage (H II)

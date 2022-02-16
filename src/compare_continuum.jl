@@ -24,9 +24,9 @@ function compare(DATA, quadrature)
 
         I_top = ustrip(uconvert.(u"kW*nm^-1*m^-2", I_top[end, 2:end-1, 2:end-1]))
 
-        global min_lim, max_lim
-        min_lim = minimum(I_top)
-        max_lim = maximum(I_top)
+        # global min_lim, max_lim
+        # min_lim = minimum(I_top)
+        # max_lim = maximum(I_top)
 
         heatmap(ustrip(atmos.x[2:end-1]),
                 ustrip(atmos.y[2:end-1]),
@@ -36,8 +36,8 @@ function compare(DATA, quadrature)
                 dpi=300,
                 rightmargin=10Plots.mm,
                 title="Regular Grid",
-                aspect_ratio=:equal,
-                clim=(min_lim,max_lim))
+                aspect_ratio=:equal)
+                # clim=(min_lim,max_lim))
 
         savefig("../img/compare_continuum/regular_top_n2")
 
@@ -105,8 +105,8 @@ function compare(DATA, quadrature)
                 dpi=300,
                 rightmargin=10Plots.mm,
                 title="Irregular Grid",
-                aspect_ratio=:equal,
-                clim=(min_lim,max_lim))
+                aspect_ratio=:equal)
+                # clim=(min_lim,max_lim))
 
         savefig("../img/compare_continuum/irregular_top_n2")
 
@@ -114,7 +114,7 @@ function compare(DATA, quadrature)
     end
 
     regular();
-    # voronoi();
+    voronoi();
 
 end
 
@@ -134,7 +134,7 @@ function LTE_ray(DATA)
                           LTE_pops[:,:,:,1]*1.0, LTE_pops[:,:,:,3]*1.0)
 
     # Planck function
-    B_λ = Transparency.blackbody_λ.(λ, atmos.temperature)
+    B_λ = blackbody_λ.(λ, atmos.temperature)
 
     intensity = Array{Float64, 3}(undef, size(α_cont))u"kW*m^-2*nm^-1"
     for idx in eachindex(atmos.x)
@@ -167,5 +167,5 @@ end
 
 
 compare("../data/bifrost_qs006023_s525_quarter.hdf5", "../quadratures/n2.dat");
-LTE_ray("../data/bifrost_qs006023_s525_quarter.hdf5")
+# LTE_ray("../data/bifrost_qs006023_s525_quarter.hdf5")
 print("")

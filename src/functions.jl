@@ -466,8 +466,8 @@ function coefficients(w1::Float64, w2::Float64, Δτ_upwind::Float64)
         b = 0
         c = 1
     else
-        a = w1 - w2/Δτ_upwind
-        b = w2/Δτ_upwind
+        a = w2/Δτ_upwind
+        b = w1 - w2/Δτ_upwind
         c = exp(-Δτ_upwind)
     end
     return a, b, c
