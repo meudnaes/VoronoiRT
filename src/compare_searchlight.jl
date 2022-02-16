@@ -87,10 +87,10 @@ function searchlight_irregular()
     # shoot rays through every grid cell
 
     # Unit vector towards upwind direction of the ray
-    k = -[cos(θ*π/180), cos(ϕ*π/180)*sin(θ*π/180), sin(ϕ*π/180)*sin(θ*π/180)]
+    k = [cos(θ*π/180), cos(ϕ*π/180)*sin(θ*π/180), sin(ϕ*π/180)*sin(θ*π/180)]
 
     println("---Ray-tracing---")
-    @time I = Delaunay_up(k, S, α, sites, I_0, n_sweeps)
+    @time I = Delaunay_upII(k, S, α, sites, I_0, n_sweeps)
 
     tree = KDTree(ustrip(sites.positions))
 
@@ -129,8 +129,8 @@ function searchlight_irregular()
     end
 
     # Unit vector towards upwind direction of the ray
-    k = -[cos(θ*π/180), cos(ϕ*π/180)*sin(θ*π/180), sin(ϕ*π/180)*sin(θ*π/180)]
-    @time I = Delaunay_down(k, S, α, sites, I_0, n_sweeps)
+    k = [cos(θ*π/180), cos(ϕ*π/180)*sin(θ*π/180), sin(ϕ*π/180)*sin(θ*π/180)]
+    @time I = Delaunay_downII(k, S, α, sites, I_0, n_sweeps)
 
     bottom_z = 0
     bottom_I = zeros(length(x), length(y))u"kW*nm^-1*m^-2"
@@ -153,8 +153,7 @@ end
 
 function searchlight_regular()
     nx = ny = nz = 51
-    println("is it working??")
-    return
+
     z = collect(LinRange(0,1,nz))u"m"
     x = collect(LinRange(0,1,nx))u"m"
     y = collect(LinRange(0,1,ny))u"m"
@@ -190,12 +189,12 @@ function searchlight_regular()
         end
     end
 
-    θ_array = [20, 160, 60, 120, 50, 130, 180, 0]
-    ϕ_array = [150,  30, 75, 270, 23, 203, 0, 0]
+    weights, θ_array, ϕ_array, n_angles = read_quadrature("../quadratures/ul7n12.dat")
 
     for i in eachindex(θ_array)
         θ = θ_array[i]
         ϕ = ϕ_array[i]
+        println("$(floor(Int,θ)), $(floor(Int,ϕ))")
         # Unit vector pointing in the direction of the ray
         k = [cos(θ*π/180), cos(ϕ*π/180)*sin(θ*π/180), sin(ϕ*π/180)*sin(θ*π/180)]
         if θ > 90
@@ -204,7 +203,7 @@ function searchlight_regular()
 
             I = I[end, :, :]
             # npzwrite("../data/searchlight_data/I_$(θ)_$(ϕ)_regular.npy", ustrip.(I))
-            plot_searchlight(k, x[2:end-1], y[2:end-1], I, R0, "regular_$(θ)_$(ϕ)")
+            plot_searchlight(k, x[2:end-1], y[2:end-1], I, R0, "regular_$(floor(Int,θ))_$(floor(Int,ϕ))")
             println("Bottom: $(I_light*80), Top: $(sum(I))")
         elseif θ < 90
             I = short_characteristics_down(k, S_0, α, atmos;
@@ -212,7 +211,7 @@ function searchlight_regular()
 
             I = I[1, :, :]
             # npzwrite("../data/searchlight_data/I_$(θ)_$(ϕ)_regular.npy", ustrip.(I))
-            plot_searchlight(k, x[2:end-1], y[2:end-1], I, R0, "regular_$(θ)_$(ϕ)")
+            plot_searchlight(k, x[2:end-1], y[2:end-1], I, R0, "regular_$(floor(Int,θ))_$(floor(Int,ϕ))")
             println("Top: $(I_light*80), Bottom: $(sum(I))")
         end
     end

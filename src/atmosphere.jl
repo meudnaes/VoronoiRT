@@ -1,3 +1,5 @@
+using Unitful
+
 import PhysicalConstants.CODATA2018: c_0, h, k_B, m_u, m_e, R_∞, ε_0, e
 const E_∞ = R_∞ * c_0 * h
 const hc = h * c_0

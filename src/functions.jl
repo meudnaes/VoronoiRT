@@ -1,31 +1,9 @@
 using HDF5
 using Random
 using Unitful
-using Distances
-using Transparency
-using LinearAlgebra
 
+include("io.jl")
 include("atmosphere.jl")
-
-"""
-    function B_ν(ν, T)
-
-Planck's law! Radiation in LTE. Takes frequency and temperature, returns
-specific intensity
-"""
-function B_ν(ν, T)::AbstractFloat
-    return 2*h*ν^3/c_0^2 * 1/(exp(h*ν/(k_B*T)) - 1)
-end
-
-"""
-    function B_ν(λ, T)
-
-Planck's law! Radiation in LTE. Takes wavelength and temperature, returns
-specific intensity
-"""
-function B_λ(λ::Unitful.Length, T::Unitful.Temperature)
-    return 2*h*c_0^2/λ^5 * 1/(exp(h*c_0/(λ*k_B*T)) - 1)
-end
 
 """
     rejection_sampling(n_sites::Int)
@@ -369,113 +347,6 @@ function mass_function(k::Int64, i::Int64, j::Int64, atmos::Atmosphere)
 end
 
 """
-    function write_arrays(x::AbstractArray, y::AbstractArray, z::AbstractArray,
-                          fname::String)
-
-Writes the arrays z, x, and y to a file with filename fname.
-Arrays are written in columns [ row number ] [ x ] [ y ] [ z ]
-"""
-function write_arrays(x::Vector{Float64}, y::Vector{Float64}, z::Vector{Float64},
-                      fname::String)
-
-    if length(z) != length(y) || length(y) != length(x)
-        println("Wrong shapes of input data")
-        exit()
-    end
-
-    open(fname, "w") do io
-        for i in 1:length(z)
-            println(io, "$i\t$(x[i])\t$(y[i])\t$(z[i])")
-        end
-    end
-end
-
-function write_arrays(x::Vector{<:Unitful.Length}, y::Vector{<:Unitful.Length}, z::Vector{<:Unitful.Length},
-                      fname::String)
-
-    x = ustrip.(x)
-    y = ustrip.(y)
-    z = ustrip.(z)
-
-    if length(z) != length(y) || length(y) != length(x)
-        println("Wrong shapes of input data")
-        exit()
-    end
-
-    open(fname, "w") do io
-        for i in 1:length(z)
-            println(io, "$i\t$(x[i])\t$(y[i])\t$(z[i])")
-        end
-    end
-end
-
-function write_boundaries(z_min, z_max, x_min, x_max, y_min, y_max, fname::String)
-    open(fname, "w") do io
-        println(io, "z_min = $z_min")
-        println(io, "z_max = $z_max")
-        println(io, "x_min = $x_min")
-        println(io, "x_max = $x_max")
-        println(io, "y_min = $y_min")
-        println(io, "y_max = $y_max")
-    end
-end
-
-"""
-    function α_cont(λ::Unitful.Length, temperature::Unitful.Temperature,
-               electron_density::NumberDensity, h_ground_density::NumberDensity,
-               proton_density::NumberDensity)
-
-Continuum extinction.
-"""
-function α_continuum(λ::Unitful.Length, temperature::Unitful.Temperature,
-                     electron_density::NumberDensity, h_ground_density::NumberDensity,
-                     proton_density::NumberDensity)
-
-    α = max(0u"m^-1", Transparency.hminus_ff_stilley(λ, temperature, h_ground_density, electron_density))
-    α += Transparency.hminus_bf_wbr(λ, temperature, h_ground_density, electron_density)
-    α += hydrogenic_ff(c_0 / λ, temperature, electron_density, proton_density, 1)
-    α += h2plus_ff(λ, temperature, h_ground_density, proton_density)
-    α += h2plus_bf(λ, temperature, h_ground_density, proton_density)
-    α += thomson(electron_density)
-    α += rayleigh_h(λ, h_ground_density)
-    return α
-end
-
-"""
-    function α_scattering(λ::Unitful.Length, temperature::Unitful.Temperature,
-               electron_density::NumberDensity, h_ground_density::NumberDensity,
-               proton_density::NumberDensity)
-
-Extinction from scattering processes.
-"""
-function α_scattering(λ::Unitful.Length, temperature::Unitful.Temperature,
-                      electron_density::NumberDensity, h_ground_density::NumberDensity,
-                      proton_density::NumberDensity)
-
-   α = thomson(electron_density)
-   α += rayleigh_h(λ, h_ground_density)
-   return α
-end
-
-"""
-    function α_absorption(λ::Unitful.Length, temperature::Unitful.Temperature,
-               electron_density::NumberDensity, h_ground_density::NumberDensity,
-               proton_density::NumberDensity)
-
-Extinction from photon destruction processes.
-"""
-function α_absorption(λ::Unitful.Length, temperature::Unitful.Temperature,
-                      electron_density::NumberDensity, h_ground_density::NumberDensity,
-                      proton_density::NumberDensity)
-
-    α = max(0u"m^-1", Transparency.hminus_ff_stilley(λ, temperature, h_ground_density, electron_density))
-    α += Transparency.hminus_bf_wbr(λ, temperature, h_ground_density, electron_density)
-    α += hydrogenic_ff(c_0 / λ, temperature, electron_density, proton_density, 1)
-    α += h2plus_ff(λ, temperature, h_ground_density, proton_density)
-    α += h2plus_bf(λ, temperature, h_ground_density, proton_density)
-end
-
-"""
     trapezoidal(Δx::AbstractFloat, a::AbstractFloat, b::AbstractFloat)
 
 Trapezoidal rule.
@@ -513,6 +384,11 @@ function xy_intersect(ϕ::Float64)
     return sign_x::Int, sign_y::Int
 end
 
+"""
+    xy_intersect(k::Vector{Float64})
+
+Finds x and y direction ray is moving in defined by direction vector k
+"""
 function xy_intersect(k::Vector{Float64})
     local sign_x, sign_y
     @assert norm(k) ≈ 1 "Bad direction vector. Expects length to be 1"
@@ -524,11 +400,11 @@ function xy_intersect(k::Vector{Float64})
         # 2nd quadrant. Positive x, negative y
         sign_x = 1
         sign_y = -1
-    elseif k[2] > 0 && k[3] < 0
+    elseif k[2] < 0 && k[3] < 0
         # 3rd quadrant. Positive x, positive y
         sign_x = 1
         sign_y = 1
-    elseif k[2] < 0 && k[3] < 0
+    elseif k[2] > 0 && k[3] < 0
         # 4th quadrant. Negative x, positive y
         sign_x = -1
         sign_y = 1
@@ -564,7 +440,7 @@ end
 Computes weights for linear integration of source function,
 approximating `exp(-Δτ)` for very small and very large values of `Δτ`.
 """
-function weights2(Δτ::T) where T <: AbstractFloat
+function weights(Δτ::T) where T <: AbstractFloat
     if Δτ < 5e-4
         w1 = Δτ * (1 - Δτ / 2)
         w2 = Δτ^2 * (0.5f0 - Δτ / 3)
@@ -578,27 +454,20 @@ function weights2(Δτ::T) where T <: AbstractFloat
     return w1, w2
 end
 
-function weights(Δτ)
-    e0 = 1 - exp(-Δτ)
-    e1 = Δτ - e0
-    return e0, e1
-end
-
-
 """
-    function coefficients(e0, e1, Δτ_upwind)
+    coefficients(w1, w2, Δτ_upwind)
 
 Coefficients for integrating the formal solution with a linear interpolation of
-the source function. e0 and e1 are the weights.
+the source function. w1 and w2 are the weights.
 """
-function coefficients(e0, e1, Δτ_upwind)
+function coefficients(w1::Float64, w2::Float64, Δτ_upwind::Float64)
     if Δτ_upwind == 0
         a = 0
         b = 0
         c = 1
     else
-        a = e0 - e1/Δτ_upwind
-        b = e1/Δτ_upwind
+        a = w1 - w2/Δτ_upwind
+        b = w2/Δτ_upwind
         c = exp(-Δτ_upwind)
     end
     return a, b, c
@@ -638,21 +507,4 @@ function arg_where(arr, num)
         end
     end
     return indices[1:j]
-end
-
-function line_of_sight_velocity(atmos::Atmosphere, k::Vector)
-    v_los = Array{Unitful.Velocity, 3}(undef, size(atmos.velocity_z))
-
-    for kk in 1:length(atmos.z)
-        for ii in 1:length(atmos.x)
-            for jj in 1:length(atmos.y)
-                velocity = [atmos.velocity_z[kk, ii, jj],
-                            atmos.velocity_x[kk, ii, jj],
-                            atmos.velocity_y[kk, ii, jj]]
-
-                v_los[kk, ii, jj] = dot(velocity, k)
-            end
-        end
-    end
-    return v_los::Array{Unitful.Velocity, 3}
 end

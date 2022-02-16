@@ -1,5 +1,5 @@
-include("line.jl")
-include("functions.jl")
+include("rates.jl")
+include("radiation.jl")
 include("broadening.jl")
 include("populations.jl")
 include("voronoi_utils.jl")
@@ -28,6 +28,9 @@ function J_λ_regular(S_λ::Array{<:UnitsIntensity_λ, 4},
         damping_λ[l, :, :, :] = damping.(γ, line.λ[l], line.ΔD)
     end
 
+    # total extinction
+    α_tot = Array{Float64, 4}(undef, size(profile))u"m^-1"
+
     for i in 1:n_angles
         θ = θ_array[i]
         ϕ = ϕ_array[i]
@@ -35,18 +38,13 @@ function J_λ_regular(S_λ::Array{<:UnitsIntensity_λ, 4},
 
         profile = compute_voigt_profile(line, atmos, damping_λ, k)
 
-        # total extinction
-        α_tot = Array{Float64, 4}(undef, size(profile))u"m^-1"
         for l in eachindex(line.λ)
             α_tot[l,:,:,:] = αline_λ(line,
                                      profile[l, :, :, :],
                                      populations[:, :, :, 1],
                                      populations[:, :, :, 2])
-
             α_tot[l,:,:,:] += α_cont
-        end
 
-        for l in eachindex(line.λ)
             if θ > 90
                 I_0 =  B_λ.(line.λ[l], atmos.temperature[1,:,:])
                 J_λ[l,:,:,:] .+= weights[i].*short_characteristics_up(k,
@@ -94,6 +92,9 @@ function J_λ_voronoi(S_λ::Matrix{<:UnitsIntensity_λ},
 
     n_sweeps = 3
 
+    # total extinction
+    α_tot = Matrix{Float64}(undef, size(profile))u"m^-1"
+
     for i in 1:n_points
         θ = θ_array[i]
         ϕ = ϕ_array[i]
@@ -101,28 +102,25 @@ function J_λ_voronoi(S_λ::Matrix{<:UnitsIntensity_λ},
 
         profile = compute_voigt_profile(line, sites, damping_λ, k)
 
-        # total extinction
-        α_tot = Matrix{Float64}(undef, size(profile))u"m^-1"
         for l in eachindex(line.λ)
             α_tot[l,:] = αline_λ(line,
                                  profile[l, :],
                                  populations[:, 1],
                                  populations[:, 2])
-
             α_tot[l,:] += α_cont
-        end
 
-        for l in eachindex(line.λ)
             if θ_array[i] > 90
                 bottom_layer = sites.layers_up[2] - 1
                 bottom_layer_idx = sites.perm_up[1:bottom_layer]
-                I_0 = B_λ.(500u"nm", sites.temperature[bottom_layer_idx])
-                J_λ[l,:] += weights[i]*Delaunay_up(k, S_λ[l,:], α_tot[l,:], sites, I_0, n_sweeps)
+                I_0 = B_λ.(line.λ[l], sites.temperature[bottom_layer_idx])
+                J_λ[l,:] += weights[i]*Delaunay_upII(k, S_λ[l,:], α_tot[l,:], sites, I_0, n_sweeps)
+
             elseif θ_array[i] < 90
                 top_layer = sites.layers_down[2] - 1
                 I_0 = zeros(top_layer)u"kW*nm^-1*m^-2"
-                J_λ[l,:] += weights[i]*Delaunay_down(k, S_λ[l,:], α_tot[l,:], sites, I_0, n_sweeps)
+                J_λ[l,:] += weights[i]*Delaunay_downII(k, S_λ[l,:], α_tot[l,:], sites, I_0, n_sweeps)
             end
+
         end
     end
     return J_λ, damping_λ
@@ -315,11 +313,8 @@ function criterion(S_new::Array{<:UnitsIntensity_λ, 4},
     diff = 0
     nλ = size(S_new)[1]
     for l in 1:nλ
-        l_diff = maximum(abs.((S_new[l, :, :, :][indcs] .- S_old[l, :, :, :][indcs])
-                                ./S_new[l, :, :, :][indcs])) |> Unitful.NoUnits
-        if l_diff > diff
-            diff = l_diff
-        end
+        l_diff = maximum(abs.(1 .- S_old[l,:,:,:][indcs]./S_new[l,:,:,:][indcs])) |> Unitful.NoUnits
+        l_diff = max(diff, l_diffs)
         if isnan(l_diff)
             println("NaN DIFF!, index $l")
         end
@@ -345,10 +340,10 @@ function criterion(S_new::Matrix{<:UnitsIntensity_λ},
     diff = 0
     nλ = size(S_new)[1]
     for l in 1:nλ
-        l_diff = maximum(abs.((S_new[l, :][indcs] .- S_old[l, :][indcs])
-                                ./S_new[l, :][indcs])) |> Unitful.NoUnits
-        if l_diff > diff
-            diff = l_diff
+        l_diff = maximum(abs.(1 .- S_old[l, :][indcs]./S_new[l, :][indcs])) |> Unitful.NoUnits
+        l_diff = max(diff, l_diffs)
+        if isnan(l_diff)
+            println("NaN DIFF!, index $l")
         end
     end
     if i > 0

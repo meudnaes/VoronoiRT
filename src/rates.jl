@@ -1,4 +1,6 @@
+include("line.jl")
 include("functions.jl")
+include("voronoi_utils.jl")
 
 """
     calculate_C(atmos::Atmosphere,
