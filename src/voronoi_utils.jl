@@ -306,7 +306,7 @@ function smallest_angle(position::Vector{<:Unitful.Length},
                 p_n[3] = sites.y_min + sites.y_max - p_n[3]
             end
 
-            direction = position .- p_n
+            direction = p_n .- position
             norm_dir = direction/(norm(direction))
             # Two normalized direction vectors, denominator is 1
             # Save the dot product, don't bother calculating the angle

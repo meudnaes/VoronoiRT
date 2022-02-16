@@ -80,8 +80,8 @@ function searchlight_irregular()
     RES=500
 
     # Traces rays through an irregular grid
-    θ = 0
-    ϕ = 180
+    θ = 150.
+    ϕ = 130.
 
     # start at the bottom
     # shoot rays through every grid cell
@@ -109,12 +109,12 @@ function searchlight_irregular()
     end
 
     # npzwrite("../data/searchlight_data/I_$(θ)_$(ϕ)_voronoi.npy", ustrip(top_I))
-    plot_searchlight(k, x, y, top_I, R0, "irregular_$(θ)_$(ϕ)_HR")
+    plot_searchlight(k, x, y, top_I, R0, "irregular_$(floor(Int,θ))_$(floor(Int,ϕ))")
 
     # Top to bottom
     # Traces rays through an irregular grid
-    θ = 180
-    ϕ = 0
+    θ = 30.
+    ϕ = 15.
 
     top_layer = sites.layers_down[2] - 1
 
@@ -144,7 +144,7 @@ function searchlight_irregular()
     end
 
     # npzwrite("../data/searchlight_data/I_$(θ)_$(ϕ)_voronoi.npy", ustrip.(bottom_I))
-    plot_searchlight(k, x, y, bottom_I, R0, "irregular_$(θ)_$(ϕ)_HR")
+    plot_searchlight(k, x, y, bottom_I, R0, "irregular_$(floor(Int,θ))_$(floor(Int,ϕ))")
 
     # npzwrite("../data/searchlight_data/x_voronoi.npy", x)
     # npzwrite("../data/searchlight_data/y_voronoi.npy", y)
@@ -220,5 +220,5 @@ function searchlight_regular()
 end
 
 gr()
-searchlight_regular()
+# searchlight_regular()
 searchlight_irregular()
