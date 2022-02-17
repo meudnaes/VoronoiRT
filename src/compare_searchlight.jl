@@ -63,92 +63,83 @@ function searchlight_irregular()
     S = zeros(n_sites)u"kW*m^-2*nm^-1"
     α = zeros(n_sites)u"m^-1"
 
+    tree = KDTree(ustrip(sites.positions))
+
     I_light = 1u"kW*m^-2*nm^-1"
 
     bottom_layer = sites.layers_up[2] - 1
 
-    I_0 = zeros(bottom_layer)u"kW*m^-2*nm^-1"
+    I_bottom = zeros(bottom_layer)u"kW*m^-2*nm^-1"
     for i in 1:bottom_layer
         idx = sites.perm_up[i]
         xi = sites.positions[2, idx]
         yi = sites.positions[3, idx]
         if sqrt((xi - 0.5u"m")^2 + (yi - 0.5u"m")^2) < R0
-            I_0[i] = I_light
+            I_bottom[i] = I_light
         end
     end
-
-    RES=500
-
-    # Traces rays through an irregular grid
-    θ = 150.
-    ϕ = 130.
-
-    # start at the bottom
-    # shoot rays through every grid cell
-
-    # Unit vector towards upwind direction of the ray
-    k = [cos(θ*π/180), cos(ϕ*π/180)*sin(θ*π/180), sin(ϕ*π/180)*sin(θ*π/180)]
-
-    println("---Ray-tracing---")
-    @time I = Delaunay_upII(k, S, α, sites, I_0, n_sweeps)
-
-    tree = KDTree(ustrip(sites.positions))
-
-    x = collect(LinRange(0,1,10*nx))
-    y = collect(LinRange(0,1,10*ny))
-    top_z = 1
-
-    top_I = zeros(length(x), length(y))u"kW*nm^-1*m^-2"
-
-    for i in 1:length(x)
-        for j in 1:length(y)
-            position = [top_z, x[i], y[j]]
-            idx, dist = nn(tree, ustrip(position))
-            top_I[i, j] = I[idx]
-        end
-    end
-
-    # npzwrite("../data/searchlight_data/I_$(θ)_$(ϕ)_voronoi.npy", ustrip(top_I))
-    plot_searchlight(k, x, y, top_I, R0, "irregular_$(floor(Int,θ))_$(floor(Int,ϕ))")
-
-    # Top to bottom
-    # Traces rays through an irregular grid
-    θ = 30.
-    ϕ = 15.
 
     top_layer = sites.layers_down[2] - 1
 
-    I_0 = zeros(top_layer)u"kW*m^-2*nm^-1"
+    I_top = zeros(top_layer)u"kW*m^-2*nm^-1"
     for i in 1:top_layer
         idx = sites.perm_down[i]
         xi = sites.positions[2, idx]
         yi = sites.positions[3, idx]
         if sqrt((xi - 0.5u"m")^2 + (yi - 0.5u"m")^2) < R0
-            I_0[i] = I_light
+            I_top[i] = I_light
         end
     end
 
-    # Unit vector towards upwind direction of the ray
-    k = [cos(θ*π/180), cos(ϕ*π/180)*sin(θ*π/180), sin(ϕ*π/180)*sin(θ*π/180)]
-    @time I = Delaunay_downII(k, S, α, sites, I_0, n_sweeps)
+    x = collect(LinRange(0,1,10*nx))
+    y = collect(LinRange(0,1,10*ny))
+    top_z = 1.0
+    bottom_z = 0.0
 
-    bottom_z = 0
-    bottom_I = zeros(length(x), length(y))u"kW*nm^-1*m^-2"
+    RES=500
 
-    for i in 1:length(x)
-        for j in 1:length(y)
-            position = [bottom_z, x[i], y[j]]
-            idx, dist = nn(tree, ustrip(position))
-            bottom_I[i, j] = I[idx]
+    weights, θ_array, ϕ_array, n_angles = read_quadrature("../quadratures/ul7n12.dat")
+
+    for i in eachindex(θ_array)
+        θ = θ_array[i]
+        ϕ = ϕ_array[i]
+        println("$(floor(Int,θ)), $(floor(Int,ϕ))")
+        # Unit vector pointing in the direction of the ray
+        k = [cos(θ*π/180), cos(ϕ*π/180)*sin(θ*π/180), sin(ϕ*π/180)*sin(θ*π/180)]
+        if θ > 90
+            @time I = Delaunay_upII(k, S, α, sites, I_bottom, n_sweeps)
+
+            top_I = zeros(length(x), length(y))u"kW*nm^-1*m^-2"
+
+            for i in 1:length(x)
+                for j in 1:length(y)
+                    position = [top_z, x[i], y[j]]
+                    idx, dist = nn(tree, ustrip(position))
+                    top_I[i, j] = I[idx]
+                end
+            end
+
+            plot_searchlight(k, x, y, top_I, R0, "irregular_$(floor(Int,θ))_$(floor(Int,ϕ))")
+        elseif θ < 90
+            @time I = Delaunay_downII(k, S, α, sites, I_top, n_sweeps)
+
+            bottom_z = 0
+            bottom_I = zeros(length(x), length(y))u"kW*nm^-1*m^-2"
+
+            for i in 1:length(x)
+                for j in 1:length(y)
+                    position = [bottom_z, x[i], y[j]]
+                    idx, dist = nn(tree, ustrip(position))
+                    bottom_I[i, j] = I[idx]
+                end
+            end
+
+            # npzwrite("../data/searchlight_data/I_$(θ)_$(ϕ)_voronoi.npy", ustrip.(bottom_I))
+            plot_searchlight(k, x, y, bottom_I, R0, "irregular_$(floor(Int,θ))_$(floor(Int,ϕ))")
         end
+        # npzwrite("../data/searchlight_data/x_voronoi.npy", x)
+        # npzwrite("../data/searchlight_data/y_voronoi.npy", y)
     end
-
-    # npzwrite("../data/searchlight_data/I_$(θ)_$(ϕ)_voronoi.npy", ustrip.(bottom_I))
-    plot_searchlight(k, x, y, bottom_I, R0, "irregular_$(floor(Int,θ))_$(floor(Int,ϕ))")
-
-    # npzwrite("../data/searchlight_data/x_voronoi.npy", x)
-    # npzwrite("../data/searchlight_data/y_voronoi.npy", y)
-
 end
 
 function searchlight_regular()
@@ -220,5 +211,5 @@ function searchlight_regular()
 end
 
 gr()
+# searchlight_irregular()
 # searchlight_regular()
-searchlight_irregular()

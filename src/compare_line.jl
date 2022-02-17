@@ -9,21 +9,6 @@ include("lambda_iteration.jl")
 global my_seed = 2022
 Random.seed!(my_seed)
 
-function sample_from_extinction(atmos::Atmosphere,
-                                λ0::Unitful.Length,
-                                n_sites::Int)
-
-    # Find continuum extinction and absorption extinction (without Thomson and Rayleigh)
-    α_cont = α_continuum.(λ0,
-                          atmos.temperature*1.0,
-                          atmos.electron_density*1.0,
-                          atmos.hydrogen_populations*1.0,
-                          atmos.hydrogen_populations*1.0)
-
-    positions = rejection_sampling(n_sites, atmos, ustrip.(α_cont))
-    return positions
-end
-
 function compare(DATA, quadrature)
     maxiter = 200
     ϵ = 1e-3
@@ -45,6 +30,7 @@ function compare(DATA, quadrature)
         REGULAR_DATA = "../data/regular_ul2n3.h5"
 
         create_output_file(REGULAR_DATA, length(line.λ), size(atmos.temperature[:, 2:end-1, 2:end-1]), maxiter)
+        write_to_file(atmos, REGULAR_DATA, ghost_cells=true)
         write_to_file(nλ_bb, "n_bb", REGULAR_DATA)
         write_to_file(nλ_bf, "n_bf", REGULAR_DATA)
 
@@ -52,7 +38,7 @@ function compare(DATA, quadrature)
 
         γ = γ_constant(line,
                        atmos.temperature,
-                       (populations[:, :, :, 1].+populations[:, :, :, 2]),
+                       (populations[:, :, :, 1] .+ populations[:, :, :, 2]),
                        atmos.electron_density)
 
         damping_λ = Array{Float64, 4}(undef, size(S_λ))
@@ -81,7 +67,6 @@ function compare(DATA, quadrature)
 
         write_to_file(populations[:, 2:end-1, 2:end-1, :], REGULAR_DATA)
         write_to_file(S_λ[:, :, 2:end-1, 2:end-1], REGULAR_DATA)
-        write_to_file(atmos, REGULAR_DATA, ghost_cells=true)
 
         return 0
     end

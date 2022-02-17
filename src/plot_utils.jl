@@ -137,41 +137,11 @@ function read_quantities(DATA::String; periodic=true)
     end
 
     if periodic
-        S_λ_periodic = Array{Float64, 4}(undef, size(S_λ) .+ (0,0,2,2))u"kW*m^-2*nm^-1"
-        populations_periodic = Array{Float64, 4}(undef, size(populations) .+ (0,2,2,0))u"m^-3"
-
-        # fill inner box
-        S_λ_periodic[:,:,2:end-1, 2:end-1] = S_λ
-        # x-direction wall
-        S_λ_periodic[:,:,1,2:end-1] = S_λ[:,:,end,:]
-        S_λ_periodic[:,:,end,2:end-1] = S_λ[:,:,1,:]
-        # y-direction wall
-        S_λ_periodic[:,:,2:end-1,end] = S_λ[:,:,:,1]
-        S_λ_periodic[:,:,2:end-1,1] = S_λ[:,:,:,end]
-        # fix corners
-        S_λ_periodic[:,:,1,1] .= S_λ[:,:,end,end]
-        S_λ_periodic[:,:,1,end] .= S_λ[:,:,end,1]
-        S_λ_periodic[:,:,end,1] .= S_λ[:,:,1,end]
-        S_λ_periodic[:,:,end,end] .= S_λ[:,:,1,1]
-
-        # fill inner box
-        populations_periodic[:,2:end-1,2:end-1,:] = populations
-        # x-direction wall
-        populations_periodic[:,1,2:end-1,:] = populations[:,end,:,:]
-        populations_periodic[:,end,2:end-1,:] = populations[:,1,:,:]
-        # y-direction wall
-        populations_periodic[:,2:end-1,end,:] = populations[:,:,1,:]
-        populations_periodic[:,2:end-1,1,:] = populations[:,:,end,:]
-        # fix corners
-        populations_periodic[:,1,1,:] .= populations[:,end,end,:]
-        populations_periodic[:,1,end,:] .= populations[:,end,1,:]
-        populations_periodic[:,end,1,:] .= populations[:,1,end,:]
-        populations_periodic[:,end,end,:] .= populations[:,1,1,:]
-
-        return atmos, S_λ_periodic, populations_periodic
-    else
-        return atmos, S_λ, populations
+        S_λ = periodic_borders(S_λ)
+        populations = periodic_pops(populations)
     end
+
+    return atmos, S_λ, populations
 end
 
 """
@@ -237,5 +207,5 @@ function plotter(atmos::Atmosphere,
     # end
 end
 
-# plotter(read_quantities("../data/regular_ul7n12.h5", periodic=true)..., 0.0, 0.0, "Regular-Line")
+# plotter(read_quantities("../data/regular_ul2n3.h5", periodic=true)..., 0.0, 0.0, "Regular-Line")
 # plotter(read_quantities("../data/voronoi_ul7n12.h5", periodic=true)..., 0.0, 0.0, "Voronoi-Line")

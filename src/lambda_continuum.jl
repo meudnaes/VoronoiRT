@@ -46,9 +46,9 @@ function J_λ_voronoi(S_λ::AbstractArray,
     Nran = 1
 
     for i in 1:n_points
-        θ = θ_array[i]*π/180
-        ϕ = ϕ_array[i]*π/180
-        k = [cos(θ), cos(ϕ)*sin(θ), sin(ϕ)*sin(θ)]
+        θ = θ_array[i]
+        ϕ = ϕ_array[i]
+        k = [cos(θ*π/180), cos(ϕ*π/180)*sin(θ*π/180), sin(ϕ*π/180)*sin(θ*π/180)]
         if θ > 90
             bottom_layer = sites.layers_up[2] - 1
             bottom_layer_idx = sites.perm_up[1:bottom_layer]

@@ -4,6 +4,20 @@ include("lambda_continuum.jl")
 global my_seed = 1998
 Random.seed!(my_seed)
 
+pyplot()
+
+function plot_sites(sites::VoronoiSites)
+    z = ustrip.(sites.positions[1,:])
+    x = ustrip.(sites.positions[2,:])
+    y = ustrip.(sites.positions[3,:])
+    scatter(x/1e6,
+            y/1e6,
+            z/1e6,
+            title="Sites",
+            dpi=300)
+    savefig("../img/sites.png")
+end
+
 function compare(DATA, quadrature)
     maxiter = 50
     ϵ = 1e-4
@@ -28,9 +42,9 @@ function compare(DATA, quadrature)
         # min_lim = minimum(I_top)
         # max_lim = maximum(I_top)
 
-        heatmap(ustrip(atmos.x[2:end-1]),
-                ustrip(atmos.y[2:end-1]),
-                transpose(I_top),
+        heatmap(ustrip.(atmos.x[2:end-1]),
+                ustrip.(atmos.y[2:end-1]),
+                transpose.(I_top),
                 xaxis="x",
                 yaxis="y",
                 dpi=300,
@@ -39,7 +53,7 @@ function compare(DATA, quadrature)
                 aspect_ratio=:equal)
                 # clim=(min_lim,max_lim))
 
-        savefig("../img/compare_continuum/regular_top_n2")
+        savefig("../img/compare_continuum/regular_top_n1")
 
         return 0
     end
@@ -53,8 +67,24 @@ function compare(DATA, quadrature)
         nz = length(atmos.z)
         ny = length(atmos.y)
 
+        x_min = ustrip(atmos.x[1])
+        x_max = ustrip(atmos.x[end])
+        y_min = ustrip(atmos.y[1])
+        y_max = ustrip(atmos.y[end])
+        z_min = ustrip(atmos.z[1])
+        z_max = ustrip(atmos.z[end])
+
         n_sites = floor(Int, nz*nx*ny)
-        positions = rejection_sampling(n_sites, atmos, log10.(ustrip.(atmos.hydrogen_populations)))
+        positions = rand(3, n_sites)
+
+        positions[1, :] = positions[1, :].*(z_max - z_min) .+ z_min
+        positions[2, :] = positions[2, :].*(x_max - x_min) .+ x_min
+        positions[3, :] = positions[3, :].*(y_max - y_min) .+ y_min
+
+        positions = positions*1u"m"
+
+        # rejection_sampling(n_sites, atmos, log10.(ustrip.(atmos.hydrogen_populations)))
+        # sample_from_extinction(atmos, 500.0u"nm", n_sites)
 
         sites_file = "../data/sites_continuum.txt"
         neighbours_file = "../data/neighbours_continuum.txt"
@@ -63,13 +93,6 @@ function compare(DATA, quadrature)
                      ustrip.(positions[3, :]),
                      ustrip.(positions[1, :]),
                      sites_file)
-
-        x_min = ustrip(atmos.x[1])
-        x_max = ustrip(atmos.x[end])
-        y_min = ustrip(atmos.y[1])
-        y_max = ustrip(atmos.y[end])
-        z_min = ustrip(atmos.z[1])
-        z_max = ustrip(atmos.z[end])
 
         # export sites to voro++, and compute grid information
         println("---Preprocessing grid---")
@@ -88,18 +111,52 @@ function compare(DATA, quadrature)
                              y_min*1u"m", y_max*1u"m",
                              n_sites)
 
+        # plot_sites(sites)
+
         @time J_mean, S_λ, α_tot = Λ_voronoi(ϵ, maxiter, sites, quadrature)
 
-        atmos_from_voronoi, S_λ_grid, α_grid = Voronoi_to_Raster(sites, atmos, S_λ, α_tot, 1.5)
+        x = collect(LinRange(sites.x_min, sites.x_max, 10*nx))
+        y = collect(LinRange(sites.y_min, sites.y_max, 10*ny))
+        top_z = sites.z_max
+
+        tree = KDTree(ustrip(sites.positions))
+
+        J_top = Matrix{Float64}(undef, (length(x), length(y)))u"kW*m^-2*nm^-1"
+        for i in 1:length(x)
+            for j in 1:length(y)
+                position = [top_z, x[i], y[j]]
+                idx, dist = nn(tree, ustrip(position))
+                J_top[i, j] = J_mean[idx]
+            end
+        end
+
+        heatmap(ustrip.(x),
+                ustrip.(y),
+                ustrip.(transpose.(J_top)),
+                xaxis="x",
+                yaxis="y",
+                dpi=300,
+                rightmargin=10Plots.mm,
+                title="J, Irregular Grid",
+                aspect_ratio=:equal)
+
+        savefig("../img/compare_continuum/irregular_top_J")
+
+        return
+
+        atmos_from_voronoi, S_λ_grid, α_grid = Voronoi_to_Raster(sites, atmos,
+                                                                 S_λ, α_tot, 1;
+                                                                 periodic=true)
 
         k = [cos(θ*π/180), cos(ϕ*π/180)*sin(θ*π/180), sin(ϕ*π/180)*sin(θ*π/180)]
-        I_top = short_characteristics_up(k, S_λ_grid, α_grid, atmos_from_voronoi, I_0=S_λ_grid[1,:,:])
+        I_top = short_characteristics_up(k, S_λ_grid, α_grid,
+                                        atmos_from_voronoi, I_0=S_λ_grid[1,:,:])
 
         I_top = ustrip(uconvert.(u"kW*nm^-1*m^-2", I_top[end, 2:end-1, 2:end-1]))
 
-        heatmap(ustrip(atmos_from_voronoi.x[2:end-1]),
-                ustrip(atmos_from_voronoi.y[2:end-1]),
-                transpose(I_top),
+        heatmap(ustrip.(atmos_from_voronoi.x[2:end-1]),
+                ustrip.(atmos_from_voronoi.y[2:end-1]),
+                transpose.(I_top),
                 xaxis="x",
                 yaxis="y",
                 dpi=300,
@@ -113,8 +170,8 @@ function compare(DATA, quadrature)
         return 0
     end
 
-    regular();
-    # voronoi();
+    # regular();
+    voronoi();
 
 end
 
@@ -148,9 +205,9 @@ function LTE_ray(DATA)
 
     I_top = ustrip(uconvert.(u"kW*nm^-1*m^-2", intensity[end, :, :]))
 
-    heatmap(ustrip(atmos.x),
-            ustrip(atmos.y),
-            transpose(I_top),
+    heatmap(ustrip.(atmos.x),
+            ustrip.(atmos.y),
+            transpose.(I_top),
             xaxis="x",
             yaxis="y",
             dpi=300,

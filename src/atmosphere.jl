@@ -123,7 +123,7 @@ function get_atmos(file_path; periodic=true, skip=1)
 
         # Fix grid
         x_periodic = periodic_borders(x)
-        y_periodic = periodic_borders(x)
+        y_periodic = periodic_borders(y)
 
         # Add ghost layers on each side in x and y
         size_add = (0, 2, 2)
@@ -181,7 +181,7 @@ end
     periodic(arr::Array{T, 3}) where T<:Unitful.Quantity
 
 Function to make boundaries of an array periodic. Returns a new periodic
-array which has size (0,2,2)+size(vec)
+array which has size (0,2,2)+size(arr)
 """
 function periodic_borders(arr::Array{T, 3}) where T<:Unitful.Quantity
 
@@ -204,6 +204,56 @@ function periodic_borders(arr::Array{T, 3}) where T<:Unitful.Quantity
     periodic_arr[:,1,end] .= arr[:,end,1]
     periodic_arr[:,end,1] .= arr[:,1,end]
     periodic_arr[:,end,end] .= arr[:,1,1]
+
+    return periodic_arr
+end
+
+function periodic_borders(arr::Array{T, 4}) where T<:Unitful.Quantity
+
+    # Allocate space for periodic vector with same type as original vector
+    periodic_arr = Array{typeof(arr[1,1,1,1]), 4}(undef, size(arr).+(0,0,2,2))
+
+    # Fix inner box
+    periodic_arr[:, :, 2:end-1, 2:end-1] .= arr
+
+    # x-direction
+    periodic_arr[:,:,1,2:end-1] .= arr[:,:,end,:]
+    periodic_arr[:,:,end,2:end-1] .= arr[:,:,1,:]
+
+    # y-direction
+    periodic_arr[:,:,2:end-1,end] .= arr[:,:,:,1]
+    periodic_arr[:,:,2:end-1,1] .= arr[:,:,:,end]
+
+    # fix corners
+    periodic_arr[:,:,1,1] .= arr[:,:,end,end]
+    periodic_arr[:,:,1,end] .= arr[:,:,end,1]
+    periodic_arr[:,:,end,1] .= arr[:,:,1,end]
+    periodic_arr[:,:,end,end] .= arr[:,:,1,1]
+
+    return periodic_arr
+end
+
+function periodic_pops(arr::Array{T, 4}) where T<:NumberDensity
+
+    # Allocate space for periodic vector with same type as original vector
+    periodic_arr = Array{typeof(arr[1,1,1,1]), 4}(undef, size(arr).+(0,0,2,2))
+
+    # Fix inner box
+    periodic_arr[:, 2:end-1, 2:end-1, :] .= arr
+
+    # x-direction
+    periodic_arr[:,1,2:end-1,:] .= arr[:,end,:,:]
+    periodic_arr[:,end,2:end-1,:] .= arr[:,1,:,:]
+
+    # y-direction
+    periodic_arr[:,2:end-1,end,:] .= arr[:,:,1,:]
+    periodic_arr[:,2:end-1,1,:] .= arr[:,:,end,:]
+
+    # fix corners
+    periodic_arr[:,1,1,:] .= arr[:,end,end,:]
+    periodic_arr[:,1,end,:] .= arr[:,end,1,:]
+    periodic_arr[:,end,1,:] .= arr[:,1,end,:]
+    periodic_arr[:,end,end,:] .= arr[:,1,1,:]
 
     return periodic_arr
 end

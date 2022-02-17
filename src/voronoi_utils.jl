@@ -295,7 +295,8 @@ function Voronoi_to_Raster(sites::VoronoiSites,
                            S_λ::Array{<:UnitsIntensity_λ},
                            α_tot::Array{<:PerLength},
                            populations::Array{<:NumberDensity},
-                           r_factor)
+                           r_factor::Any;
+                           periodic=false)
 
     z = collect(LinRange(sites.z_min, sites.z_max,
                          floor(Int, r_factor*length(atmos.z))))
@@ -338,10 +339,25 @@ function Voronoi_to_Raster(sites::VoronoiSites,
         end
     end
 
-    # TODO
-    # Make these periodic. Use a function...
-    voronoi_atmos = Atmosphere(z, x, y, temperature, electron_density,
-                               hydrogen_populations, velocity_z, velocity_x, velocity_y)
+    if periodic
+        voronoi_atmos = Atmosphere(z,
+                                   periodic_borders(x),
+                                   periodic_borders(y),
+                                   periodic_borders(temperature),
+                                   periodic_borders(electron_density),
+                                   periodic_borders(hydrogen_populations),
+                                   periodic_borders(velocity_z),
+                                   periodic_borders(velocity_x),
+                                   periodic_borders(velocity_y))
+
+        S_λ_grid = periodic_borders(S_λ_grid)
+        α_grid = periodic_borders(α_grid)
+        populations_grid = periodic_pops(populations_grid)
+    else
+        voronoi_atmos = Atmosphere(z, x, y, temperature,
+                                   electron_density, hydrogen_populations,
+                                   velocity_z, velocity_x, velocity_y)
+    end
 
     return voronoi_atmos, S_λ_grid, α_grid, populations_grid
 end
@@ -350,7 +366,8 @@ function Voronoi_to_Raster(sites::VoronoiSites,
                            atmos::Atmosphere,
                            S_λ::Array{<:UnitsIntensity_λ},
                            α_tot::Array{<:PerLength},
-                           r_factor)
+                           r_factor;
+                           periodic=false)
 
     z = collect(LinRange(sites.z_min, sites.z_max,
                          floor(Int, r_factor*length(atmos.z))))
@@ -390,8 +407,24 @@ function Voronoi_to_Raster(sites::VoronoiSites,
         end
     end
 
-    voronoi_atmos = Atmosphere(z, x, y, temperature, electron_density,
-                               hydrogen_populations, velocity_z, velocity_x, velocity_y)
+    if periodic
+        voronoi_atmos = Atmosphere(z,
+                                   periodic_borders(x),
+                                   periodic_borders(y),
+                                   periodic_borders(temperature),
+                                   periodic_borders(electron_density),
+                                   periodic_borders(hydrogen_populations),
+                                   periodic_borders(velocity_z),
+                                   periodic_borders(velocity_x),
+                                   periodic_borders(velocity_y))
+
+        S_λ_grid = periodic_borders(S_λ_grid)
+        α_grid = periodic_borders(α_grid)
+    else
+        voronoi_atmos = Atmosphere(z, x, y, temperature,
+                                   electron_density, hydrogen_populations,
+                                   velocity_z, velocity_x, velocity_y)
+    end
 
     return voronoi_atmos, S_λ_grid, α_grid
 end
