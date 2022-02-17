@@ -31,7 +31,7 @@ function compare(DATA, quadrature)
     θ = 10
     ϕ = 10
 
-    n_skip = 4
+    n_skip = 2
 
     nλ_bb = 50
     nλ_bf = 20
@@ -181,7 +181,7 @@ function compare(DATA, quadrature)
     end
 
     regular();
-    voronoi();
+    # voronoi();
 end
 
 DATA = "../data/bifrost_qs006023_s525_quarter.hdf5"

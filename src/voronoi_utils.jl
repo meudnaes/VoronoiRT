@@ -197,74 +197,13 @@ end
     smallest_angle(position::Vector{<:Unitful.Length},
                         neighbours::Vector{Int},
                         k::Vector{Float64},
-                        sites::VoronoiSites,
-                        n::Int)
+                        sites::VoronoiSites)
 
 Calculates the dot product between a the Delaunay lines connecting a site and
 every neighbour, and the ray travelling in direction k. Keep in mind that k
 is not toward the ray, but with the direction of the ray. Returns the two
 Delaunay lines with the largest dot products, and the indices of their sites.
 """
-function smallest_angle(position::Vector{<:Unitful.Length},
-                        neighbours::Vector{Int},
-                        k::Vector{Float64},
-                        sites::VoronoiSites,
-                        n::Int)
-
-    dots = Vector{Float64}(undef, length(neighbours))
-    upwind_positions = Matrix{Float64}(undef, (3, length(neighbours)))u"m"
-
-    x_r_r = sites.x_max - position[2]
-    x_r_l = position[2] - sites.x_min
-
-    y_r_r = sites.y_max - position[3]
-    y_r_l = position[3] - sites.y_min
-
-    for i in 1:length(neighbours)
-        neighbour = neighbours[i]
-        if neighbour > 0
-            p_n = sites.positions[:, neighbour]
-
-            x_i_r = abs(sites.x_max - p_n[2])
-            x_i_l = abs(p_n[2] - sites.x_min)
-
-            # Test for periodic
-            if x_r_r + x_i_l < position[2] - p_n[2]
-                p_n[2] = sites.x_max + p_n[2] - sites.x_min
-            elseif x_r_l + x_i_r < p_n[2] - position[2]
-                p_n[2] = sites.x_min + sites.x_max - p_n[2]
-            end
-
-            y_i_r = abs(sites.y_max - p_n[3])
-            y_i_l = abs(p_n[3] - sites.y_min)
-
-            # Test for periodic
-            if y_r_r + y_i_l < position[3] - p_n[3]
-                p_n[3] = sites.y_max + p_n[3] - sites.y_min
-            elseif y_r_l + y_i_r < p_n[3] - position[3]
-                p_n[3] = sites.y_min + sites.y_max - p_n[3]
-            end
-
-            direction = position .- p_n
-            norm_dir = direction/(norm(direction))
-            # Two normalized direction vectors, denominator is 1
-            # Save the dot product, don't bother calculating the angle
-            dots[i] = dot(k, norm_dir)
-
-            # Save the upwind positions
-            upwind_positions[:, i] = p_n
-        else
-            dots[i] = -1
-        end
-    end
-
-    p=sortperm(dots)
-    dots=dots[p]
-    upwind_positions = upwind_positions[:, p]
-
-    return dots[end-(n-1):end], p[end-(n-1):end], upwind_positions[:, end-(n-1):end]
-end
-
 function smallest_angle(position::Vector{<:Unitful.Length},
                         neighbours::Vector{Int},
                         k::Vector{Float64},
@@ -399,8 +338,10 @@ function Voronoi_to_Raster(sites::VoronoiSites,
         end
     end
 
+    # TODO
+    # Make these periodic. Use a function...
     voronoi_atmos = Atmosphere(z, x, y, temperature, electron_density,
-                           hydrogen_populations, velocity_z, velocity_x, velocity_y)
+                               hydrogen_populations, velocity_z, velocity_x, velocity_y)
 
     return voronoi_atmos, S_λ_grid, α_grid, populations_grid
 end

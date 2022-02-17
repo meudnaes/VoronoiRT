@@ -113,7 +113,7 @@ function compare(DATA, quadrature)
         return 0
     end
 
-    regular();
+    # regular();
     voronoi();
 
 end
