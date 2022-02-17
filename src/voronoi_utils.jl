@@ -3,24 +3,24 @@ using NearestNeighbors
 include("functions.jl")
 
 struct VoronoiSites
-    positions::Matrix{<:Unitful.Length}
+    positions::Matrix{typeof(1.0u"m")}
     neighbours::Matrix{Int}
     layers_up::Vector{Int}
     layers_down::Vector{Int}
     perm_up::Vector{Int}
     perm_down::Vector{Int}
-    temperature::Vector{<:Unitful.Temperature}
-    electron_density::Vector{<:NumberDensity}
-    hydrogen_populations::Vector{<:NumberDensity}
-    velocity_z::Vector{<:Unitful.Velocity}
-    velocity_x::Vector{<:Unitful.Velocity}
-    velocity_y::Vector{<:Unitful.Velocity}
-    z_min::Unitful.Length
-    z_max::Unitful.Length
-    x_min::Unitful.Length
-    x_max::Unitful.Length
-    y_min::Unitful.Length
-    y_max::Unitful.Length
+    temperature::Vector{typeof(1.0u"K")}
+    electron_density::Vector{typeof(1.0u"m^-3")}
+    hydrogen_populations::Vector{typeof(1.0u"m^-3")}
+    velocity_z::Vector{typeof(1.0u"m*s^-1")}
+    velocity_x::Vector{typeof(1.0u"m*s^-1")}
+    velocity_y::Vector{typeof(1.0u"m*s^-1")}
+    z_min::typeof(1.0u"m")
+    z_max::typeof(1.0u"m")
+    x_min::typeof(1.0u"m")
+    x_max::typeof(1.0u"m")
+    y_min::typeof(1.0u"m")
+    y_max::typeof(1.0u"m")
     n::Int
 end
 

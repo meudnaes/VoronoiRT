@@ -3,6 +3,7 @@ using UnitfulRecipes
 
 include("line.jl")
 include("functions.jl")
+include("radiation.jl")
 include("atmosphere.jl")
 include("broadening.jl")
 include("populations.jl")
@@ -103,14 +104,16 @@ function plot_top_line(atmos::Atmosphere,
     start = line.λidx[1]+1
     stop =  line.λidx[2] #size(S_λ)[1]
 
+    indices = sortperm(line.λ[start:stop])
+
     for idx in 1:5:size(S_λ)[end]
         for idy in 1:5:size(S_λ)[end-1]
             loc = "_"*string(idx)*"_"*string(idy)
             I_plot = ustrip(uconvert.(u"kW*nm^-1*m^-2", I_λ))[:, end, idx, idy]
-            scatter(ustrip.(line.λ)[start:stop],
-                 ustrip.(I_plot)[start:stop],
+            plot(ustrip.(line.λ)[indices],
+                 ustrip.(I_plot)[indices],
                  xaxis="λ [nm]",
-                 yaxis="Iλ [kW m^-2 nm^-1]",
+                 yaxis="Intensity [kW m^-2 nm^-1]",
                  dpi=300,
                  rightmargin=10Plots.mm,
                  title=title*loc)
@@ -235,4 +238,4 @@ function plotter(atmos::Atmosphere,
 end
 
 # plotter(read_quantities("../data/regular_ul7n12.h5", periodic=true)..., 0.0, 0.0, "Regular-Line")
-# plotter(read_quantities("../data/voronoi_line_2ray.h5", periodic=true)..., 0.0, 0.0, "Voronoi-Line")
+# plotter(read_quantities("../data/voronoi_ul7n12.h5", periodic=true)..., 0.0, 0.0, "Voronoi-Line")

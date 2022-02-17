@@ -15,15 +15,15 @@ const hc = h * c_0
     Structure containing atmospheric grid and physical values at grid point
 """
 struct Atmosphere
-    z::Vector{<:Unitful.Length}
-    x::Vector{<:Unitful.Length}
-    y::Vector{<:Unitful.Length}
-    temperature::Array{<:Unitful.Temperature, 3}
-    electron_density::Array{<:NumberDensity, 3}
-    hydrogen_populations::Array{<:NumberDensity, 3}
-    velocity_z::Array{Unitful.Velocity, 3}
-    velocity_x::Array{Unitful.Velocity, 3}
-    velocity_y::Array{Unitful.Velocity, 3}
+    z::Vector{typeof(1.0u"m")}
+    x::Vector{typeof(1.0u"m")}
+    y::Vector{typeof(1.0u"m")}
+    temperature::Array{typeof(1.0u"K"), 3}
+    electron_density::Array{typeof(1.0u"m^-3"), 3}
+    hydrogen_populations::Array{typeof(1.0u"m^-3"), 3}
+    velocity_z::Array{typeof(1.0u"m*s^-1"), 3}
+    velocity_x::Array{typeof(1.0u"m*s^-1"), 3}
+    velocity_y::Array{typeof(1.0u"m*s^-1"), 3}
     # Would be nice to include these things in the structure, but I couldn't get it to work
     # nz::Integer
     # nx::Integer
@@ -120,116 +120,90 @@ function get_atmos(file_path; periodic=true, skip=1)
     if periodic
         println("---Periodic boundaries in x and y---")
         # Fix periodic boundaries with 'ghost' values
-        Δx = x[2] - x[1]
-        Δy = y[2] - y[1]
 
         # Fix grid
-        x_periodic = Vector{Unitful.Length}(undef, length(x)+2)
-        y_periodic = Vector{Unitful.Length}(undef, length(x)+2)
-
-        x_periodic[2:end-1] = x
-        x_periodic[1] = x[1] - Δx
-        x_periodic[end] = x[end] + Δx
-
-        y_periodic[2:end-1] = y
-        y_periodic[1] = y[1] - Δy
-        y_periodic[end] = y[end] + Δy
+        x_periodic = periodic_borders(x)
+        y_periodic = periodic_borders(x)
 
         # Add ghost layers on each side in x and y
         size_add = (0, 2, 2)
 
         # Temperature
-        temperature_periodic = Array{Unitful.Temperature, 3}(undef, size(temperature) .+ size_add)
-        temperature_periodic[:, 2:end-1, 2:end-1] = temperature
-        # x-direction
-        temperature_periodic[:,1,2:end-1] = temperature[:,end,:]
-        temperature_periodic[:,end,2:end-1] = temperature[:,1,:]
-        # y-direction
-        temperature_periodic[:,2:end-1,end] = temperature[:,:,1]
-        temperature_periodic[:,2:end-1,1] = temperature[:,:,end]
-        # fix corners
-        temperature_periodic[:,1,1] .= temperature[:,end,end]
-        temperature_periodic[:,1,end] .= temperature[:,end,1]
-        temperature_periodic[:,end,1] .= temperature[:,1,end]
-        temperature_periodic[:,end,end] .= temperature[:,1,1]
+        temperature_periodic = periodic_borders(temperature)
 
-        # Temperature
-        electron_density_periodic = Array{NumberDensity, 3}(undef, size(electron_density) .+ size_add)
-        electron_density_periodic[:, 2:end-1, 2:end-1] = electron_density
-        # x-direction
-        electron_density_periodic[:,1,2:end-1] = electron_density[:,end,:]
-        electron_density_periodic[:,end,2:end-1] = electron_density[:,1,:]
-        # y-direction
-        electron_density_periodic[:,2:end-1,end] = electron_density[:,:,1]
-        electron_density_periodic[:,2:end-1,1] = electron_density[:,:,end]
-        # fix corners
-        electron_density_periodic[:,1,1] .= electron_density[:,end,end]
-        electron_density_periodic[:,1,end] .= electron_density[:,end,1]
-        electron_density_periodic[:,end,1] .= electron_density[:,1,end]
-        electron_density_periodic[:,end,end] .= electron_density[:,1,1]
+        # electron_density
+        electron_density_periodic = periodic_borders(electron_density)
 
-        # Temperature
-        hydrogen_populations_periodic = Array{NumberDensity, 3}(undef, size(hydrogen_populations) .+ size_add)
-        hydrogen_populations_periodic[:, 2:end-1, 2:end-1] = hydrogen_populations
-        # x-direction
-        hydrogen_populations_periodic[:,1,2:end-1] = hydrogen_populations[:,end,:]
-        hydrogen_populations_periodic[:,end,2:end-1] = hydrogen_populations[:,1,:]
-        # y-direction
-        hydrogen_populations_periodic[:,2:end-1,end] = hydrogen_populations[:,:,1]
-        hydrogen_populations_periodic[:,2:end-1,1] = hydrogen_populations[:,:,end]
-        # fix corners
-        hydrogen_populations_periodic[:,1,1] .= hydrogen_populations[:,end,end]
-        hydrogen_populations_periodic[:,1,end] .= hydrogen_populations[:,end,1]
-        hydrogen_populations_periodic[:,end,1] .= hydrogen_populations[:,1,end]
-        hydrogen_populations_periodic[:,end,end] .= hydrogen_populations[:,1,1]
+        # Hydrogen_populations
+        hydrogen_populations_periodic = periodic_borders(hydrogen_populations)
 
         # velocity_z
-        velocity_z_periodic = Array{Unitful.Velocity, 3}(undef, size(velocity_z) .+ size_add)
-        velocity_z_periodic[:, 2:end-1, 2:end-1] = velocity_z
-        # x-direction
-        velocity_z_periodic[:,1,2:end-1] = velocity_z[:,end,:]
-        velocity_z_periodic[:,end,2:end-1] = velocity_z[:,1,:]
-        # y-direction
-        velocity_z_periodic[:,2:end-1,end] = velocity_z[:,:,1]
-        velocity_z_periodic[:,2:end-1,1] = velocity_z[:,:,end]
-        # fix corners
-        velocity_z_periodic[:,1,1] .= velocity_z[:,end,end]
-        velocity_z_periodic[:,1,end] .= velocity_z[:,end,1]
-        velocity_z_periodic[:,end,1] .= velocity_z[:,1,end]
-        velocity_z_periodic[:,end,end] .= velocity_z[:,1,1]
+        velocity_z_periodic = periodic_borders(velocity_z)
 
         # velocity_z
-        velocity_x_periodic = Array{Unitful.Velocity, 3}(undef, size(velocity_x) .+ size_add)
-        velocity_x_periodic[:, 2:end-1, 2:end-1] = velocity_x
-        # x-direction
-        velocity_x_periodic[:,1,2:end-1] = velocity_x[:,end,:]
-        velocity_x_periodic[:,end,2:end-1] = velocity_x[:,1,:]
-        # y-direction
-        velocity_x_periodic[:,2:end-1,end] = velocity_x[:,:,1]
-        velocity_x_periodic[:,2:end-1,1] = velocity_x[:,:,end]
-        # fix corners
-        velocity_x_periodic[:,1,1] .= velocity_x[:,end,end]
-        velocity_x_periodic[:,1,end] .= velocity_x[:,end,1]
-        velocity_x_periodic[:,end,1] .= velocity_x[:,1,end]
-        velocity_x_periodic[:,end,end] .= velocity_x[:,1,1]
+        velocity_x_periodic = periodic_borders(velocity_x)
 
         # velocity_z
-        velocity_y_periodic = Array{Unitful.Velocity, 3}(undef, size(velocity_y) .+ size_add)
-        velocity_y_periodic[:, 2:end-1, 2:end-1] = velocity_y
-        # x-direction
-        velocity_y_periodic[:,1,2:end-1] = velocity_y[:,end,:]
-        velocity_y_periodic[:,end,2:end-1] = velocity_y[:,1,:]
-        # y-direction
-        velocity_y_periodic[:,2:end-1,end] = velocity_y[:,:,1]
-        velocity_y_periodic[:,2:end-1,1] = velocity_y[:,:,end]
-        # fix corners
-        velocity_y_periodic[:,1,1] .= velocity_y[:,end,end]
-        velocity_y_periodic[:,1,end] .= velocity_y[:,end,1]
-        velocity_y_periodic[:,end,1] .= velocity_y[:,1,end]
-        velocity_y_periodic[:,end,end] .= velocity_y[:,1,1]
+        velocity_y_periodic = periodic_borders(velocity_y)
 
         return z, x_periodic, y_periodic, temperature_periodic, electron_density_periodic, hydrogen_populations_periodic, velocity_z_periodic, velocity_x_periodic, velocity_y_periodic
     end
 
     return z, x, y, temperature, electron_density, hydrogen_populations, velocity_z, velocity_x, velocity_y
+end
+
+"""
+    periodic(vec::Vector{T}) where T<:Unitful.Quantity
+
+Function to make boundaries of a vector correspond to periodic quantities in the
+grid. Returns a new 'periodic' vector which has lenght 2+length(vec)
+"""
+function periodic_borders(vec::Vector{T}) where T<:Unitful.Quantity
+
+    # Allocate space for periodic vector with same type as original vector
+    periodic_vec = Vector{typeof(vec[1])}(undef, length(vec)+2)
+
+    # Step size
+    Δl = vec[2] - vec[1]
+
+    # Fix boundaries
+    periodic_vec[1] = vec[1] - Δl
+    periodic_vec[end] = vec[end] + Δl
+
+    # Fill in the 'body' of the vector
+    periodic_vec[2:end-1] .= vec[:]
+
+    return periodic_vec
+end
+
+
+"""
+    periodic(arr::Array{T, 3}) where T<:Unitful.Quantity
+
+Function to make boundaries of an array periodic. Returns a new periodic
+array which has size (0,2,2)+size(vec)
+"""
+function periodic_borders(arr::Array{T, 3}) where T<:Unitful.Quantity
+
+    # Allocate space for periodic vector with same type as original vector
+    periodic_arr = Array{typeof(arr[1,1,1]), 3}(undef, size(arr).+(0,2,2))
+
+    # Fix inner box
+    periodic_arr[:, 2:end-1, 2:end-1] .= arr
+
+    # x-direction
+    periodic_arr[:,1,2:end-1] .= arr[:,end,:]
+    periodic_arr[:,end,2:end-1] .= arr[:,1,:]
+
+    # y-direction
+    periodic_arr[:,2:end-1,end] .= arr[:,:,1]
+    periodic_arr[:,2:end-1,1] .= arr[:,:,end]
+
+    # fix corners
+    periodic_arr[:,1,1] .= arr[:,end,end]
+    periodic_arr[:,1,end] .= arr[:,end,1]
+    periodic_arr[:,end,1] .= arr[:,1,end]
+    periodic_arr[:,end,end] .= arr[:,1,1]
+
+    return periodic_arr
 end

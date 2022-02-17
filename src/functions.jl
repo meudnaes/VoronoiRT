@@ -472,39 +472,3 @@ function coefficients(w1::Float64, w2::Float64, Δτ_upwind::Float64)
     end
     return a, b, c
 end
-
-function smallest_non_negative(arr::AbstractArray)
-    minVal = Inf
-    index = 0
-    for i in 1:length(arr)
-        if 0 < arr[i] < minVal
-            minVal = arr[i]
-            index = i
-        end
-    end
-    return index::Int, minVal::Float64
-end
-
-function less_than(arr::AbstractArray, treshold)
-    indices = Vector{Int}(undef, length(arr))
-    j = 0
-    for i in 1:length(arr)
-        if arr[i] < treshold
-            j += 1
-            indices[j] = i
-        end
-    end
-    return indices[1:j]
-end
-
-function arg_where(arr, num)
-    indices = Vector{Int}(undef, length(arr))
-    j = 0
-    for i in eachindex(arr)
-        if arr[i] == num
-            j += 1
-            indices[j] = i
-        end
-    end
-    return indices[1:j]
-end

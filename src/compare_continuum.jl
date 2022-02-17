@@ -17,7 +17,7 @@ function compare(DATA, quadrature)
 
         atmos = Atmosphere(get_atmos(DATA; periodic=true, skip=n_skip)...)
 
-        J_mean, S_λ, α_tot = Λ_regular(ϵ, maxiter, atmos, quadrature)
+        @time J_mean, S_λ, α_tot = Λ_regular(ϵ, maxiter, atmos, quadrature)
 
         k = [cos(θ*π/180), cos(ϕ*π/180)*sin(θ*π/180), sin(ϕ*π/180)*sin(θ*π/180)]
         I_top = short_characteristics_up(k, S_λ, α_tot, atmos, I_0=S_λ[1,:,:])
@@ -88,7 +88,7 @@ function compare(DATA, quadrature)
                              y_min*1u"m", y_max*1u"m",
                              n_sites)
 
-        J_mean, S_λ, α_tot = Λ_voronoi(ϵ, maxiter, sites, quadrature)
+        @time J_mean, S_λ, α_tot = Λ_voronoi(ϵ, maxiter, sites, quadrature)
 
         atmos_from_voronoi, S_λ_grid, α_grid = Voronoi_to_Raster(sites, atmos, S_λ, α_tot, 1.5)
 
@@ -108,20 +108,19 @@ function compare(DATA, quadrature)
                 aspect_ratio=:equal)
                 # clim=(min_lim,max_lim))
 
-        savefig("../img/compare_continuum/irregular_top_n2")
+        savefig("../img/compare_continuum/irregular_top_n1")
 
         return 0
     end
 
-    # regular();
-    voronoi();
+    regular();
+    # voronoi();
 
 end
 
 function LTE_ray(DATA)
 
     atmos = Atmosphere(get_atmos(DATA; periodic=false, skip=1)...)
-    line = HydrogenicLine(test_atom(1, 1)..., atmos.temperature)
 
     # choose a wavelength
     λ = 500u"nm"  # nm
@@ -166,6 +165,6 @@ end
 
 
 
-compare("../data/bifrost_qs006023_s525_quarter.hdf5", "../quadratures/n2.dat");
+compare("../data/bifrost_qs006023_s525_quarter.hdf5", "../quadratures/n1.dat");
 # LTE_ray("../data/bifrost_qs006023_s525_quarter.hdf5")
 print("")

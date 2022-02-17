@@ -29,7 +29,7 @@ function J_λ_regular(S_λ::Array{<:UnitsIntensity_λ, 4},
     end
 
     # total extinction
-    α_tot = Array{Float64, 4}(undef, size(profile))u"m^-1"
+    α_tot = Array{Float64, 4}(undef, size(damping_λ))u"m^-1"
 
     for i in 1:n_angles
         θ = θ_array[i]
@@ -93,7 +93,7 @@ function J_λ_voronoi(S_λ::Matrix{<:UnitsIntensity_λ},
     n_sweeps = 3
 
     # total extinction
-    α_tot = Matrix{Float64}(undef, size(profile))u"m^-1"
+    α_tot = Matrix{Float64}(undef, size(damping_λ))u"m^-1"
 
     for i in 1:n_points
         θ = θ_array[i]
@@ -198,6 +198,13 @@ function Λ_regular(ϵ::AbstractFloat,
         #     Iteration is done    #
         ############################
         i+=1
+
+        ############################
+        #Write current data to file#
+        ############################
+
+        write_to_file(populations[:, 2:end-1, 2:end-1, :], DATA)
+        write_to_file(S_new[:, :, 2:end-1, 2:end-1], DATA)
     end
 
     if i == maxiter
@@ -314,7 +321,7 @@ function criterion(S_new::Array{<:UnitsIntensity_λ, 4},
     nλ = size(S_new)[1]
     for l in 1:nλ
         l_diff = maximum(abs.(1 .- S_old[l,:,:,:][indcs]./S_new[l,:,:,:][indcs])) |> Unitful.NoUnits
-        l_diff = max(diff, l_diffs)
+        diff = max(diff, l_diff)
         if isnan(l_diff)
             println("NaN DIFF!, index $l")
         end
@@ -341,7 +348,7 @@ function criterion(S_new::Matrix{<:UnitsIntensity_λ},
     nλ = size(S_new)[1]
     for l in 1:nλ
         l_diff = maximum(abs.(1 .- S_old[l, :][indcs]./S_new[l, :][indcs])) |> Unitful.NoUnits
-        l_diff = max(diff, l_diffs)
+        diff = max(diff, l_diff)
         if isnan(l_diff)
             println("NaN DIFF!, index $l")
         end

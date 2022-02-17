@@ -1,5 +1,7 @@
 using Plots
 using Transparency
+using LinearAlgebra
+
 include("functions.jl")
 include("voronoi_utils.jl")
 
