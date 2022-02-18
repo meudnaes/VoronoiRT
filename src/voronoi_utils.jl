@@ -30,7 +30,7 @@ end
 Reads a file containing neighbouring cells for each grid point in the voronoi
 tesselation.
 """
-function read_cell(fname::String, n_sites::Int, positions::AbstractMatrix)
+function read_cell(fname::String, n_sites::Int, positions::Matrix{<:Unitful.Length})
     println("---Reading neighbour information---")
     # Guess (overshoot), maybe do exact later?
     max_guess = 100
@@ -61,9 +61,7 @@ function read_cell(fname::String, n_sites::Int, positions::AbstractMatrix)
         println("===================Guess was too low!=======================")
     end
 
-    global NeighbourMatrix
     NeighbourMatrix = NeighbourMatrix[:,1:max_neighbours+1]
-
     layers_up = _sort_by_layer_up(NeighbourMatrix, n_sites)
     perm_up = sortperm(layers_up)
     layers_up = layers_up[perm_up]
@@ -74,11 +72,10 @@ function read_cell(fname::String, n_sites::Int, positions::AbstractMatrix)
     layers_down = layers_down[perm_down]
     layers_down = reduce_layers(layers_down)
 
-    # Sorting works for layers and sites, but loses neighbour information!
     return positions, NeighbourMatrix, layers_up, layers_down, perm_up, perm_down
 end
 
-function _sort_by_layer_up(neighbours::AbstractMatrix, n_sites::Int)
+function _sort_by_layer_up(neighbours::Matrix{Int}, n_sites::Int)
 
     layers = zeros(Int, n_sites)
 
@@ -117,7 +114,7 @@ function _sort_by_layer_up(neighbours::AbstractMatrix, n_sites::Int)
     return layers
 end
 
-function _sort_by_layer_down(neighbours::AbstractMatrix, n_sites::Int)
+function _sort_by_layer_down(neighbours::Matrix{Int}, n_sites::Int)
     layers = zeros(Int, n_sites)
 
     upper_boundary = -6
@@ -428,6 +425,65 @@ function Voronoi_to_Raster(sites::VoronoiSites,
 
     return voronoi_atmos, S_λ_grid, α_grid
 end
+
+function Voronoi_to_Raster(sites::VoronoiSites,
+                           atmos::Atmosphere,
+                           r_factor;
+                           periodic=false)
+
+    z = collect(LinRange(sites.z_min, sites.z_max,
+                         floor(Int, r_factor*length(atmos.z))))
+    x = collect(LinRange(sites.x_min, sites.x_max,
+                         floor(Int, r_factor*length(atmos.x))))
+    y = collect(LinRange(sites.y_min, sites.y_max,
+                         floor(Int, r_factor*length(atmos.y))))
+
+    nz = length(z)
+    nx = length(x)
+    ny = length(y)
+
+    temperature = Array{Float64, 3}(undef, (nz, ny, nx))u"K"
+    electron_density = Array{Float64, 3}(undef, (nz, ny, nx))u"m^-3"
+    hydrogen_populations = Array{Float64, 3}(undef, (nz, ny, nx))u"m^-3"
+    velocity_z = Array{Float64, 3}(undef, (nz, ny, nx))u"m*s^-1"
+    velocity_x = copy(velocity_z)
+    velocity_y = copy(velocity_z)
+
+    tree = KDTree(ustrip(sites.positions))
+    for k in 1:length(z)
+        for i in 1:length(x)
+            for j in 1:length(y)
+                grid_point = [z[k], x[i], y[j]]
+                idx, dist = nn(tree, ustrip(grid_point))
+                temperature[k, i, j] = sites.temperature[idx]
+                electron_density[k, i, j] = sites.electron_density[idx]
+                hydrogen_populations[k, i, j] = sites.hydrogen_populations[idx]
+                velocity_z[k, i, j] = sites.velocity_z[idx]
+                velocity_x[k, i, j] = sites.velocity_x[idx]
+                velocity_y[k, i, j] = sites.velocity_y[idx]
+            end
+        end
+    end
+
+    if periodic
+        voronoi_atmos = Atmosphere(z,
+                                   periodic_borders(x),
+                                   periodic_borders(y),
+                                   periodic_borders(temperature),
+                                   periodic_borders(electron_density),
+                                   periodic_borders(hydrogen_populations),
+                                   periodic_borders(velocity_z),
+                                   periodic_borders(velocity_x),
+                                   periodic_borders(velocity_y))
+    else
+        voronoi_atmos = Atmosphere(z, x, y, temperature,
+                                   electron_density, hydrogen_populations,
+                                   velocity_z, velocity_x, velocity_y)
+    end
+
+    return voronoi_atmos
+end
+
 
 function _initialise(p_vec::Matrix{<:Unitful.Length}, atmos::Atmosphere)
     println("---Interpolating quantities to new grid---")

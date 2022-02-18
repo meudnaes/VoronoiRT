@@ -202,9 +202,9 @@ function plotter(atmos::Atmosphere,
 
     plot_top_line(atmos, line, S_λ, α_tot, populations, θ, ϕ, title)
 
-    # for i in 1:51
-        # plot_top_intensity(atmos, S_λ, α_tot, populations, θ, ϕ, i, "i_map/top_intensity_regular"*string(i))
-    # end
+    for i in 1:51
+        plot_top_intensity(atmos, S_λ, α_tot, populations, θ, ϕ, i, "i_map/top_intensity_regular"*string(i))
+    end
 end
 
 # plotter(read_quantities("../data/regular_ul2n3.h5", periodic=true)..., 0.0, 0.0, "Regular-Line")

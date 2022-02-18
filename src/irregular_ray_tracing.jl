@@ -12,7 +12,7 @@ function Delaunay_upII(k::AbstractVector,
                      n_sweeps::Int)
 
     # Weighting parameter
-    p = 10.0
+    p = 10
 
     # Allocate space for intensity
     I = zero(S)

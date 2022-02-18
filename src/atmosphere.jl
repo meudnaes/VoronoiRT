@@ -236,7 +236,7 @@ end
 function periodic_pops(arr::Array{T, 4}) where T<:NumberDensity
 
     # Allocate space for periodic vector with same type as original vector
-    periodic_arr = Array{typeof(arr[1,1,1,1]), 4}(undef, size(arr).+(0,0,2,2))
+    periodic_arr = Array{typeof(arr[1,1,1,1]), 4}(undef, size(arr).+(0,2,2,0))
 
     # Fix inner box
     periodic_arr[:, 2:end-1, 2:end-1, :] .= arr
