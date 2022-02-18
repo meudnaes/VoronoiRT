@@ -24,8 +24,8 @@ function compare(DATA, quadrature)
     maxiter = 50
     ϵ = 1e-4
 
-    θ = 0.0
-    ϕ = 0.0
+    θ = 180.0
+    ϕ = 30.0
 
     n_skip = 1
 
@@ -38,7 +38,7 @@ function compare(DATA, quadrature)
         k = [cos(θ*π/180), cos(ϕ*π/180)*sin(θ*π/180), sin(ϕ*π/180)*sin(θ*π/180)]
         I_top = short_characteristics_up(k, S_λ, α_tot, atmos, I_0=S_λ[1,:,:])
 
-        I_top = ustrip(uconvert.(u"kW*nm^-1*m^-2", I_top[50, 2:end-1, 2:end-1]))
+        I_top = ustrip(uconvert.(u"kW*nm^-1*m^-2", I_top[end, 2:end-1, 2:end-1]))
 
         # global min_lim, max_lim
         # min_lim = minimum(I_top)
@@ -55,7 +55,7 @@ function compare(DATA, quadrature)
                 aspect_ratio=:equal)
                 # clim=(min_lim,max_lim))
 
-        savefig("../img/compare_continuum/regular_50_n1")
+        savefig("../img/compare_continuum/regular_n1")
 
         return 0
     end
@@ -185,8 +185,8 @@ function compare(DATA, quadrature)
         return 0
     end
 
-    # regular();
-    voronoi();
+    regular();
+    # voronoi();
 
 end
 
@@ -388,7 +388,9 @@ function test_with_regular(DATA, quadrature)
                        LTE_pops[:,1]*1.0, LTE_pops[:,3]*1.0)
     S_λ = blackbody_λ.(λ, sites.temperature)
 
-    k = [-1.0, 0.0, 0.0]
+    θ = 170.0
+    ϕ = 30.0
+    k = [cos(θ*π/180), cos(ϕ*π/180)*sin(θ*π/180), sin(ϕ*π/180)*sin(θ*π/180)]
     bottom_layer = sites.layers_up[2] - 1
     bottom_layer_idx = sites.perm_up[1:bottom_layer]
     I_0 = blackbody_λ.(500u"nm", sites.temperature[bottom_layer_idx])
@@ -426,8 +428,8 @@ function test_with_regular(DATA, quadrature)
 end
 
 
-# compare("../data/bifrost_qs006023_s525_quarter.hdf5", "../quadratures/n1.dat");
+compare("../data/bifrost_qs006023_s525_quarter.hdf5", "../quadratures/n1.dat");
 # LTE_ray("../data/bifrost_qs006023_s525_quarter.hdf5")
 # test_interpolation("../data/bifrost_qs006023_s525_quarter.hdf5", "../quadratures/n1.dat")
-test_with_regular("../data/bifrost_qs006023_s525_quarter.hdf5", "../quadratures/n1.dat")
+# test_with_regular("../data/bifrost_qs006023_s525_quarter.hdf5", "../quadratures/n1.dat")
 print("")
