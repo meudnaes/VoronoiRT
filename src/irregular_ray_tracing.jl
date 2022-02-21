@@ -4,15 +4,14 @@ include("functions.jl")
 using Distances
 using LinearAlgebra
 
+const p = 7.0
+
 function Delaunay_upII(k::AbstractVector,
                      S::AbstractVector,
                      α::AbstractVector,
                      sites::VoronoiSites,
                      I_0::AbstractVector,
                      n_sweeps::Int)
-
-    # Weighting parameter
-    p = 10
 
     # Allocate space for intensity
     I = zero(S)
@@ -70,7 +69,6 @@ function Delaunay_upII(k::AbstractVector,
 
                     I_upwind = I[upwind_index]
                     I[idx] += (a_ijk*S_upwind + b_ijk*S_centre + c_ijk*I_upwind)*dot_weights[rn]
-                    # maybe try a mix of this and the ray intersection?
                 end
             end
         end
@@ -84,9 +82,6 @@ function Delaunay_downII(k::AbstractVector,
                        sites::VoronoiSites,
                        I_0::AbstractVector,
                        n_sweeps::Int)
-
-    # Weighting parameter
-    p = 7.0
 
     # Allocate space for intensity
     I = zero(S)
@@ -144,8 +139,6 @@ function Delaunay_downII(k::AbstractVector,
 
                     I_upwind = I[upwind_index]
                     I[idx] += (a_ijk*S_upwind + b_ijk*S_centre + c_ijk*I_upwind)*dot_weights[rn]
-                    # maybe try a mix of this and the ray intersection?
-                    # Need to think more
                 end
             end
         end

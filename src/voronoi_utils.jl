@@ -2,6 +2,12 @@ using NearestNeighbors
 
 include("functions.jl")
 
+"""
+    VoronoiSites
+
+Structure containing quantities on the irregular grid, and information relevant
+for ray-tracing.
+"""
 struct VoronoiSites
     positions::Matrix{typeof(1.0u"m")}
     neighbours::Matrix{Int}
@@ -25,7 +31,7 @@ struct VoronoiSites
 end
 
 """
-    read_neighbours(fname::String, n_sites::Int)
+    read_neighbours(fname::String, n_sites::Int, positions::Matrix{<:Unitful.Length})
 
 Reads a file containing neighbouring cells for each grid point in the voronoi
 tesselation.
@@ -33,7 +39,7 @@ tesselation.
 function read_cell(fname::String, n_sites::Int, positions::Matrix{<:Unitful.Length})
     println("---Reading neighbour information---")
     # Guess (overshoot), maybe do exact later?
-    max_guess = 100
+    max_guess = 70
     NeighbourMatrix = zeros(Int, n_sites, max_guess+1)
     open(fname, "r") do io
         for (i, l) in enumerate(eachline(io))
@@ -75,6 +81,12 @@ function read_cell(fname::String, n_sites::Int, positions::Matrix{<:Unitful.Leng
     return positions, NeighbourMatrix, layers_up, layers_down, perm_up, perm_down
 end
 
+"""
+    _sort_by_layer_up(neighbours::Matrix{Int}, n_sites::Int)
+
+Sort Voronoi sites by layer, from all cells neighbouring the bottom boundary and
+upwards. Second layer consists of sites neighbouring first layer, and so on.
+"""
 function _sort_by_layer_up(neighbours::Matrix{Int}, n_sites::Int)
 
     layers = zeros(Int, n_sites)
@@ -114,6 +126,12 @@ function _sort_by_layer_up(neighbours::Matrix{Int}, n_sites::Int)
     return layers
 end
 
+"""
+    _sort_by_layer_down(neighbours::Matrix{Int}, n_sites::Int)
+
+Sort Voronoi sites by layer, from all cells neighbouring the top boundary and
+downwards. Second layer consists of sites neighbouring first layer, and so on.
+"""
 function _sort_by_layer_down(neighbours::Matrix{Int}, n_sites::Int)
     layers = zeros(Int, n_sites)
 
@@ -152,26 +170,12 @@ function _sort_by_layer_down(neighbours::Matrix{Int}, n_sites::Int)
     return layers
 end
 
-function _sort_neighbours(NeighbourMatrix::AbstractMatrix,
-                          permVec::AbstractVector)
+"""
+    reduce_layers(layers::Vector{Int})
 
-    sortedNeighbours = zero(NeighbourMatrix)
-    sortedIdx = sortperm(permVec)
-    for (i, idp) in enumerate(permVec)
-        n = NeighbourMatrix[idp, 1]
-        neighbours = NeighbourMatrix[idp, 2:n+1]
-        for j in 1:n
-            neighbour = neighbours[j]
-            if neighbour > 0
-                neighbours[j] = sortedIdx[neighbour]
-            end
-        end
-        sortedNeighbours[i, 1] = n
-        sortedNeighbours[i, 2:n+1] = neighbours
-    end
-    return sortedNeighbours
-end
-
+Reduce vector containg layers. Returns a compressed vector where the element of
+each index tells how many sites are in the layer equalling the index+1.
+"""
 function reduce_layers(layers::Vector{Int})
     reduced_layers = Vector{Int}(undef, maximum(layers)+1)
 
@@ -196,7 +200,7 @@ end
                         k::Vector{Float64},
                         sites::VoronoiSites)
 
-Calculates the dot product between a the Delaunay lines connecting a site and
+Calculates the dot product between the Delaunay lines connecting a site and
 every neighbour, and the ray travelling in direction k. Keep in mind that k
 is not toward the ray, but with the direction of the ray. Returns the two
 Delaunay lines with the largest dot products, and the indices of their sites.
@@ -268,16 +272,6 @@ function smallest_angle(position::Vector{<:Unitful.Length},
     return dots, indices
 end
 
-function choose_random(angles::AbstractVector, indices::AbstractVector)
-
-    p2 = rand()
-
-    r1 = acos(angles[2])/acos(angles[1])
-    p1 = r1*rand()
-
-    return argmax([p1, p2])
-end
-
 """
     Voronoi_to_Raster(sites::VoronoiSites,
                            atmos::Atmosphere,
@@ -289,9 +283,9 @@ Intepolate quantities from an irregular grid back to a regular grid.
 """
 function Voronoi_to_Raster(sites::VoronoiSites,
                            atmos::Atmosphere,
-                           S_λ::Array{<:UnitsIntensity_λ},
-                           α_tot::Array{<:PerLength},
-                           populations::Array{<:NumberDensity},
+                           S_λ::Matrix{<:UnitsIntensity_λ},
+                           α_tot::Matrix{<:PerLength},
+                           populations::Matrix{<:NumberDensity},
                            r_factor::Any;
                            periodic=false)
 
@@ -431,12 +425,16 @@ function Voronoi_to_Raster(sites::VoronoiSites,
                            r_factor;
                            periodic=false)
 
-    z = collect(LinRange(sites.z_min, sites.z_max,
-                         floor(Int, r_factor*length(atmos.z))))
-    x = collect(LinRange(sites.x_min, sites.x_max,
-                         floor(Int, r_factor*length(atmos.x))))
-    y = collect(LinRange(sites.y_min, sites.y_max,
-                         floor(Int, r_factor*length(atmos.y))))
+    # z = collect(LinRange(sites.z_min, sites.z_max,
+                         # floor(Int, r_factor*length(atmos.z))))
+    # x = collect(LinRange(sites.x_min, sites.x_max,
+                         # floor(Int, r_factor*length(atmos.x))))
+    # y = collect(LinRange(sites.y_min, sites.y_max,
+                         # floor(Int, r_factor*length(atmos.y))))
+
+    z = atmos.z
+    x = atmos.x
+    y = atmos.y
 
     nz = length(z)
     nx = length(x)
@@ -504,6 +502,61 @@ function _initialise(p_vec::Matrix{<:Unitful.Length}, atmos::Atmosphere)
         velocity_z_new[k] = trilinear(zk, xk, yk, atmos, atmos.velocity_z)
         velocity_x_new[k] = trilinear(zk, xk, yk, atmos, atmos.velocity_x)
         velocity_y_new[k] = trilinear(zk, xk, yk, atmos, atmos.velocity_y)
+    end
+    return temperature_new, N_e_new, N_H_new, velocity_z_new, velocity_x_new, velocity_y_new
+end
+
+function _initialise2(p_vec::Matrix{<:Unitful.Length}, atmos::Atmosphere)
+    println("---Interpolating quantities to new grid---")
+    n_sites = length(p_vec[1,:])
+
+    temperature_new = Vector{Float64}(undef, n_sites)u"K"
+    N_e_new = Vector{Float64}(undef, n_sites)u"m^-3"
+    N_H_new = Vector{Float64}(undef, n_sites)u"m^-3"
+    velocity_z_new = Vector{Float64}(undef, n_sites)u"m*s^-1"
+    velocity_x_new = Vector{Float64}(undef, n_sites)u"m*s^-1"
+    velocity_y_new = Vector{Float64}(undef, n_sites)u"m*s^-1"
+
+    for k in 1:n_sites
+        p_k = p_vec[:, k]
+
+        idz = searchsortedfirst(atmos.z, p_k[1]) - 1
+        idx = searchsortedfirst(atmos.x, p_k[2]) - 1
+        idy = searchsortedfirst(atmos.y, p_k[3]) - 1
+
+        positions = [atmos.z[idz]   atmos.x[idx]    atmos.y[idy]
+                     atmos.z[idz]   atmos.x[idx]    atmos.y[idy+1]
+                     atmos.z[idz]   atmos.x[idx+1]  atmos.y[idy]
+                     atmos.z[idz]   atmos.x[idx+1]  atmos.y[idy+1]
+                     atmos.z[idz+1] atmos.x[idx]    atmos.y[idy]
+                     atmos.z[idz+1] atmos.x[idx]    atmos.y[idy+1]
+                     atmos.z[idz+1] atmos.x[idx+1]  atmos.y[idy]
+                     atmos.z[idz+1] atmos.x[idx+1]  atmos.y[idy+1]]
+        positions = transpose(positions)
+
+        indices = [idz     idx     idy
+                   idz     idx     idy+1
+                   idz     idx+1   idy
+                   idz     idx+1   idy+1
+                   idz+1   idx     idy
+                   idz+1   idx     idy+1
+                   idz+1   idx+1   idy
+                   idz+1   idx+1   idy+1]
+        indices = transpose(indices)
+
+        distances = Vector{Float64}(undef, 8)u"m"
+        for i in 1:8
+            distances[i] = euclidean(positions[:, i], p_k)
+        end
+
+        index = indices[:, argmin(distances)]
+
+        temperature_new[k] = atmos.temperature[index...]
+        N_e_new[k] = atmos.electron_density[index...]
+        N_H_new[k] = atmos.electron_density[index...]
+        velocity_z_new[k] = atmos.velocity_z[index...]
+        velocity_x_new[k] = atmos.velocity_x[index...]
+        velocity_y_new[k] = atmos.velocity_y[index...]
     end
     return temperature_new, N_e_new, N_H_new, velocity_z_new, velocity_x_new, velocity_y_new
 end

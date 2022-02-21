@@ -242,9 +242,9 @@ function LTE_voronoi(DATA)
 
     # compute neigbours
     run(`./voro.sh $sites_file $neighbours_file
-                   $(x_min-0.1) $(x_max+0.1)
-                   $(y_min-0.1) $(y_max+0.1)
-                   $(z_min-0.1) $(z_max+0.1)`)
+                   $(x_min) $(x_max)
+                   $(y_min) $(y_max)
+                   $(z_min) $(z_max)`)
 
     # Voronoi grid
     sites = VoronoiSites(read_cell(neighbours_file, n_sites, positions)...,
@@ -263,7 +263,10 @@ function LTE_voronoi(DATA)
 
     S_λ = blackbody_λ.(λ, sites.temperature)
 
-    k = [-1.0, 0.0, 0.0]
+    θ = 175.0
+    ϕ = 0.1
+
+    k = [cos(θ*π/180), cos(ϕ*π/180)*sin(θ*π/180), sin(ϕ*π/180)*sin(θ*π/180)]
     bottom_layer = sites.layers_up[2] - 1
     bottom_layer_idx = sites.perm_up[1:bottom_layer]
     println("---Ray tracing---")
@@ -339,42 +342,105 @@ function test_interpolation(DATA, quadrature)
 
     # compute neigbours
     run(`./voro.sh $sites_file $neighbours_file
-                   $(x_min) $(x_max)
-                   $(y_min) $(y_max)
-                   $(z_min) $(z_max)`)
+                   $(x_min - 0.1) $(x_max + 0.1)
+                   $(y_min - 0.1) $(y_max + 0.1)
+                   $(z_min - 0.1) $(z_max + 0.1)`)
 
     # Voronoi grid
     sites = VoronoiSites(read_cell(neighbours_file, n_sites, positions)...,
-                         _initialise(positions, atmos)...,
+                         _initialise2(positions, atmos)...,
                          z_min*1u"m", z_max*1u"m",
                          x_min*1u"m", x_max*1u"m",
                          y_min*1u"m", y_max*1u"m",
                          n_sites)
 
-    atmos_from_voronoi = Voronoi_to_Raster(sites, atmos, 1; periodic=false)
-    @time J_mean, S_λ, α_tot = Λ_regular(1e-4, 50, atmos_from_voronoi, quadrature)
+    # Lte populations
+    LTE_pops = LTE_ionisation(sites)
+    λ = 500u"nm"
+    # Find continuum extinction (only with Thomson and Rayleigh)
+    α_cont = α_continuum.(λ, sites.temperature*1.0, sites.electron_density*1.0,
+                          LTE_pops[:,1]*1.0, LTE_pops[:,3]*1.0)
 
-    k = [-1.0, 0.0, 0.0]
-    I_top = short_characteristics_up(k, S_λ, α_tot, atmos_from_voronoi, I_0=S_λ[1,:,:])
+    S_λ = blackbody_λ.(λ, sites.temperature)
 
-    I_top = ustrip(uconvert.(u"kW*nm^-1*m^-2", I_top[50, 2:end-1, 2:end-1]))
+    θ = 175.0
+    ϕ = 0.1
 
-    # global min_lim, max_lim
-    # min_lim = minimum(I_top)
-    # max_lim = maximum(I_top)
+    k = [cos(θ*π/180), cos(ϕ*π/180)*sin(θ*π/180), sin(ϕ*π/180)*sin(θ*π/180)]
+    bottom_layer = sites.layers_up[2] - 1
+    bottom_layer_idx = sites.perm_up[1:bottom_layer]
+    println("---Ray tracing---")
+    I_0 = blackbody_λ.(500u"nm", sites.temperature[bottom_layer_idx])
+    intensity = Delaunay_upII(k, S_λ, α_cont, sites, I_0, 3)
 
-    heatmap(ustrip.(atmos.x[2:end-1]),
-            ustrip.(atmos.y[2:end-1]),
-            transpose.(I_top),
+    x = collect(LinRange(sites.x_min, sites.x_max, 10*nx))
+    y = collect(LinRange(sites.y_min, sites.y_max, 10*ny))
+    top_z = atmos.z[end]
+
+    tree = KDTree(ustrip(sites.positions))
+
+    I_top = Matrix{Float64}(undef, (length(x), length(y)))u"kW*m^-2*nm^-1"
+    for i in 1:length(x)
+        for j in 1:length(y)
+            position = [top_z, x[i], y[j]]
+            idx, dist = nn(tree, ustrip(position))
+            I_top[i, j] = intensity[idx]
+        end
+    end
+
+    heatmap(ustrip.(x),
+            ustrip.(y),
+            ustrip.(transpose.(I_top)),
             xaxis="x",
             yaxis="y",
             dpi=300,
             rightmargin=10Plots.mm,
-            title="Regular Grid",
+            title="Top Intensity, Irregular Grid",
             aspect_ratio=:equal)
-            # clim=(min_lim,max_lim))
 
-    savefig("../img/compare_continuum/test_itp")
+    savefig("../img/compare_continuum/irregular_top_I")
+
+    atmos_from_voronoi = Voronoi_to_Raster(sites, atmos, 1; periodic=false)
+
+    T_diff = abs.(1 .- atmos_from_voronoi.temperature ./ atmos.temperature)
+    N_e_diff = abs.(1 .- atmos_from_voronoi.electron_density ./ atmos.electron_density)
+    N_H_diff = abs.(1 .- atmos_from_voronoi.hydrogen_populations ./ atmos.hydrogen_populations)
+
+    heatmap(ustrip.(atmos.x),
+            ustrip.(atmos.y),
+            ustrip.(transpose.(T_diff[end-20,:,:])),
+            xaxis="x",
+            yaxis="y",
+            dpi=300,
+            rightmargin=10Plots.mm,
+            title="Temperature Difference",
+            aspect_ratio=:equal)
+
+    savefig("../img/compare_continuum/T_diff")
+
+    heatmap(ustrip.(atmos.x),
+            ustrip.(atmos.y),
+            ustrip.(transpose.(N_e_diff[end-20,:,:])),
+            xaxis="x",
+            yaxis="y",
+            dpi=300,
+            rightmargin=10Plots.mm,
+            title="Electron Density Difference",
+            aspect_ratio=:equal)
+
+    savefig("../img/compare_continuum/N_e_diff")
+
+    heatmap(ustrip.(atmos.x),
+            ustrip.(atmos.y),
+            ustrip.(transpose.(N_H_diff[end-20,:,:])),
+            xaxis="x",
+            yaxis="y",
+            dpi=300,
+            rightmargin=10Plots.mm,
+            title="Hydrogen Density Difference",
+            aspect_ratio=:equal)
+
+    savefig("../img/compare_continuum/N_H_diff")
 
     return 0
 end
@@ -432,9 +498,9 @@ function test_with_regular(DATA, quadrature)
 
     # compute neigbours
     run(`./voro.sh $sites_file $neighbours_file
-                   $(x_min) $(x_max)
-                   $(y_min) $(y_max)
-                   $(z_min) $(z_max)`)
+                   $(x_min-0.1) $(x_max+0.1)
+                   $(y_min-0.1) $(y_max+0.1)
+                   $(z_min-0.1) $(z_max+0.1)`)
 
     # Voronoi grid
     sites = VoronoiSites(read_cell(neighbours_file, n_sites, positions)...,
@@ -495,7 +561,7 @@ end
 
 # compare("../data/bifrost_qs006023_s525_quarter.hdf5", "../quadratures/n1.dat");
 # LTE_ray("../data/bifrost_qs006023_s525_half.hdf5")
-LTE_voronoi("../data/bifrost_qs006023_s525_quarter.hdf5")
-# test_interpolation("../data/bifrost_qs006023_s525_quarter.hdf5", "../quadratures/n1.dat")
+# LTE_voronoi("../data/bifrost_qs006023_s525_quarter.hdf5")
+test_interpolation("../data/bifrost_qs006023_s525_quarter.hdf5", "../quadratures/n1.dat")
 # test_with_regular("../data/bifrost_qs006023_s525_quarter.hdf5", "../quadratures/n1.dat")
 print("")

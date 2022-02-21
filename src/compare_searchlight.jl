@@ -8,6 +8,8 @@ include("voronoi_utils.jl")
 include("characteristics.jl")
 include("irregular_ray_tracing.jl")
 
+pyplot()
+
 function searchlight_irregular()
     nx = ny = nz = 51
 
@@ -210,6 +212,5 @@ function searchlight_regular()
     print("")
 end
 
-gr()
-# searchlight_irregular()
-# searchlight_regular()
+searchlight_irregular()
+searchlight_regular()

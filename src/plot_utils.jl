@@ -56,9 +56,9 @@ function plot_searchlight(k::Vector{Float64},
 end
 
 function plot_top_intensity(atmos::Atmosphere,
+                            line::HydrogenicLine,
                             S_λ::Array{<:UnitsIntensity_λ, 4},
                             α_tot::Array{<:PerLength, 4},
-                            populations::Array{<:NumberDensity, 4},
                             θ::Float64,
                             ϕ::Float64,
                             idλ::Int,
@@ -77,7 +77,7 @@ function plot_top_intensity(atmos::Atmosphere,
          yaxis="y",
          dpi=300,
          rightmargin=10Plots.mm,
-         title=title,
+         title=title*" at $(round(ustrip(line.λ[idλ]); digits=2)) nm",
          aspect_ratio=:equal)
 
     savefig("../img/compare_line/"*title)
@@ -87,7 +87,6 @@ function plot_top_line(atmos::Atmosphere,
                        line::HydrogenicLine,
                        S_λ::Array{<:UnitsIntensity_λ, 4},
                        α_tot::Array{<:PerLength, 4},
-                       populations::Array{<:NumberDensity, 4},
                        θ::Float64,
                        ϕ::Float64,
                        title::String)
@@ -200,10 +199,10 @@ function plotter(atmos::Atmosphere,
 
     α_tot = α_line .+ α_cont
 
-    plot_top_line(atmos, line, S_λ, α_tot, populations, θ, ϕ, title)
+    # plot_top_line(atmos, line, S_λ, α_tot, θ, ϕ, title)
 
-    for i in 1:51
-        plot_top_intensity(atmos, S_λ, α_tot, populations, θ, ϕ, i, "i_map/top_intensity_regular"*string(i))
+    for i in 51:91
+        plot_top_intensity(atmos, line, S_λ, α_tot, θ, ϕ, i, "i_map/top_intensity_regular"*string(i))
     end
 end
 

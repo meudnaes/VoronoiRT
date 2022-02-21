@@ -139,60 +139,6 @@ function rejection_sampling(n_sites::Int, boundaries::Matrix, quantity::Abstract
     return p_vec*1u"m"
 end
 
-
-"""
-    find_sites_sorted(z_new::Array, x_new::Array, y_new::Array,
-                      z_bounds::Tuple{Float64, Float64},
-                      x_bounds::Tuple{Float64, Float64},
-                      y_bounds::Tuple{Float64, Float64})
-
-Identifies and counts number of sites in (z_new, x_new, y_new) that are inside
-the cube with bounds in (z, x, y) defined by z_bounds, x_bounds and y_bounds.
-Assumes the coordinate z_new to be in increasing order.
-"""
-function find_sites_sorted(p_new::AbstractArray,
-                           z_bounds::Tuple,
-                           x_bounds::Tuple,
-                           y_bounds::Tuple)
-
-    z_new = p_new[1, :]
-    x_new = p_new[2, :]
-    y_new = p_new[3, :]
-
-    hits = 0
-    k_lower = searchsortedfirst(z_new, z_bounds[1])
-    for k in k_lower:length(z_new)
-        if z_new[k] > z_bounds[2]
-            break
-        elseif x_bounds[1] < x_new[k] < x_bounds[2] && y_bounds[1] < y_new[k] < y_bounds[2]
-            hits = hits+1
-        end
-    end
-    return hits::Int64
-end
-
-"""
-    find_sites(z_new::Array, x_new::Array, y_new::Array,
-               z_bounds::Tuple{Float64, Float64},
-               x_bounds::Tuple{Float64, Float64},
-               y_bounds::Tuple{Float64, Float64})
-
-Same as `find_sites_sorted`, but doesn't assume any array to be sorted
-"""
-function find_sites(z_new::Array, x_new::Array, y_new::Array,
-                    z_bounds::Tuple{Float64, Float64},
-                    x_bounds::Tuple{Float64, Float64},
-                    y_bounds::Tuple{Float64, Float64})
-
-    hits = 0
-    for k in 1:length(z_new)
-        if z_bounds[1] < z_new[k] < z_bounds[2] && x_bounds[1] < x_new[k] < x_bounds[2] && y_bounds[1] < y_new[k] < y_bounds[2]
-            hits = hits+1
-        end
-    end
-    return hits::Int64
-end
-
 @doc raw"""
     trilinear(x_mrk, y_mrk, z_mrk, hydrogen_populations)
 
@@ -245,7 +191,7 @@ function trilinear(z_mrk::Unitful.Length, x_mrk::Unitful.Length, y_mrk::Unitful.
 end
 
 function trilinear(z_mrk::Unitful.Length, x_mrk::Unitful.Length, y_mrk::Unitful.Length,
-                   x::Vector{<:Unitful.Length}, y::Vector{<:Unitful.Length}, z::Vector{<:Unitful.Length},
+                   z::Vector{<:Unitful.Length}, x::Vector{<:Unitful.Length}, y::Vector{<:Unitful.Length},
                    vals::AbstractArray)
     # Returns the index of the first value in a greater than or equal to x
     # Subtract by 1 to get coordinate of lower corner
@@ -349,28 +295,6 @@ function bilinear(x_mrk::Float64, y_mrk::Float64,
     # Interpolate in y-direction
     f = ((y2 - y_mrk)*f1 + (y_mrk - y1)*f2)/dy
     return f
-end
-
-"""
-    mass_function(k::Int64, i::Int64, j::Int64)
-
-Finds the mass of a cell by taking the average mass density over all cell
-corners and multiplies with the volume of the cell. Assumes an original
-cartesian grid (x, y, z) and a corresponding value (hydrogen_populations) for
-each grid point
-"""
-function mass_function(k::Int64, i::Int64, j::Int64, atmos::Atmosphere)
-    volume = (atmos.z[k+1] - atmos.z[k])*(atmos.x[i+1] - atmos.x[i])*(atmos.y[j+1] - atmos.y[j])
-    avg_density = (atmos.hydrogen_populations[k, i, j] +
-                   atmos.hydrogen_populations[k, i, j+1] +
-                   atmos.hydrogen_populations[k, i+1, j+1] +
-                   atmos.hydrogen_populations[k, i+1, j] +
-                   atmos.hydrogen_populations[k+1, i, j] +
-                   atmos.hydrogen_populations[k+1, i, j+1] +
-                   atmos.hydrogen_populations[k+1, i+1, j+1] +
-                   atmos.hydrogen_populations[k+1, i+1, j])/8*m_p
-    mass = volume*avg_density
-    return mass
 end
 
 """
