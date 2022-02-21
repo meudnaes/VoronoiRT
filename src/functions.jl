@@ -232,7 +232,7 @@ function trilinear(z_mrk::Unitful.Length, x_mrk::Unitful.Length, y_mrk::Unitful.
     # interpolate in x direction
     c00 = c000*(1 - x_d) + c100*x_d
     c01 = c001*(1 - x_d) + c101*x_d
-    c10 = c010*(1 - x_d) + c100*x_d
+    c10 = c010*(1 - x_d) + c110*x_d
     c11 = c011*(1 - x_d) + c111*x_d
 
     # interpolate in y direction
@@ -254,9 +254,9 @@ function trilinear(z_mrk::Unitful.Length, x_mrk::Unitful.Length, y_mrk::Unitful.
     idy = searchsortedfirst(y, y_mrk) - 1
 
     # bounding corner coordinates
-    z0 = z[idz]; z1 = z[idz+1]
-    x0 = x[idx]; x1 = x[idx+1]
-    y0 = y[idy]; y1 = y[idy+1]
+    z0 = atmos.z[idz]; z1 = atmos.z[idz+1]
+    x0 = atmos.x[idx]; x1 = atmos.x[idx+1]
+    y0 = atmos.y[idy]; y1 = atmos.y[idy+1]
 
     # difference between coordinates and interpolation point
     x_d = (x_mrk - x0)/(x1 - x0)
@@ -276,7 +276,7 @@ function trilinear(z_mrk::Unitful.Length, x_mrk::Unitful.Length, y_mrk::Unitful.
     # interpolate in x direction
     c00 = c000*(1 - x_d) + c100*x_d
     c01 = c001*(1 - x_d) + c101*x_d
-    c10 = c010*(1 - x_d) + c100*x_d
+    c10 = c010*(1 - x_d) + c110*x_d
     c11 = c011*(1 - x_d) + c111*x_d
 
     # interpolate in y direction
@@ -298,6 +298,33 @@ Values are defined on the corners of the rectangle spanned by x_bounds and
 y_bounds. x_mrk and y_mrk have to lie inside this rectangle.
 """
 function bilinear(x_mrk::Unitful.Length, y_mrk::Unitful.Length,
+                  x_bounds::Tuple, y_bounds::Tuple,
+                  vals::AbstractMatrix)
+
+    # corner coordinates
+    x1 = x_bounds[1]; x2 = x_bounds[2]
+    y1 = y_bounds[1]; y2 = y_bounds[2]
+
+    # function value for each corner. 11 is lower left corner, 22 is upper right
+    Q11 = vals[1,1]     # (x1, y1)
+    Q12 = vals[1,2]     # (x1, y2)
+    Q21 = vals[2,1]     # (x2, y1)
+    Q22 = vals[2,2]     # (x2, y2)
+
+    # Rectangle side length
+    dx = x2 - x1
+    dy = y2 - y1
+
+    # Interpolate in x-direction
+    f1 = ((x2 - x_mrk)*Q11 + (x_mrk - x1)*Q21)/dx
+    f2 = ((x2 - x_mrk)*Q12 + (x_mrk - x1)*Q22)/dx
+
+    # Interpolate in y-direction
+    f = ((y2 - y_mrk)*f1 + (y_mrk - y1)*f2)/dy
+    return f
+end
+
+function bilinear(x_mrk::Float64, y_mrk::Float64,
                   x_bounds::Tuple, y_bounds::Tuple,
                   vals::AbstractMatrix)
 
@@ -409,7 +436,7 @@ function xy_intersect(k::Vector{Float64})
         sign_x = -1
         sign_y = 1
     else
-        # phi is 0, ray either straight up or down, doesn't really matter what
+        # theta is 0 or 180, ray either straight up or down, doesn't really matter what
         # the sign is here, interpolation is exact anyways as the ray hits the
         # grid points...
         sign_x = 1
