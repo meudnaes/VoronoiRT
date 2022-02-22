@@ -57,7 +57,7 @@ function Delaunay_upII(k::AbstractVector,
                     α_centre = α[idx]
                     α_upwind = α[upwind_index]
 
-                    r = euclidean(position*1.0, upwind_position)
+                    r = euclidean(position*1.0, upwind_position)*dot_products[rn]
                     # Find the Δτ optical path from upwind to grid point
                     Δτ_upwind = trapezoidal(r, α_centre, α_upwind)
 

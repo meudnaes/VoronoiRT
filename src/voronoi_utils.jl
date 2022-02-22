@@ -506,7 +506,7 @@ function _initialise(p_vec::Matrix{<:Unitful.Length}, atmos::Atmosphere)
     return temperature_new, N_e_new, N_H_new, velocity_z_new, velocity_x_new, velocity_y_new
 end
 
-function _initialise2(p_vec::Matrix{<:Unitful.Length}, atmos::Atmosphere)
+function _initialiseII(p_vec::Matrix{<:Unitful.Length}, atmos::Atmosphere)
     println("---Interpolating quantities to new grid---")
     n_sites = length(p_vec[1,:])
 

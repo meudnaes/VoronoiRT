@@ -248,7 +248,7 @@ function LTE_voronoi(DATA)
 
     # Voronoi grid
     sites = VoronoiSites(read_cell(neighbours_file, n_sites, positions)...,
-                         _initialise(positions, atmos)...,
+                         _initialise2(positions, atmos)...,
                          z_min*1u"m", z_max*1u"m",
                          x_min*1u"m", x_max*1u"m",
                          y_min*1u"m", y_max*1u"m",
@@ -348,7 +348,7 @@ function test_interpolation(DATA, quadrature)
 
     # Voronoi grid
     sites = VoronoiSites(read_cell(neighbours_file, n_sites, positions)...,
-                         _initialise2(positions, atmos)...,
+                         _initialise(positions, atmos)...,
                          z_min*1u"m", z_max*1u"m",
                          x_min*1u"m", x_max*1u"m",
                          y_min*1u"m", y_max*1u"m",
