@@ -24,8 +24,8 @@ function compare(DATA, quadrature)
     maxiter = 50
     ϵ = 1e-4
 
-    θ = 170.0
-    ϕ = 30.0
+    θ = 180.0
+    ϕ = 0.0
 
     n_skip = 1
 
@@ -40,9 +40,9 @@ function compare(DATA, quadrature)
 
         I_top = ustrip(uconvert.(u"kW*nm^-1*m^-2", I_top[end, 2:end-1, 2:end-1]))
 
-        # global min_lim, max_lim
-        # min_lim = minimum(I_top)
-        # max_lim = maximum(I_top)
+        global min_lim, max_lim
+        min_lim = minimum(I_top)
+        max_lim = maximum(I_top)
 
         heatmap(ustrip.(atmos.x[2:end-1]),
                 ustrip.(atmos.y[2:end-1]),
@@ -52,10 +52,10 @@ function compare(DATA, quadrature)
                 dpi=300,
                 rightmargin=10Plots.mm,
                 title="Regular Grid",
-                aspect_ratio=:equal)
-                # clim=(min_lim,max_lim))
+                aspect_ratio=:equal,
+                clim=(min_lim,max_lim))
 
-        savefig("../img/compare_continuum/regular_tilted")
+        savefig("../img/compare_continuum/regular_cont")
 
         return 0
     end
@@ -77,19 +77,21 @@ function compare(DATA, quadrature)
         z_max = ustrip(atmos.z[end])
 
         n_sites = floor(Int, nz*nx*ny)
-        positions = rand(3, n_sites)
+        positions = rejection_sampling(n_sites, atmos, log10.(ustrip.(atmos.hydrogen_populations)))
 
-        positions[1, :] = positions[1, :].*(z_max - z_min) .+ z_min
-        positions[2, :] = positions[2, :].*(x_max - x_min) .+ x_min
-        positions[3, :] = positions[3, :].*(y_max - y_min) .+ y_min
+        # rand(3, n_sites)
 
-        positions = positions*1u"m"
+        # positions[1, :] = positions[1, :].*(z_max - z_min) .+ z_min
+        # positions[2, :] = positions[2, :].*(x_max - x_min) .+ x_min
+        # positions[3, :] = positions[3, :].*(y_max - y_min) .+ y_min
+
+        # positions = positions*1u"m"
 
         # rejection_sampling(n_sites, atmos, log10.(ustrip.(atmos.hydrogen_populations)))
         # sample_from_extinction(atmos, 500.0u"nm", n_sites)
 
-        sites_file = "../data/sites_continuum.txt"
-        neighbours_file = "../data/neighbours_continuum.txt"
+        sites_file = "../data/sites_continuum_half.txt"
+        neighbours_file = "../data/neighbours_continuum_half.txt"
         # write sites to file
         write_arrays(ustrip.(positions[2, :]),
                      ustrip.(positions[3, :]),
@@ -100,10 +102,10 @@ function compare(DATA, quadrature)
         println("---Preprocessing grid---")
 
         # compute neigbours
-        run(`./voro.sh $sites_file $neighbours_file
-                       $(x_min) $(x_max)
-                       $(y_min) $(y_max)
-                       $(z_min) $(z_max)`)
+        # run(`./voro.sh $sites_file $neighbours_file
+                       # $(x_min) $(x_max)
+                       # $(y_min) $(y_max)
+                       # $(z_min) $(z_max)`)
 
         # Voronoi grid
         sites = VoronoiSites(read_cell(neighbours_file, n_sites, positions)...,
@@ -118,14 +120,14 @@ function compare(DATA, quadrature)
         @time J_mean, S_λ, α_tot = Λ_voronoi(ϵ, maxiter, sites, quadrature)
 
         atmos_from_voronoi, S_λ_grid, α_grid = Voronoi_to_Raster(sites, atmos,
-                                                                 S_λ, α_tot, 1;
+                                                                 S_λ, α_tot, 2;
                                                                  periodic=true)
 
         k = [cos(θ*π/180), cos(ϕ*π/180)*sin(θ*π/180), sin(ϕ*π/180)*sin(θ*π/180)]
         I_top = short_characteristics_up(k, S_λ_grid, α_grid,
                                         atmos_from_voronoi, I_0=S_λ_grid[1,:,:])
 
-        I_top = ustrip(uconvert.(u"kW*nm^-1*m^-2", I_top[50, 2:end-1, 2:end-1]))
+        I_top = ustrip(uconvert.(u"kW*nm^-1*m^-2", I_top[end, 2:end-1, 2:end-1]))
 
         heatmap(ustrip.(atmos_from_voronoi.x[2:end-1]),
                 ustrip.(atmos_from_voronoi.y[2:end-1]),
@@ -135,16 +137,16 @@ function compare(DATA, quadrature)
                 dpi=300,
                 rightmargin=10Plots.mm,
                 title="Irregular Grid",
-                aspect_ratio=:equal)
-                # clim=(min_lim,max_lim))
+                aspect_ratio=:equal,
+                clim=(min_lim,max_lim))
 
-        savefig("../img/compare_continuum/irregular_50_n1")
+        savefig("../img/compare_continuum/irregular_cont")
 
         return 0
     end
 
     regular();
-    # voronoi();
+    voronoi();
 
 end
 
@@ -559,9 +561,9 @@ function test_with_regular(DATA, quadrature)
 end
 
 
-# compare("../data/bifrost_qs006023_s525_quarter.hdf5", "../quadratures/n1.dat");
+compare("../data/bifrost_qs006023_s525_half.hdf5", "../quadratures/n1.dat");
 # LTE_ray("../data/bifrost_qs006023_s525_half.hdf5")
 # LTE_voronoi("../data/bifrost_qs006023_s525_quarter.hdf5")
-test_interpolation("../data/bifrost_qs006023_s525_quarter.hdf5", "../quadratures/n1.dat")
+# test_interpolation("../data/bifrost_qs006023_s525_quarter.hdf5", "../quadratures/n1.dat")
 # test_with_regular("../data/bifrost_qs006023_s525_quarter.hdf5", "../quadratures/n1.dat")
 print("")
