@@ -10,7 +10,7 @@ global my_seed = 2022
 Random.seed!(my_seed)
 
 function compare(DATA, quadrature)
-    maxiter = 1
+    maxiter = 10
     ϵ = 1e-3
 
     θ = 10
@@ -97,12 +97,10 @@ function compare(DATA, quadrature)
 
 
         # compute neigbours
-        #=
         run(`./voro.sh $sites_file $neighbours_file
                        $(x_min) $(x_max)
                        $(y_min) $(y_max)
                        $(z_min) $(z_max)`)
-        =#
 
         # Voronoi grid
         sites = VoronoiSites(read_cell(neighbours_file, n_sites, positions)...,
@@ -153,7 +151,7 @@ function compare(DATA, quadrature)
         return 0
     end
 
-    # regular();
+    regular();
     voronoi();
 end
 
