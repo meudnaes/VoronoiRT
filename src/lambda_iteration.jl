@@ -20,7 +20,7 @@ function J_λ_regular(S_λ::Array{<:UnitsIntensity_λ, 4},
 
     γ = γ_constant(line,
                    atmos.temperature,
-                   (populations[:, :, :, 1].+populations[:, :, :, 2]),
+                   (populations[:, :, :, 1] .+ populations[:, :, :, 2]),
                    atmos.electron_density)
 
     damping_λ = Array{Float64, 4}(undef, size(S_λ))
@@ -82,12 +82,12 @@ function J_λ_voronoi(S_λ::Matrix{<:UnitsIntensity_λ},
 
     γ = γ_constant(line,
                    sites.temperature,
-                   (populations[:, 1].+populations[:, 2]),
+                   (populations[:, 1] .+ populations[:, 2]),
                    sites.electron_density)
 
     damping_λ = Matrix{Float64}(undef, size(S_λ))
     for l in eachindex(line.λ)
-       damping_λ[l, :, :, :] = damping.(γ, line.λ[l], line.ΔD)
+       damping_λ[l, :] = damping.(γ, line.λ[l], line.ΔD)
     end
 
     n_sweeps = 3
@@ -134,10 +134,11 @@ function Λ_regular(ϵ::AbstractFloat,
                    quadrature::String,
                    DATA::String)
 
-    # Start in LTE
-
+    # LTE populations
     LTE_pops = LTE_populations(line, atmos)
-    populations = copy(LTE_pops)
+
+    # Initial populations
+    populations = zero_radiation_populations(line, atmos)
 
     # Find continuum extinction and absorption extinction (without Thomson and Rayleigh)
     α_cont = α_continuum.(line.λ0,
@@ -145,12 +146,6 @@ function Λ_regular(ϵ::AbstractFloat,
                           atmos.electron_density*1.0,
                           populations[:, :, :, 1]*1.0,
                           populations[:, :, :, 3]*1.0)
-
-    α_a = α_absorption.(line.λ0,
-                        atmos.temperature*1.0,
-                        atmos.electron_density*1.0,
-                        populations[:, :, :, 1]*1.0,
-                        populations[:, :, :, 3]*1.0)
 
     # destruction probability (Should I include line???)
     ελ = destruction(populations, atmos.electron_density, atmos.temperature, line)
@@ -195,16 +190,15 @@ function Λ_regular(ϵ::AbstractFloat,
         populations = get_revised_populations(R, C, atmos.hydrogen_populations*1.0)
 
         ############################
+        #Write current data to file#
+        ############################
+        write_to_file(populations[:, 2:end-1, 2:end-1, :], DATA)
+        write_to_file(S_new[:, :, 2:end-1, 2:end-1], DATA)
+
+        ############################
         #     Iteration is done    #
         ############################
         i+=1
-
-        ############################
-        #Write current data to file#
-        ############################
-
-        write_to_file(populations[:, 2:end-1, 2:end-1, :], DATA)
-        write_to_file(S_new[:, :, 2:end-1, 2:end-1], DATA)
     end
 
     if i == maxiter
@@ -227,7 +221,9 @@ function Λ_voronoi(ϵ::AbstractFloat,
 
     # Start in LTE
     LTE_pops = LTE_populations(line, sites)
-    populations = copy(LTE_pops)
+
+    # Initial populations
+    populations = zero_radiation_populations(line, sites)
 
     # Find continuum extinction and absorption extinction (only with Thomson and Rayleigh)
     α_cont = α_continuum.(line.λ0,
@@ -235,12 +231,6 @@ function Λ_voronoi(ϵ::AbstractFloat,
                           sites.electron_density*1.0,
                           populations[:, 1]*1.0,
                           populations[:, 3]*1.0)
-
-    α_a = α_absorption.(line.λ0,
-                        sites.temperature*1.0,
-                        sites.electron_density*1.0,
-                        populations[:, 1]*1.0,
-                        populations[:, 3]*1.0)
 
     # Start with the source function as the Planck function
     B_0 = Array{Float64, 2}(undef, (length(line.λ), sites.n))u"kW*m^-2*nm^-1"
@@ -285,6 +275,15 @@ function Λ_voronoi(ϵ::AbstractFloat,
         #############################
         populations = get_revised_populations(R, C, sites.hydrogen_populations)
 
+        ############################
+        #Write current data to file#
+        ############################
+        write_to_file(populations, DATA)
+        write_to_file(S_new, DATA)
+
+        ############################
+        #     Iteration is done    #
+        ############################
         i+=1
     end
 

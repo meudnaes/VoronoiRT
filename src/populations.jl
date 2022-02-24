@@ -7,20 +7,60 @@ include("rates.jl")
 
 For a given atom density, calculate the populations according to zero-radiation.
 """
-#=
-function zero_radiation_populations(atmosphere::Atmosphere, atom::Atom, lines)
+function zero_radiation_populations(line::HydrogenicLine,
+                                    atmos::Atmosphere)
 
-    nz,nx,ny = size(atmosphere.temperature)
-    nλ = atom.nλ
+    nz, nx, ny = size(atmos.temperature)
+    nλ = length(line.λ)
 
-    J = zeros(Float64,nλ,nz,nx,ny)u"J/s/nm/m^2/sr"
+    J_zero = zeros(Float64, (nλ, nz, nx, ny))u"kW*m^-2*nm^-1"
 
-    zero_rates = TransitionRates(calculate_transition_rates(atmosphere, atom, lines, J)...)
-    populations = get_revised_populations(zero_rates, atom.density)
+    LTE_pops = LTE_populations(line, atmos)
+
+    γ = γ_constant(line,
+                   atmos.temperature,
+                   (LTE_pops[:, :, :, 1] .+ LTE_pops[:, :, :, 2]),
+                   atmos.electron_density)
+
+    damping_λ = Array{Float64, 4}(undef, size(J_zero))
+    for l in eachindex(line.λ)
+       damping_λ[l, :, :, :] = damping.(γ, line.λ[l], line.ΔD)
+    end
+
+    R_zero = calculate_R(atmos, line, J_zero, damping_λ, LTE_pops)
+    C_zero = calculate_C(atmos, LTE_pops)
+
+    populations = get_revised_populations(R_zero, C_zero, atmos.hydrogen_populations)
 
     return populations
 end
-=#
+
+function zero_radiation_populations(line::HydrogenicLine,
+                                    sites::VoronoiSites)
+
+    nλ = length(line.λ)
+
+    J_zero = zeros(Float64, (nλ, sites.n))u"kW*m^-2*nm^-1"
+
+    LTE_pops = LTE_populations(line, sites)
+
+    γ = γ_constant(line,
+                   sites.temperature,
+                   (LTE_pops[:, 1] .+ LTE_pops[:, 2]),
+                   sites.electron_density)
+
+    damping_λ = Matrix{Float64}(undef, size(J_zero))
+    for l in eachindex(line.λ)
+       damping_λ[l, :] = damping.(γ, line.λ[l], line.ΔD)
+    end
+
+    R_zero = calculate_R(sites, line, J_zero, damping_λ, LTE_pops)
+    C_zero = calculate_C(sites, LTE_pops)
+
+    populations = get_revised_populations(R_zero, C_zero, sites.hydrogen_populations)
+
+    return populations
+end
 
 """
     LTE_populations(line::HydrogenicLine,

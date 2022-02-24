@@ -10,13 +10,13 @@ global my_seed = 2022
 Random.seed!(my_seed)
 
 function compare(DATA, quadrature)
-    maxiter = 200
+    maxiter = 1
     ϵ = 1e-3
 
     θ = 10
     ϕ = 10
 
-    n_skip = 2
+    n_skip = 1
 
     nλ_bb = 50
     nλ_bf = 20
@@ -25,16 +25,19 @@ function compare(DATA, quadrature)
 
         atmos = Atmosphere(get_atmos(DATA; periodic=true, skip=n_skip)...)
 
+        global line
         line = HydrogenicLine(test_atom(nλ_bb, nλ_bf)..., atmos.temperature)
 
-        REGULAR_DATA = "../data/regular_ul2n3.h5"
+        return
+
+        REGULAR_DATA = "../data/regular_ul2n3_zero_radiation.h5"
 
         create_output_file(REGULAR_DATA, length(line.λ), size(atmos.temperature[:, 2:end-1, 2:end-1]), maxiter)
         write_to_file(atmos, REGULAR_DATA, ghost_cells=true)
         write_to_file(nλ_bb, "n_bb", REGULAR_DATA)
         write_to_file(nλ_bf, "n_bf", REGULAR_DATA)
 
-        J_mean, S_λ, α_cont, populations = Λ_regular(ϵ, maxiter, atmos, line, quadrature, REGULAR_DATA)
+        @time J_mean, S_λ, α_cont, populations = Λ_regular(ϵ, maxiter, atmos, line, quadrature, REGULAR_DATA)
 
         γ = γ_constant(line,
                        atmos.temperature,
@@ -62,12 +65,6 @@ function compare(DATA, quadrature)
                                          atmos, I_0=S_λ[6,1,:,:])
 
         # plot_top_intensity(I_top, atmos.x, atmos.y, "regular_top")
-
-
-
-        write_to_file(populations[:, 2:end-1, 2:end-1, :], REGULAR_DATA)
-        write_to_file(S_λ[:, :, 2:end-1, 2:end-1], REGULAR_DATA)
-
         return 0
     end
 
@@ -82,8 +79,7 @@ function compare(DATA, quadrature)
 
         n_sites = floor(Int, nz*nx*ny)
 
-        global positions
-        positions = sample_from_extinction(atmos, 121.0u"nm", n_sites)
+        positions = rejection_sampling(n_sites, atmos, log10.(ustrip.(atmos.hydrogen_populations)))
 
         sites_file = "../data/sites_compare.txt"
         neighbours_file = "../data/neighbours_compare.txt"
@@ -105,10 +101,10 @@ function compare(DATA, quadrature)
 
 
         # compute neigbours
-        run(`./voro.sh $sites_file $neighbours_file
-                       $(x_min) $(x_max)
-                       $(y_min) $(y_max)
-                       $(z_min) $(z_max)`)
+        # run(`./voro.sh $sites_file $neighbours_file
+                       # $(x_min) $(x_max)
+                       # $(y_min) $(y_max)
+                       # $(z_min) $(z_max)`)
 
         # Voronoi grid
         sites = VoronoiSites(read_cell(neighbours_file, n_sites, positions)...,
@@ -122,12 +118,10 @@ function compare(DATA, quadrature)
 
         VORONOI_DATA = "../data/voronoi_ul2n3.h5"
 
-        r_factor = 3
-        new_size = floor.(Int, r_factor.*size(atmos.temperature))
-
-        create_output_file(VORONOI_DATA, length(line.λ), new_size, maxiter)
+        create_output_file(VORONOI_DATA, length(line.λ), n_sites, maxiter)
         write_to_file(nλ_bb, "n_bb", VORONOI_DATA)
         write_to_file(nλ_bf, "n_bf", VORONOI_DATA)
+        write_to_file(sites, VORONOI_DATA)
 
         J_mean, S_λ, α_cont, populations = Λ_voronoi(ϵ, maxiter, sites, line, quadrature, VORONOI_DATA)
 
@@ -154,19 +148,15 @@ function compare(DATA, quadrature)
             α_tot[l,:] += α_cont
         end
 
+        r_factor = 2
         atmos_from_voronoi, S_λ_grid, α_grid, populations_grid = Voronoi_to_Raster(sites, atmos, S_λ, α_tot, populations, r_factor)
 
         # plot_top_intensity(I_top, atmos_voronoi.x, atmos_voronoi.y, "irregular_top")
-
-        write_to_file(populations_grid, VORONOI_DATA)
-        write_to_file(S_λ_grid, VORONOI_DATA)
-        write_to_file(atmos_from_voronoi, VORONOI_DATA)
-
         return 0
     end
 
-    regular();
-    # voronoi();
+    # regular();
+    voronoi();
 end
 
 DATA = "../data/bifrost_qs006023_s525_quarter.hdf5"

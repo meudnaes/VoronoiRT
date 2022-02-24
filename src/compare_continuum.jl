@@ -24,8 +24,8 @@ function compare(DATA, quadrature)
     maxiter = 50
     ϵ = 1e-4
 
-    θ = 180.0
-    ϕ = 0.0
+    θ = 170.0
+    ϕ = 5.0
 
     n_skip = 1
 
@@ -55,7 +55,8 @@ function compare(DATA, quadrature)
                 aspect_ratio=:equal,
                 clim=(min_lim,max_lim))
 
-        savefig("../img/compare_continuum/regular_cont")
+        μ = abs(k[1])
+        savefig("../img/compare_continuum/regular_cont_$(floor(Int, 100*μ))")
 
         return 0
     end
@@ -140,13 +141,14 @@ function compare(DATA, quadrature)
                 aspect_ratio=:equal,
                 clim=(min_lim,max_lim))
 
-        savefig("../img/compare_continuum/irregular_cont")
+        μ = abs(k[1])
+        savefig("../img/compare_continuum/irregular_cont_$(floor(Int, 100*μ))")
 
         return 0
     end
 
     regular();
-    voronoi();
+    # voronoi();
 
 end
 
@@ -250,7 +252,7 @@ function LTE_voronoi(DATA)
 
     # Voronoi grid
     sites = VoronoiSites(read_cell(neighbours_file, n_sites, positions)...,
-                         _initialise2(positions, atmos)...,
+                         _initialise(positions, atmos)...,
                          z_min*1u"m", z_max*1u"m",
                          x_min*1u"m", x_max*1u"m",
                          y_min*1u"m", y_max*1u"m",
@@ -561,7 +563,7 @@ function test_with_regular(DATA, quadrature)
 end
 
 
-compare("../data/bifrost_qs006023_s525_half.hdf5", "../quadratures/n1.dat");
+compare("../data/bifrost_qs006023_s525_half.hdf5", "../quadratures/ul2n3.dat");
 # LTE_ray("../data/bifrost_qs006023_s525_half.hdf5")
 # LTE_voronoi("../data/bifrost_qs006023_s525_quarter.hdf5")
 # test_interpolation("../data/bifrost_qs006023_s525_quarter.hdf5", "../quadratures/n1.dat")

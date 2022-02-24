@@ -1,6 +1,6 @@
 using NearestNeighbors
 
-include("functions.jl")
+# include("functions.jl")
 
 """
     VoronoiSites

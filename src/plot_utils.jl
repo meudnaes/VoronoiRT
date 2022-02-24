@@ -199,12 +199,12 @@ function plotter(atmos::Atmosphere,
 
     α_tot = α_line .+ α_cont
 
-    # plot_top_line(atmos, line, S_λ, α_tot, θ, ϕ, title)
+    plot_top_line(atmos, line, S_λ, α_tot, θ, ϕ, title)
 
     for i in 51:91
         plot_top_intensity(atmos, line, S_λ, α_tot, θ, ϕ, i, "i_map/top_intensity_regular"*string(i))
     end
 end
 
-# plotter(read_quantities("../data/regular_ul2n3.h5", periodic=true)..., 0.0, 0.0, "Regular-Line")
+plotter(read_quantities("../data/regular_ul2n3_zero_radiation_converged.h5", periodic=true)..., 0.0, 0.0, "Regular-Line")
 # plotter(read_quantities("../data/voronoi_ul7n12.h5", periodic=true)..., 0.0, 0.0, "Voronoi-Line")

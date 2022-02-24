@@ -2,6 +2,7 @@ using HDF5
 using Unitful
 
 include("atmosphere.jl")
+include("voronoi_utils.jl")
 
 """
     function write_arrays(x::AbstractArray, y::AbstractArray, z::AbstractArray,
@@ -106,11 +107,23 @@ function write_to_file(S_λ::Array{<:UnitsIntensity_λ, 4},
         file["source_function"][:,:,:,:] = ustrip.(S_λ .|> u"kW*m^-2*nm^-1")
     end
 end
+function write_to_file(S_λ::Matrix{<:UnitsIntensity_λ},
+                       output_path::String)
+    h5open(output_path, "r+") do file
+        file["source_function"][:,:] = ustrip.(S_λ .|> u"kW*m^-2*nm^-1")
+    end
+end
 
 function write_to_file(populations::Array{<:NumberDensity, 4},
                        output_path::String)
     h5open(output_path, "r+") do file
         file["populations"][:,:,:,:] = ustrip.(populations .|> u"m^-3")
+    end
+end
+function write_to_file(populations::Matrix{<:NumberDensity},
+                       output_path::String)
+    h5open(output_path, "r+") do file
+        file["populations"][:,:] = ustrip.(populations .|> u"m^-3")
     end
 end
 
@@ -136,6 +149,25 @@ function write_to_file(atmos::Atmosphere,
     end
 end
 
+function write_to_file(sites::VoronoiSites,
+                       output_path::String)
+
+    h5open(output_path, "r+") do file
+        fieldnames = ["positions", "temperature", "electron_density",
+                      "hydrogen_populations", "velocity_z", "velocity_x", "velocity_y"]
+
+        for field in fieldnames
+            if field == "positions"
+                file[field][:, :] = ustrip.(getfield(sites, Symbol(field)))
+            else
+                file[field][:] = ustrip.(getfield(sites, Symbol(field)))
+            end
+        end
+    end
+
+end
+
+
 function write_to_file(difference::Float64,
                        iteration::Int,
                        output_path::String)
@@ -156,7 +188,7 @@ end
     create_output_file(output_path::String, nλ::Int64, atmosphere_size::Tuple)
 Initialise all output variables for the full atom mode.
 """
-function create_output_file(output_path::String, nλ::Int64, atmosphere_size::Tuple,
+function create_output_file(output_path::String, nλ::Int, atmosphere_size::Tuple,
                             maxiter::Int)
 
     nz, nx, ny = atmosphere_size
@@ -176,6 +208,34 @@ function create_output_file(output_path::String, nλ::Int64, atmosphere_size::Tu
         write(file, "velocity_z", Array{Float64, 3}(undef, (nz, nx, ny)))
         write(file, "velocity_x", Array{Float64, 3}(undef, (nz, nx, ny)))
         write(file, "velocity_y", Array{Float64, 3}(undef, (nz, nx, ny)))
+
+        write(file, "convergence", zeros(Float64, maxiter+1))
+
+        write(file, "n_bb", Vector{Int}(undef, 1))
+        write(file, "n_bf", Vector{Int}(undef, 1))
+    end
+end
+
+"""
+    create_output_file(output_path::String, nλ::Int64, atmosphere_size::Tuple)
+Initialise all output variables for the full atom mode.
+"""
+function create_output_file(output_path::String, nλ::Int, n_sites::Int,
+                            maxiter::Int)
+
+    h5open(output_path, "w") do file
+        write(file, "source_function", Matrix{Float64}(undef, (nλ, n_sites)))
+        write(file, "populations", Matrix{Float64}(undef, (n_sites, 3)))
+
+        write(file, "positions", Matrix{Float64}(undef, (3, n_sites)))
+
+        write(file, "temperature", Vector{Float64}(undef, n_sites))
+        write(file, "hydrogen_populations", Vector{Float64}(undef, n_sites))
+        write(file, "electron_density", Vector{Float64}(undef, n_sites))
+
+        write(file, "velocity_z", Vector{Float64}(undef, n_sites))
+        write(file, "velocity_x", Vector{Float64}(undef, n_sites))
+        write(file, "velocity_y", Vector{Float64}(undef, n_sites))
 
         write(file, "convergence", zeros(Float64, maxiter+1))
 

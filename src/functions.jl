@@ -3,7 +3,6 @@ using Random
 using Unitful
 
 include("io.jl")
-include("atmosphere.jl")
 
 """
     rejection_sampling(n_sites::Int)
