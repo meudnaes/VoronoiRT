@@ -163,6 +163,12 @@ function write_to_file(sites::VoronoiSites,
                 file[field][:] = ustrip.(getfield(sites, Symbol(field)))
             end
         end
+
+
+        file["boundaries"][:] = ustrip.([sites.z_min, sites.z_max,
+                                         sites.x_min, sites.x_max,
+                                         sites.y_min, sites.y_max])
+
     end
 
 end
@@ -236,6 +242,8 @@ function create_output_file(output_path::String, nλ::Int, n_sites::Int,
         write(file, "velocity_z", Vector{Float64}(undef, n_sites))
         write(file, "velocity_x", Vector{Float64}(undef, n_sites))
         write(file, "velocity_y", Vector{Float64}(undef, n_sites))
+
+        write(file, "boundaries", Vector{Float64}(undef, 6))
 
         write(file, "convergence", zeros(Float64, maxiter+1))
 

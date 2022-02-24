@@ -123,7 +123,7 @@ function plot_top_line(atmos::Atmosphere,
 end
 
 """
-    read_quantities(DATA::String)
+    read_quantities(DATA::String; periodic=true)
 
 read quantities from simulation from a hdf5 file
 """
@@ -139,6 +139,27 @@ function read_quantities(DATA::String; periodic=true)
         S_λ = periodic_borders(S_λ)
         populations = periodic_pops(populations)
     end
+
+    return atmos, S_λ, populations
+end
+
+"""
+    read_irregular(DATA::String)
+
+read quantities from irregular grid simulation from a hdf5 file
+"""
+function read_irregular(DATA::String)
+    local positions, temperature, electron_density, hydrogen_populations, S_λ, populations
+    h5open(DATA, "r") do file
+        positions = read(file, "positions")[:, :]*u"m"
+        temperature = read(file, "temperature")[:]*u"K"
+        electron_density = read(file, "electron_density")[:]*u"m^-3"
+        hydrogen_populations = read(file, "hydrogen_populations")[:]*u"m^-3"
+        S_λ = read(file, "source_function")[:, :]*u"kW*m^-2*nm^-1"
+        populations = read(file, "populations")[:, :]*u"m^-3"
+    end
+
+    
 
     return atmos, S_λ, populations
 end

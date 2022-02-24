@@ -16,7 +16,7 @@ function compare(DATA, quadrature)
     θ = 10
     ϕ = 10
 
-    n_skip = 1
+    n_skip = 4
 
     nλ_bb = 50
     nλ_bf = 20
@@ -24,11 +24,7 @@ function compare(DATA, quadrature)
     function regular()
 
         atmos = Atmosphere(get_atmos(DATA; periodic=true, skip=n_skip)...)
-
-        global line
         line = HydrogenicLine(test_atom(nλ_bb, nλ_bf)..., atmos.temperature)
-
-        return
 
         REGULAR_DATA = "../data/regular_ul2n3_zero_radiation.h5"
 
@@ -101,10 +97,12 @@ function compare(DATA, quadrature)
 
 
         # compute neigbours
-        # run(`./voro.sh $sites_file $neighbours_file
-                       # $(x_min) $(x_max)
-                       # $(y_min) $(y_max)
-                       # $(z_min) $(z_max)`)
+        #=
+        run(`./voro.sh $sites_file $neighbours_file
+                       $(x_min) $(x_max)
+                       $(y_min) $(y_max)
+                       $(z_min) $(z_max)`)
+        =#
 
         # Voronoi grid
         sites = VoronoiSites(read_cell(neighbours_file, n_sites, positions)...,
