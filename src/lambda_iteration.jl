@@ -107,6 +107,7 @@ function J_λ_voronoi(S_λ::Matrix{<:UnitsIntensity_λ},
                                  profile[l, :],
                                  populations[:, 1],
                                  populations[:, 2])
+
             α_tot[l,:] += α_cont
 
             if θ_array[i] > 90
@@ -263,7 +264,7 @@ function Λ_voronoi(ϵ::AbstractFloat,
                                        sites, line, quadrature)
 
         for l in eachindex(line.λ)
-        S_new[l,:] = (1 .- ελ).*J_new[l,:] .+ ελ.*B_0[l,:]
+            S_new[l,:] = (1 .- ελ).*J_new[l,:] .+ ελ.*B_0[l,:]
         end
 
         #############################
