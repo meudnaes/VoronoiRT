@@ -9,6 +9,8 @@ include("broadening.jl")
 include("populations.jl")
 include("characteristics.jl")
 
+pyplot()
+
 """
     function circle_shape(x, y, r)
 
@@ -150,18 +152,39 @@ read quantities from irregular grid simulation from a hdf5 file
 """
 function read_irregular(DATA::String)
     local positions, temperature, electron_density, hydrogen_populations, S_λ, populations
+    local velocity_z, velocity_x, velocity_y, boundaries
     h5open(DATA, "r") do file
         positions = read(file, "positions")[:, :]*u"m"
+        boundaries = read(file, "boundaries")[:]u"m"
+
         temperature = read(file, "temperature")[:]*u"K"
+
         electron_density = read(file, "electron_density")[:]*u"m^-3"
         hydrogen_populations = read(file, "hydrogen_populations")[:]*u"m^-3"
+
+        velocity_z = read(file, "velocity_z")[:]u"m*s^-1"
+        velocity_x = read(file, "velocity_x")[:]u"m*s^-1"
+        velocity_y = read(file, "velocity_y")[:]u"m*s^-1"
+
         S_λ = read(file, "source_function")[:, :]*u"kW*m^-2*nm^-1"
         populations = read(file, "populations")[:, :]*u"m^-3"
     end
 
-    
+    nn = Matrix{Int}(undef, (1, 1))
+    ll = Vector{Int}(undef, 1)
 
-    return atmos, S_λ, populations
+    sites = VoronoiSites(positions, nn, ll, ll, ll, ll, temperature,
+                         electron_density, hydrogen_populations, velocity_z,
+                         velocity_x, velocity_y, boundaries...,
+                         size(positions)[1])
+
+    atmos_size = (2*72, 2*64, 2*64)
+
+    atmos, S_λ_grid, populations_grid = Voronoi_to_Raster(sites, atmos_size,
+                                                          S_λ, populations;
+                                                          periodic=true)
+
+    return atmos, S_λ_grid, populations_grid
 end
 
 """
@@ -227,5 +250,33 @@ function plotter(atmos::Atmosphere,
     end
 end
 
-plotter(read_quantities("../data/regular_ul2n3_zero_radiation_converged.h5", periodic=true)..., 0.0, 0.0, "Regular-Line")
-# plotter(read_quantities("../data/voronoi_ul7n12.h5", periodic=true)..., 0.0, 0.0, "Voronoi-Line")
+function plot_convergence(DATA::String, title::String)
+    local convergence
+    h5open(DATA, "r") do file
+        convergence = read(file, "convergence")[:]
+    end
+
+
+    converged = argmin(convergence)
+    if converged == length(convergence)
+        # Not Converged
+        return 1
+    else
+        # println(convergence[1:converged-1])
+        plot(convergence[1:converged-1],
+             xlabel="iteration",
+             ylabel="max rel. diff.",
+             title=title,
+             dpi=300,
+             yscale=:log10,
+             ylim=(0.5e-3, 1.2e3))
+        savefig("../img/$(split(title)[1])")
+        return 0
+    end
+end
+
+# plotter(read_quantities("../data/regular_ul2n3_zero_radiation_converged.h5", periodic=true)..., 0.0, 0.0, "Regular-Line")
+# plotter(read_irregular("../data/voronoi_ul2n3_2.h5")..., 0.0, 0.0, "Voronoi-Line")
+
+plot_convergence("../data/regular_ul2n3_zero_radiation_converged.h5", "Regular grid convergence")
+plot_convergence("../data/voronoi_ul2n3_2.h5", "Irregular grid convergence")

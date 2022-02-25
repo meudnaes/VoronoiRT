@@ -421,6 +421,73 @@ function Voronoi_to_Raster(sites::VoronoiSites,
 end
 
 function Voronoi_to_Raster(sites::VoronoiSites,
+                           atmos_size::Tuple,
+                           S_λ::Matrix{<:UnitsIntensity_λ},
+                           populations::Matrix{<:NumberDensity};
+                           periodic=false)
+
+    z = collect(LinRange(sites.z_min, sites.z_max,
+                         floor(Int, atmos_size[1])))
+    x = collect(LinRange(sites.x_min, sites.x_max,
+                         floor(Int, atmos_size[2])))
+    y = collect(LinRange(sites.y_min, sites.y_max,
+                         floor(Int, atmos_size[3])))
+
+    nλ = size(S_λ)[1]
+    nz = length(z)
+    nx = length(x)
+    ny = length(y)
+
+    temperature = Array{Float64, 3}(undef, (nz, ny, nx))u"K"
+    electron_density = Array{Float64, 3}(undef, (nz, ny, nx))u"m^-3"
+    hydrogen_populations = Array{Float64, 3}(undef, (nz, ny, nx))u"m^-3"
+    velocity_z = Array{Float64, 3}(undef, (nz, ny, nx))u"m*s^-1"
+    velocity_x = copy(velocity_z)
+    velocity_y = copy(velocity_z)
+    S_λ_grid = Array{Float64, 4}(undef, (nλ, nz, nx, ny))u"kW*nm^-1*m^-2"
+    populations_grid = Array{Float64, 4}(undef, (nz, nx, ny, 3))u"m^-3"
+
+    tree = KDTree(ustrip(sites.positions))
+    for k in 1:length(z)
+        for i in 1:length(x)
+            for j in 1:length(y)
+                grid_point = [z[k], x[i], y[j]]
+                idx, dist = nn(tree, ustrip(grid_point))
+                temperature[k, i, j] = sites.temperature[idx]
+                electron_density[k, i, j] = sites.electron_density[idx]
+                hydrogen_populations[k, i, j] = sites.hydrogen_populations[idx]
+                velocity_z[k, i, j] = sites.velocity_z[idx]
+                velocity_x[k, i, j] = sites.velocity_x[idx]
+                velocity_y[k, i, j] = sites.velocity_y[idx]
+                S_λ_grid[:, k, i, j] = S_λ[:, idx]
+                populations_grid[k, i, j, :] = populations[idx, :]
+            end
+        end
+    end
+
+    if periodic
+        voronoi_atmos = Atmosphere(z,
+                                   periodic_borders(x),
+                                   periodic_borders(y),
+                                   periodic_borders(temperature),
+                                   periodic_borders(electron_density),
+                                   periodic_borders(hydrogen_populations),
+                                   periodic_borders(velocity_z),
+                                   periodic_borders(velocity_x),
+                                   periodic_borders(velocity_y))
+
+        S_λ_grid = periodic_borders(S_λ_grid)
+        populations_grid = periodic_pops(populations_grid)
+    else
+        voronoi_atmos = Atmosphere(z, x, y, temperature,
+                                   electron_density, hydrogen_populations,
+                                   velocity_z, velocity_x, velocity_y)
+    end
+
+    return voronoi_atmos, S_λ_grid, populations_grid
+end
+
+function Voronoi_to_Raster(sites::VoronoiSites,
                            atmos::Atmosphere,
                            r_factor;
                            periodic=false)
