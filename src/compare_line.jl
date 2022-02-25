@@ -17,6 +17,7 @@ function compare(DATA, quadrature)
     ϕ = 10
 
     n_skip = 4
+    n_skip = 1
 
     nλ_bb = 50
     nλ_bf = 20
