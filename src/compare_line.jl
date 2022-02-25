@@ -10,13 +10,13 @@ global my_seed = 2022
 Random.seed!(my_seed)
 
 function compare(DATA, quadrature)
-    maxiter = 10
+    maxiter = 100
     ϵ = 1e-3
 
     θ = 10
     ϕ = 10
 
-    n_skip = 4
+    n_skip = 1
 
     nλ_bb = 50
     nλ_bf = 20
@@ -112,7 +112,7 @@ function compare(DATA, quadrature)
 
         line = HydrogenicLine(test_atom(nλ_bb, nλ_bf)..., sites.temperature)
 
-        VORONOI_DATA = "../data/voronoi_ul2n3.h5"
+        VORONOI_DATA = "../data/voronoi_ul2n3_2.h5"
 
         create_output_file(VORONOI_DATA, length(line.λ), n_sites, maxiter)
         write_to_file(nλ_bb, "n_bb", VORONOI_DATA)
