@@ -6,7 +6,7 @@ include("voronoi_utils.jl")
     calculate_C(atmos::Atmosphere,
                 LTE_pops::Array{<:NumberDensity, 4})
 
-Calculate collisional rates
+Calculate collisional rates on the regular grid
 """
 function calculate_C(atmos::Atmosphere,
                      LTE_pops::Array{<:NumberDensity, 4})
@@ -43,6 +43,12 @@ function calculate_C(atmos::Atmosphere,
     return C
 end
 
+"""
+    calculate_C(sites::VoronoiSites,
+                LTE_pops::Matrix{<:NumberDensity})
+
+Calculate collisional rates on the regular grid
+"""
 function calculate_C(sites::VoronoiSites,
                      LTE_pops::Matrix{<:NumberDensity})
 
@@ -85,9 +91,8 @@ end
                      damping_λ::Array{<:Float64, 4},
                      LTE_pops::Array{<:NumberDensity, 4})
 
-Calculcates the radiative rates
+Calculcates the radiative rates on the regular grid
 """
-
 function calculate_R(atmos::Atmosphere,
                      line::HydrogenicLine,
                      J_λ::Array{<:UnitsIntensity_λ,4},
@@ -137,6 +142,15 @@ function calculate_R(atmos::Atmosphere,
     return R
 end
 
+"""
+    calculate_R(sites::VoronoiSites,
+                line::HydrogenicLine,
+                J_λ::Matrix{<:UnitsIntensity_λ},
+                damping_λ::Matrix{<:Float64},
+                LTE_pops::Matrix{<:NumberDensity})
+
+Calculcates the radiative rates on the irregular grid
+"""
 function calculate_R(sites::VoronoiSites,
                      line::HydrogenicLine,
                      J_λ::Matrix{<:UnitsIntensity_λ},

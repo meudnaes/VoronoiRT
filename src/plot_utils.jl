@@ -105,19 +105,20 @@ function plot_top_line(atmos::Atmosphere,
     start = line.λidx[1]+1
     stop =  line.λidx[2] #size(S_λ)[1]
 
-    indices = sortperm(line.λ[start:stop])
+    # indices = sortperm(line.λ[start:stop])
 
     for idx in 1:5:size(S_λ)[end]
         for idy in 1:5:size(S_λ)[end-1]
             loc = "_"*string(idx)*"_"*string(idy)
             I_plot = ustrip(uconvert.(u"kW*nm^-1*m^-2", I_λ))[:, end, idx, idy]
-            plot(ustrip.(line.λ)[indices],
-                 ustrip.(I_plot)[indices],
+            plot(ustrip.(line.λ),
+                 ustrip.(I_plot),
                  xaxis="λ [nm]",
                  yaxis="Intensity [kW m^-2 nm^-1]",
                  dpi=300,
                  rightmargin=10Plots.mm,
-                 title=title*loc)
+                 title=title*loc,
+                 ylim=(0, 40))
 
             savefig("../img/compare_line/lines/"*title*loc)
         end
@@ -130,8 +131,8 @@ end
 read quantities from simulation from a hdf5 file
 """
 function read_quantities(DATA::String; periodic=true)
-    atmos = Atmosphere(get_atmos(DATA; periodic=periodic, skip=1)...)
-    local S_λ, populations
+    atmos = Atmosphere(get_atmos(DATA; periodic=periodic)...)
+    global S_λ, populations
     h5open(DATA, "r") do file
         S_λ = read(file, "source_function")[:, :, :, :]*u"kW*m^-2*nm^-1"
         populations = read(file, "populations")[:, :, :, :]*u"m^-3"
@@ -141,7 +142,6 @@ function read_quantities(DATA::String; periodic=true)
         S_λ = periodic_borders(S_λ)
         populations = periodic_pops(populations)
     end
-
     return atmos, S_λ, populations
 end
 
@@ -203,9 +203,6 @@ function plotter(atmos::Atmosphere,
                  ϕ::Float64,
                  title::String)
 
-    idx = 12
-    idy = 12
-
     line = HydrogenicLine(test_atom(50, 20)..., atmos.temperature)
 
     γ = γ_constant(line,
@@ -245,9 +242,9 @@ function plotter(atmos::Atmosphere,
 
     plot_top_line(atmos, line, S_λ, α_tot, θ, ϕ, title)
 
-    for i in 51:91
-        plot_top_intensity(atmos, line, S_λ, α_tot, θ, ϕ, i, "i_map/top_intensity_regular"*string(i))
-    end
+    # for i in 51:91
+        # plot_top_intensity(atmos, line, S_λ, α_tot, θ, ϕ, i, "i_map/top_intensity_regular"*string(i))
+    # end
 end
 
 function plot_convergence(DATA::String, title::String)
@@ -275,8 +272,8 @@ function plot_convergence(DATA::String, title::String)
     end
 end
 
-# plotter(read_quantities("../data/regular_ul2n3_zero_radiation_converged.h5", periodic=true)..., 0.0, 0.0, "Regular-Line")
+plotter(read_quantities("../data/regular_ul2n3_skip3.h5", periodic=true)..., 0.0, 0.0, "Regular-Line")
 # plotter(read_irregular("../data/voronoi_ul2n3_2.h5")..., 0.0, 0.0, "Voronoi-Line")
 
-plot_convergence("../data/regular_ul2n3_zero_radiation_converged.h5", "Regular grid convergence")
-plot_convergence("../data/voronoi_ul2n3_2.h5", "Irregular grid convergence")
+# plot_convergence("../data/regular_ul2n3_zero_radiation_converged.h5", "Regular grid convergence")
+# plot_convergence("../data/voronoi_ul2n3_2.h5", "Irregular grid convergence")

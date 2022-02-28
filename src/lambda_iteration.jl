@@ -41,8 +41,8 @@ function J_λ_regular(S_λ::Array{<:UnitsIntensity_λ, 4},
         for l in eachindex(line.λ)
             α_tot[l,:,:,:] = αline_λ(line,
                                      profile[l, :, :, :],
-                                     populations[:, :, :, 1],
-                                     populations[:, :, :, 2])
+                                     populations[:, :, :, 2],
+                                     populations[:, :, :, 1])
             α_tot[l,:,:,:] += α_cont
 
             if θ > 90
@@ -105,8 +105,8 @@ function J_λ_voronoi(S_λ::Matrix{<:UnitsIntensity_λ},
         for l in eachindex(line.λ)
             α_tot[l,:] = αline_λ(line,
                                  profile[l, :],
-                                 populations[:, 1],
-                                 populations[:, 2])
+                                 populations[:, 2],
+                                 populations[:, 1])
 
             α_tot[l,:] += α_cont
 
@@ -149,7 +149,7 @@ function Λ_regular(ϵ::AbstractFloat,
                           populations[:, :, :, 3]*1.0)
 
     # destruction probability (Should I include line???)
-    ελ = destruction(populations, atmos.electron_density, atmos.temperature, line)
+    ελ = destruction(LTE_pops, atmos.electron_density, atmos.temperature, line)
     thick = ελ .> 1e-2
 
     # Start with the source function as the Planck function

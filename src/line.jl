@@ -6,6 +6,8 @@ using LinearAlgebra
 include("functions.jl")
 include("voronoi_utils.jl")
 
+# TODO
+# Explicitly state all functions from Transparency ?
 struct HydrogenicLine{T <: AbstractFloat}
     Aji::Unitful.Frequency{T}
     # Units of Bij/Bji defined for J_lambda
@@ -66,7 +68,10 @@ struct HydrogenicLine{T <: AbstractFloat}
 end
 
 """
-Computes the Voigt line profile
+    compute_voigt_profile(line::HydrogenicLine, atmos::Atmosphere,
+                          damping_λ::Array{Float64, 4}, k::Vector{Float64})
+
+Computes the Voigt line profile on a regular grid
 """
 function compute_voigt_profile(line::HydrogenicLine, atmos::Atmosphere,
                                damping_λ::Array{Float64, 4}, k::Vector{Float64})
@@ -74,45 +79,47 @@ function compute_voigt_profile(line::HydrogenicLine, atmos::Atmosphere,
     # calculate line of sight velocity
     # Remember to use -k!, since k is moving towards the ray
     v_los = line_of_sight_velocity(atmos, -k)
-    v = Array{Float64, 4}(undef, (length(line.λ), size(v_los)...))
-    for l in eachindex(line.λ)
-        v[l, :, :, :] = (line.λ[l] .- line.λ0 .+ line.λ0.*v_los./c_0)./line.ΔD .|> Unitful.NoUnits
-    end
 
     # calculate line profile
     profile = Array{Float64, 4}(undef, (length(line.λ), size(v_los)...))u"m^-1"
     for l in eachindex(line.λ)
-        profile[l, :, :, :] = voigt_profile.(damping_λ[l, :, :, :], v[l, :, :, :], line.ΔD)
+        v = (line.λ[l] .- line.λ0 .+ line.λ0.*v_los./c_0)./line.ΔD .|> Unitful.NoUnits
+        profile[l, :, :, :] = voigt_profile.(damping_λ[l, :, :, :], v, line.ΔD)
     end
 
     return profile
 end
+
+"""
+    compute_voigt_profile(line::HydrogenicLine, sites::VoronoiSites,
+                          damping_λ::Matrix{Float64}, k::Vector{Float64})
+
+Computes the Voigt line profile on an irregular grid
+"""
 function compute_voigt_profile(line::HydrogenicLine, sites::VoronoiSites,
-                               damping_λ::Array{Float64, 2}, k::Vector{Float64})
+                               damping_λ::Matrix{Float64}, k::Vector{Float64})
 
     # calculate line of sight velocity
     # Remember to use -k!, since k is moving towards the ray
     v_los = line_of_sight_velocity(sites, -k)
-    v = Array{Float64, 2}(undef, (length(line.λ), sites.n))
-    for l in eachindex(line.λ)
-        v[l, :] = (line.λ[l] .- line.λ0 .+ line.λ0.*v_los./c_0)./line.ΔD .|> Unitful.NoUnits
-    end
 
     # calculate line profile
     profile = Array{Float64, 2}(undef, (length(line.λ), sites.n))u"m^-1"
     for l in eachindex(line.λ)
-        profile[l, :] = voigt_profile.(damping_λ[l, :], v[l, :], line.ΔD)
+        v = (line.λ[l] .- line.λ0 .+ line.λ0.*v_los./c_0)./line.ΔD .|> Unitful.NoUnits
+        profile[l, :] = voigt_profile.(damping_λ[l, :], v, line.ΔD)
     end
 
     return profile
 end
 
 """
-    line_of_sight_velocity(method, k::Vector)
+    line_of_sight_velocity(atmos::Atmosphere, k::Vector)
 
-Computes the line of sight velocity of the medium, in the direction of the ray.
+Computes the line of sight velocity in all locations of the regular grid, given
+the direction of the ray, k.
 """
-function line_of_sight_velocity(atmos::Atmosphere, k::Vector)
+function line_of_sight_velocity(atmos::Atmosphere, k::Vector{Float64})
     v_los = Array{Unitful.Velocity, 3}(undef, size(atmos.velocity_z))
 
     for kk in 1:length(atmos.z)
@@ -129,6 +136,12 @@ function line_of_sight_velocity(atmos::Atmosphere, k::Vector)
     return v_los::Array{Unitful.Velocity, 3}
 end
 
+"""
+    line_of_sight_velocity(sites::VoronoiSites, k::Vector)
+
+Computes the line of sight velocity in all locations of the irregular grid,
+given the direction of the ray, k.
+"""
 function line_of_sight_velocity(sites::VoronoiSites, k::Vector{Float64})
     v_los = Vector{Unitful.Velocity}(undef, sites.n)
 
@@ -147,8 +160,9 @@ and upper and lower population densities `n_u` and `n_l`.
 """
 function αline_λ(line::HydrogenicLine,
                  profile::Array{<:PerLength},
-                 n_l::Array{<:NumberDensity},
-                 n_u::Array{<:NumberDensity})
+                 n_u::Array{<:NumberDensity},
+                 n_l::Array{<:NumberDensity})
+
     (h .* c_0 / (4 .* π .* line.λ0) .* profile .* (n_l .* line.Bij .- n_u .* line.Bji)) .|> u"m^-1"
 end
 
@@ -162,7 +176,7 @@ function test_atom(nλ_bb::Int, nλ_bf::Int)
 
     f_value = 4.162E-01
 
-    atom_weight = 1.673557692882144e-27u"kg"
+    atom_weight = mass_H
 
     Z = 1
 
