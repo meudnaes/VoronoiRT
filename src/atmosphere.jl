@@ -1,8 +1,15 @@
 using Unitful
 
-import PhysicalConstants.CODATA2018: c_0, h, k_B, m_u, m_e, R_∞, ε_0, e
+import PhysicalConstants.CODATA2018: h, k_B, R_∞, c_0, m_e, m_u, e, ε_0, a_0
+
 const E_∞ = R_∞ * c_0 * h
 const hc = h * c_0
+const Ry = R_∞ * c_0 * h  # Rydberg energy
+const αp = 4.5 * 4*π * ε_0 * a_0^3   # Polarisability of hydrogen [F m^2]
+const inv_4πε0 = 1. / (4 * π * ε_0)
+const mass_H = 1.008 * m_u
+const mass_He = 4.003 * m_u
+const abund_He = 10^10.99 / 10^12  # From RH
 
 @derived_dimension PerLength Unitful.𝐋^-1
 @derived_dimension PerArea Unitful.𝐋^-2

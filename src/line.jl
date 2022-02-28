@@ -1,3 +1,4 @@
+using Test
 using Plots
 using Transparency
 using LinearAlgebra
@@ -58,6 +59,7 @@ struct HydrogenicLine{T <: AbstractFloat}
         Blu = gu / gl * Bul
         # Doppler doppler_width
         ΔD = doppler_width.(λ0, atom_weight, temperature)
+        @test all( Inf .> ustrip.(ΔD) .>= 0.0 )
 
         new{T}(Aul, Bul, Blu, λ0, λ, λi, χl, χu, χ∞, gl, gu, atom_weight, Z, ΔD)
     end
