@@ -307,8 +307,8 @@ function destruction(LTE_pops::Array{<:NumberDensity},
     A21 = line.Aji
     B21 = line.Bji
     C21 = Cij(2, 1, electron_density, temperature, LTE_pops)
-    Bλ_0 = B_λ.(line.λ0, temperature)
-    ελ_0 = C21./(C21 .+ A21 .+ B21.*Bλ_0)
+    B_λ0 = B_λ.(line.λ0, temperature)
+    ε_λ0 = C21./(C21 .+ A21 .+ B21.*B_λ0)
 end
 
 function criterion(S_new::Array{<:UnitsIntensity_λ, 4},

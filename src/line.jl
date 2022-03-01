@@ -59,7 +59,7 @@ struct HydrogenicLine{T <: AbstractFloat}
         Aul = convert(Quantity{T, Unitful.𝐓^-1}, calc_Aji(λ0, gl / gu, f_value))
         Bul = calc_Bji(λ0, Aul)
         Blu = gu / gl * Bul
-        # Doppler doppler_width
+        # Doppler width
         ΔD = doppler_width.(λ0, atom_weight, temperature)
         @test all( Inf .> ustrip.(ΔD) .>= 0.0 )
 
@@ -120,7 +120,7 @@ Computes the line of sight velocity in all locations of the regular grid, given
 the direction of the ray, k.
 """
 function line_of_sight_velocity(atmos::Atmosphere, k::Vector{Float64})
-    v_los = Array{Unitful.Velocity, 3}(undef, size(atmos.velocity_z))
+    v_los = Array{Float64, 3}(undef, size(atmos.velocity_z))u"m*s^-1"
 
     for kk in 1:length(atmos.z)
         for ii in 1:length(atmos.x)
@@ -133,7 +133,7 @@ function line_of_sight_velocity(atmos::Atmosphere, k::Vector{Float64})
             end
         end
     end
-    return v_los::Array{Unitful.Velocity, 3}
+    return v_los
 end
 
 """
@@ -143,7 +143,7 @@ Computes the line of sight velocity in all locations of the irregular grid,
 given the direction of the ray, k.
 """
 function line_of_sight_velocity(sites::VoronoiSites, k::Vector{Float64})
-    v_los = Vector{Unitful.Velocity}(undef, sites.n)
+    v_los = Vector{Float64}(undef, sites.n)u"m*s^-1"
 
     for ii in 1:sites.n
         velocity = [sites.velocity_z[ii],
@@ -151,9 +151,11 @@ function line_of_sight_velocity(sites::VoronoiSites, k::Vector{Float64})
                     sites.velocity_y[ii]]
         v_los[ii] = dot(velocity, k)
     end
-    return v_los::Vector{Unitful.Velocity}
+    return v_los
 end
 
+# TODO
+# Fix voigt profile!
 """
 Compute line extinction given an `AtomicLine` struct, `profile` defined per wavelength,
 and upper and lower population densities `n_u` and `n_l`.
@@ -174,7 +176,7 @@ function test_atom(nλ_bb::Int, nλ_bf::Int)
     gl = 2
     gu = 8
 
-    f_value = 4.162E-01
+    f_value = 4.162e-1
 
     atom_weight = mass_H
 
@@ -287,5 +289,6 @@ Get the corresponding wavelength for
 the energy difference between two levels.
 """
 function transition_λ(χ1::Unitful.Energy, χ2::Unitful.Energy)
+    @assert χ2 > χ1 "Second input argument χ2 needs to be greater than first input argument χ1"
     ((h * c_0) / (χ2-χ1)) |> u"nm"
 end

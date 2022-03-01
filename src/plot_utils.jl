@@ -105,20 +105,19 @@ function plot_top_line(atmos::Atmosphere,
     start = line.λidx[1]+1
     stop =  line.λidx[2] #size(S_λ)[1]
 
-    # indices = sortperm(line.λ[start:stop])
+    indices = sortperm(line.λ[start:stop])
 
     for idx in 1:5:size(S_λ)[end]
         for idy in 1:5:size(S_λ)[end-1]
             loc = "_"*string(idx)*"_"*string(idy)
             I_plot = ustrip(uconvert.(u"kW*nm^-1*m^-2", I_λ))[:, end, idx, idy]
-            plot(ustrip.(line.λ),
-                 ustrip.(I_plot),
+            plot(ustrip.(line.λ[indices]),
+                 ustrip.(I_plot[indices]),
                  xaxis="λ [nm]",
                  yaxis="Intensity [kW m^-2 nm^-1]",
                  dpi=300,
                  rightmargin=10Plots.mm,
-                 title=title*loc,
-                 ylim=(0, 40))
+                 title=title*loc)
 
             savefig("../img/compare_line/lines/"*title*loc)
         end
@@ -222,8 +221,8 @@ function plotter(atmos::Atmosphere,
     for l in eachindex(line.λ)
         α_line[l, :, :, :] = αline_λ(line,
                                      profile[l, :, :, :],
-                                     populations[:, :, :, 1],
-                                     populations[:, :, :, 2])
+                                     populations[:, :, :, 2],
+                                     populations[:, :, :, 1])
     end
 
     LTE_pops = LTE_populations(line, atmos)*1.0
@@ -272,7 +271,7 @@ function plot_convergence(DATA::String, title::String)
     end
 end
 
-plotter(read_quantities("../data/regular_ul2n3_skip3.h5", periodic=true)..., 0.0, 0.0, "Regular-Line")
+plotter(read_quantities("../data/regular_ul2n3_zero_radiation.h5", periodic=true)..., 0.0, 0.0, "Regular-Line")
 # plotter(read_irregular("../data/voronoi_ul2n3_2.h5")..., 0.0, 0.0, "Voronoi-Line")
 
 # plot_convergence("../data/regular_ul2n3_zero_radiation_converged.h5", "Regular grid convergence")
