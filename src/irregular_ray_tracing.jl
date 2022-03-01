@@ -6,12 +6,12 @@ using LinearAlgebra
 
 const p = 7.0
 
-function Delaunay_upII(k::AbstractVector,
-                     S::AbstractVector,
-                     α::AbstractVector,
-                     sites::VoronoiSites,
-                     I_0::AbstractVector,
-                     n_sweeps::Int)
+function Delaunay_upII(k::Vector{Float64},
+                       S::Vector{<:UnitsIntensity_λ},
+                       I_0::Vector{<:UnitsIntensity_λ},
+                       α::Vector{<:PerLength},
+                       sites::VoronoiSites,
+                       n_sweeps::Int)
 
     # Allocate space for intensity
     I = zero(S)
@@ -76,12 +76,12 @@ function Delaunay_upII(k::AbstractVector,
     return I
 end
 
-function Delaunay_downII(k::AbstractVector,
-                       S::AbstractVector,
-                       α::AbstractVector,
-                       sites::VoronoiSites,
-                       I_0::AbstractVector,
-                       n_sweeps::Int)
+function Delaunay_downII(k::Vector{Float64},
+                         S::Vector{<:UnitsIntensity_λ},
+                         I_0::Vector{<:UnitsIntensity_λ},
+                         α::Vector{<:PerLength},
+                         sites::VoronoiSites,
+                         n_sweeps::Int)
 
     # Allocate space for intensity
     I = zero(S)

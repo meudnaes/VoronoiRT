@@ -10,13 +10,15 @@ global my_seed = 2022
 Random.seed!(my_seed)
 
 function compare(DATA, quadrature)
-    maxiter = 100
+    maxiter = 500
+    println("---Iterating maximum $maxiter iterations---")
     ϵ = 1e-3
 
     θ = 10
     ϕ = 10
 
-    n_skip = 3
+    n_skip = 1
+    println("$n_skip")
 
     nλ_bb = 50
     nλ_bf = 20
@@ -26,7 +28,7 @@ function compare(DATA, quadrature)
         atmos = Atmosphere(get_atmos(DATA; periodic=true, skip=n_skip)...)
         line = HydrogenicLine(test_atom(nλ_bb, nλ_bf)..., atmos.temperature)
 
-        REGULAR_DATA = "../data/regular_ul2n3_skip3.h5"
+        REGULAR_DATA = "../data/regular_ul2n3_zero_radiation_1.h5"
 
         create_output_file(REGULAR_DATA, length(line.λ), size(atmos.temperature[:, 2:end-1, 2:end-1]), maxiter)
         write_to_file(atmos, REGULAR_DATA, ghost_cells=true)

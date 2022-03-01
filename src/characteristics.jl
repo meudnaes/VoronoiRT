@@ -6,13 +6,25 @@ points.
 include("functions.jl")
 
 """
-    function short_characteristics_up(θ, ϕ, S_0, α, atmos; degrees)
+    function short_characteristics_up(k::Vector{Float64},
+                                      S_0::Array{<:UnitsIntensity_λ, 3},
+                                      I_0::Matrix{<:UnitsIntensity_λ},
+                                      α::Array{<:PerLength, 3},
+                                      atmos::Atmosphere;
+                                      pt::Bool=false,
+                                      n_sweeps::Int=3)
 
 Computes intensity along rays traveling upwards from the bottom to the top
 through all grid points in the atmosphere. Initial intensity I_0 = B_λ(T) at the
 bottom of the domain.
 """
-function short_characteristics_up(k, S_0, α, atmos; I_0=false, pt=false, n_sweeps=3)
+function short_characteristics_up(k::Vector{Float64},
+                                  S_0::Array{<:UnitsIntensity_λ, 3},
+                                  I_0::Matrix{<:UnitsIntensity_λ},
+                                  α::Array{<:PerLength, 3},
+                                  atmos::Atmosphere;
+                                  pt::Bool=false,
+                                  n_sweeps::Int=3)
     ############################################################################
     # | and - : Grid
     #     x   : Grid points
@@ -46,12 +58,8 @@ function short_characteristics_up(k, S_0, α, atmos; I_0=false, pt=false, n_swee
     # find out direction in xy the ray moves (1 for positive, -1 for negative)
     sign_x, sign_y = xy_intersect(k)
 
-    if I_0 == false
-        # Boundary condition, (S = planck function at bottom...)
-        I[1,:,:] = S_0[1,:,:]
-    else
-        I[1,:,:] = I_0
-    end
+    # Boundary condition
+    I[1,:,:] = I_0
 
     # loop upwards through atmosphere
     for idz in 2:nz
@@ -85,13 +93,25 @@ function short_characteristics_up(k, S_0, α, atmos; I_0=false, pt=false, n_swee
 end
 
 """
-    function short_characteristics_down(θ, ϕ, S_0, α, atmos; degrees)
+    function short_characteristics_down(k::Vector{Float64},
+                                        S_0::Array{<:UnitsIntensity_λ, 3},
+                                        I_0::Matrix{<:UnitsIntensity_λ},
+                                        α::Array{<:PerLength, 3},
+                                        atmos::Atmosphere;
+                                        pt::Bool=false,
+                                        n_sweeps::Int=3)
 
 Computes intensity along rays traveling downwards from the top to the bottom
 through all grid points in the atmosphere. Initial intensity I_0 = 0 at the top
 of the domain.
 """
-function short_characteristics_down(k, S_0, α, atmos; I_0=false, pt=false, n_sweeps=3)
+function short_characteristics_down(k::Vector{Float64},
+                                    S_0::Array{<:UnitsIntensity_λ, 3},
+                                    I_0::Matrix{<:UnitsIntensity_λ},
+                                    α::Array{<:PerLength, 3},
+                                    atmos::Atmosphere;
+                                    pt::Bool=false,
+                                    n_sweeps::Int=3)
     ############################################################################
     # | and - : Grid
     #     x   : Grid points
@@ -123,12 +143,8 @@ function short_characteristics_down(k, S_0, α, atmos; I_0=false, pt=false, n_sw
     # find out which plane the upwind part of the ray intersects
     sign_x, sign_y = xy_intersect(k)
 
-    if I_0 == false
-        # Boundary condition
-        I[end,:,:] = zero(S_0[end,:,:])
-    else
-        I[end,:,:] = I_0
-    end
+    # Boundary condition
+    I[end,:,:] = I_0
 
     # loop downwards through atmosphere
     for idz in nz-1:-1:1
@@ -162,16 +178,18 @@ function short_characteristics_down(k, S_0, α, atmos; I_0=false, pt=false, n_sw
 end
 
 """
-    function xy_up_ray(θ::AbstractFloat, ϕ::AbstractFloat, idz::Int, sign_x::Int,
-                       sign_y::Int, I_0::AbstractArray, S_0::AbstractArray,
-                       α::AbstractArray, atmos::Atmosphere)
+    function xy_up_ray(k::Vector{Float64}, idz::Int, sign_x::Int,
+                       sign_y::Int, I_0::Matrix{<:UnitsIntensity_λ},
+                       S_0::Array{<:UnitsIntensity_λ, 3},
+                       α::Array{<:PerLength, 3}, atmos::Atmosphere)
 
 Ray moving upwards, upwind point intersecting with lower xy plane. Assumes angle
 in radians.
 """
 function xy_up_ray(k::Vector{Float64}, idz::Int, sign_x::Int,
-                   sign_y::Int, I_0::AbstractArray, S_0::AbstractArray,
-                   α::AbstractArray, atmos::Atmosphere)
+                   sign_y::Int, I_0::Matrix{<:UnitsIntensity_λ},
+                   S_0::Array{<:UnitsIntensity_λ, 3},
+                   α::Array{<:PerLength, 3}, atmos::Atmosphere)
 
     # Allocate space for intensity
     I = zero(I_0)
@@ -261,15 +279,15 @@ end
 
 """
     function xy_down_ray(θ::AbstractFloat, ϕ::AbstractFloat, idz::Int, sign_x::Int,
-                         sign_y::Int, I_0::AbstractArray, S_0::AbstractArray,
-                         α::AbstractArray, atmos::Atmosphere)
+                         sign_y::Int, I_0::Matrix{<:UnitsIntensity_λ}, S_0::Array{<:UnitsIntensity_λ, 3},
+                         α::Array{<:PerLength, 3}, atmos::Atmosphere)
 
 Ray moving downwards, upwind point intersecting with upper xy plane. Assumes
 angle in radians.
 """
 function xy_down_ray(k::Vector{Float64}, idz::Integer, sign_x::Integer,
-                     sign_y::Integer, I_0::AbstractArray, S_0::AbstractArray,
-                     α::AbstractArray, atmos::Atmosphere)
+                     sign_y::Integer, I_0::Matrix{<:UnitsIntensity_λ}, S_0::Array{<:UnitsIntensity_λ, 3},
+                     α::Array{<:PerLength, 3}, atmos::Atmosphere)
 
     # Allocate space for intensity
     I = zero(I_0)
@@ -354,15 +372,15 @@ end
 
 """
     function yz_up_ray(θ::AbstractFloat, ϕ::AbstractFloat, idz::Int, sign_x::Int,
-                       sign_y::Int, I_0::AbstractArray, S_0::AbstractArray,
-                       α::AbstractArray, atmos::Atmosphere)
+                       sign_y::Int, I_0::Matrix{<:UnitsIntensity_λ}, S_0::Array{<:UnitsIntensity_λ, 3},
+                       α::Array{<:PerLength, 3}, atmos::Atmosphere)
 
 Ray moving upwards, upwind point intersecting with yz plane. Assumes angle
 in radians.
 """
 function yz_up_ray(k::Vector{Float64}, idz::Int, sign_x::Int,
-                   sign_y::Int, I_0::AbstractArray, S_0::AbstractArray,
-                   α::AbstractArray, atmos::Atmosphere, n_sweeps::Int)
+                   sign_y::Int, I_0::Matrix{<:UnitsIntensity_λ}, S_0::Array{<:UnitsIntensity_λ, 3},
+                   α::Array{<:PerLength, 3}, atmos::Atmosphere, n_sweeps::Int)
 
     nx = length(atmos.x)
     ny = length(atmos.y)
@@ -396,14 +414,6 @@ function yz_up_ray(k::Vector{Float64}, idz::Int, sign_x::Int,
 
     S_lower = S_0[idz_lower,:,:]
     S_upper = S_0[idz,:,:]
-
-    # Do the ghost cell thing...
-    idx = stop_x
-    x_centre = atmos.x[idx]
-
-    # X upwind position
-    idx_upwind = idx+sign_x
-    x_upwind = atmos.x[idx_upwind]
 
     for sweep in 1:n_sweeps
         for idx in start_x:sign_x:stop_x
@@ -475,15 +485,15 @@ end
 
 """
     function yz_down_ray(θ::AbstractFloat, ϕ::AbstractFloat, idz::Int, sign_x::Int,
-                         sign_y::Int, I_0::AbstractArray, S_0::AbstractArray,
-                         α::AbstractArray, atmos::Atmosphere)
+                         sign_y::Int, I_0::Matrix{<:UnitsIntensity_λ}, S_0::Array{<:UnitsIntensity_λ, 3},
+                         α::Array{<:PerLength, 3}, atmos::Atmosphere)
 
 Ray moving downwards, upwind point intersecting with yz plane. Assumes angle
 in radians
 """
 function yz_down_ray(k::Vector{Float64}, idz::Int, sign_x::Int,
-                       sign_y::Int, I_0::AbstractArray, S_0::AbstractArray,
-                       α::AbstractArray, atmos::Atmosphere, n_sweeps)
+                       sign_y::Int, I_0::Matrix{<:UnitsIntensity_λ}, S_0::Array{<:UnitsIntensity_λ, 3},
+                       α::Array{<:PerLength, 3}, atmos::Atmosphere, n_sweeps)
 
     nx = length(atmos.x)
     ny = length(atmos.y)
@@ -521,14 +531,6 @@ function yz_down_ray(k::Vector{Float64}, idz::Int, sign_x::Int,
 
     S_lower = S_0[idz,:,:]
     S_upper = S_0[idz_upper,:,:]
-
-    # Do the ghost cell thing...
-    idx = stop_x
-    x_centre = atmos.x[idx]
-
-    # X upwind position
-    idx_upwind = idx+sign_x
-    x_upwind = atmos.x[idx_upwind]
 
     for sweep in 1:n_sweeps
         for idx in start_x:sign_x:stop_x
@@ -601,15 +603,15 @@ end
 
 """
     function xz_up_ray(θ::AbstractFloat, ϕ::AbstractFloat, idz::Int, sign_x::Int,
-                       sign_y::Int, I_0::AbstractArray, S_0::AbstractArray,
-                       α::AbstractArray, atmos::Atmosphere)
+                       sign_y::Int, I_0::Matrix{<:UnitsIntensity_λ}, S_0::Array{<:UnitsIntensity_λ, 3},
+                       α::Array{<:PerLength, 3}, atmos::Atmosphere)
 
 Ray moving upwards, upwind point intersecting with xz plane. Assumes angle
 in radians.
 """
 function xz_up_ray(k::Vector{Float64}, idz::Int, sign_x::Int,
-                   sign_y::Int, I_0::AbstractArray, S_0::AbstractArray,
-                   α::AbstractArray, atmos::Atmosphere, n_sweeps::Int)
+                   sign_y::Int, I_0::Matrix{<:UnitsIntensity_λ}, S_0::Array{<:UnitsIntensity_λ, 3},
+                   α::Array{<:PerLength, 3}, atmos::Atmosphere, n_sweeps::Int)
 
     nx = length(atmos.x)
     ny = length(atmos.y)
@@ -644,14 +646,6 @@ function xz_up_ray(k::Vector{Float64}, idz::Int, sign_x::Int,
 
     S_lower = S_0[idz_lower,:,:]
     S_upper = S_0[idz,:,:]
-
-    # Do the ghost cell thing...
-    idy = stop_y
-    y_centre = atmos.y[idy]
-
-    # X upwind position
-    idy_upwind = idy+sign_y
-    y_upwind = atmos.y[idy_upwind]
 
     for sweep in 1:n_sweeps
         for idy in start_y:sign_y:stop_y
@@ -723,15 +717,15 @@ end
 
 """
     function xz_down_ray(θ::AbstractFloat, ϕ::AbstractFloat, idz::Int, sign_x::Int,
-                           sign_y::Int, I_0::AbstractArray, S_0::AbstractArray,
-                           α::AbstractArray, atmos::Atmosphere)
+                           sign_y::Int, I_0::Matrix{<:UnitsIntensity_λ}, S_0::Array{<:UnitsIntensity_λ, 3},
+                           α::Array{<:PerLength, 3}, atmos::Atmosphere)
 
 Ray moving downwards, upwind point intersecting with xz plane. Assumes angle
 in radians.
 """
 function xz_down_ray(k::Vector{Float64}, idz::Int, sign_x::Int,
-                       sign_y::Int, I_0::AbstractArray, S_0::AbstractArray,
-                       α::AbstractArray, atmos::Atmosphere, n_sweeps::Int)
+                       sign_y::Int, I_0::Matrix{<:UnitsIntensity_λ}, S_0::Array{<:UnitsIntensity_λ, 3},
+                       α::Array{<:PerLength, 3}, atmos::Atmosphere, n_sweeps::Int)
 
     nx = length(atmos.x)
     ny = length(atmos.y)
@@ -769,14 +763,6 @@ function xz_down_ray(k::Vector{Float64}, idz::Int, sign_x::Int,
 
     S_lower = S_0[idz,:,:]
     S_upper = S_0[idz_upper,:,:]
-
-    # Do the ghost cell thing...
-    idy = stop_y
-    y_centre = atmos.y[idy]
-
-    # X upwind position
-    idy_upwind = idy+sign_y
-    y_upwind = atmos.y[idy_upwind]
 
     for sweep in 1:n_sweeps
         for idy in start_y:sign_y:stop_y
