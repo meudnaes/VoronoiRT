@@ -55,8 +55,8 @@ function compare(DATA, quadrature)
         for l in eachindex(line.λ)
             α_tot[l,:,:,:] = αline_λ(line,
                                         profile[l, :, :, :],
-                                        populations[:, :, :, 1],
-                                        populations[:, :, :, 2])
+                                        populations[:, :, :, 2],
+                                        populations[:, :, :, 1])
             α_tot[l,:,:,:] += α_cont
         end
 
@@ -142,8 +142,8 @@ function compare(DATA, quadrature)
         for l in eachindex(line.λ)
             α_tot[l, :] = αline_λ(line,
                                   profile[l, :],
-                                  populations[:, 1],
-                                  populations[:, 2])
+                                  populations[:, 2],
+                                  populations[:, 1])
             α_tot[l,:] += α_cont
         end
 
@@ -168,35 +168,31 @@ function LTE_line(DATA)
     atmos = Atmosphere(get_atmos(DATA; periodic=true)...)
     line = HydrogenicLine(test_atom(nλ_bb, nλ_bf)..., atmos.temperature)
 
-    println(ustrip.(atmos.temperature[:, 2:end-1, 2:end-1][:,1,1]))
-    println(ustrip.(atmos.temperature[:, 2:end-1, 2:end-1][1,1,:]))
-    return
-
     # LTE populations
     LTE_pops = LTE_populations(line, atmos)
     populations = copy(LTE_pops)
 
     LTE_data = "../data/LTE_data.h5"
 
-    create_output_file(LTE_data, length(line.λ),  size(atmos.temperature[:, 2:end-1, 2:end-1]), 1)
-    write_to_file(nλ_bb, "n_bb", LTE_data)
-    write_to_file(nλ_bf, "n_bf", LTE_data)
-    write_to_file(atmos, LTE_data, ghost_cells=true)
-    write_to_file(LTE_pops[:, 2:end-1, 2:end-1, :], LTE_data)
+    # create_output_file(LTE_data, length(line.λ),  size(atmos.temperature[:, 2:end-1, 2:end-1]), 1)
+    # write_to_file(nλ_bb, "n_bb", LTE_data)
+    # write_to_file(nλ_bf, "n_bf", LTE_data)
+    # write_to_file(atmos, LTE_data, ghost_cells=true)
+    # write_to_file(LTE_pops[:, 2:end-1, 2:end-1, :], LTE_data)
 
     # The source function is the Planck function
     B_0 = Array{Float64, 4}(undef, (length(line.λ), size(atmos.temperature)...))u"kW*m^-2*nm^-1"
     for l in eachindex(line.λ)
         B_0[l, :, :, :] = B_λ.(line.λ[l], atmos.temperature)
     end
+    S_λ = copy(B_0)
 
     # Find continuum extinction and absorption extinction (without Thomson and Rayleigh)
     α_cont = α_continuum.(line.λ0,
-                          atmos.temperature*1.0,
+                          atmos.temperature,
                           atmos.electron_density*1.0,
-                          populations[:, :, :, 1]*1.0,
-                          populations[:, :, :, 3]*1.0)
-
+                          LTE_pops[:, :, :, 1]*1.0,
+                          LTE_pops[:, :, :, 3]*1.0)
     γ = γ_constant(line,
                    atmos.temperature,
                    (populations[:, :, :, 1] .+ populations[:, :, :, 2]),
@@ -210,12 +206,13 @@ function LTE_line(DATA)
     k = [cos(θ*π/180), cos(ϕ*π/180)*sin(θ*π/180), sin(ϕ*π/180)*sin(θ*π/180)]
     profile = compute_voigt_profile(line, atmos, damping_λ, k)
 
+    global α_tot
     α_tot = Array{Float64, 4}(undef, size(profile))u"m^-1"
     for l in eachindex(line.λ)
         α_tot[l,:,:,:] = αline_λ(line,
-                                    profile[l, :, :, :],
-                                    populations[:, :, :, 1],
-                                    populations[:, :, :, 2])
+                                 profile[l, :, :, :],
+                                 populations[:, :, :, 2],
+                                 populations[:, :, :, 1])
         α_tot[l,:,:,:] += α_cont
     end
 

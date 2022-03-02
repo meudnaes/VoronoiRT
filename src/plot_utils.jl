@@ -111,8 +111,8 @@ function plot_top_line(atmos::Atmosphere,
         for idy in 1:5:size(S_λ)[end-1]
             loc = "_"*string(idx)*"_"*string(idy)
             I_plot = ustrip(uconvert.(u"kW*nm^-1*m^-2", I_λ))[:, end, idx, idy]
-            plot(ustrip.(line.λ[indices]),
-                 ustrip.(I_plot[indices]),
+            plot(ustrip.(line.λ[start+3:stop-3]),
+                 ustrip.(I_plot[start+3:stop-3]),
                  xaxis="λ [nm]",
                  yaxis="Intensity [kW m^-2 nm^-1]",
                  dpi=300,

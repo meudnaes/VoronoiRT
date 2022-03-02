@@ -163,8 +163,11 @@ function LTE_ray(DATA)
     LTE_pops = LTE_ionisation(atmos)
 
     # Find continuum extinction (only with Thomson and Rayleigh)
-    α_cont = α_continuum.(λ, atmos.temperature*1.0, atmos.electron_density*1.0,
-                          LTE_pops[:,:,:,1]*1.0, LTE_pops[:,:,:,3]*1.0)
+    α_cont = α_continuum.(λ,
+                          atmos.temperature*1.0,
+                          atmos.electron_density*1.0,
+                          LTE_pops[:,:,:,1]*1.0,
+                          LTE_pops[:,:,:,3]*1.0)
 
     # Planck function
     S_λ = blackbody_λ.(λ, atmos.temperature)

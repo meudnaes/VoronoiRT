@@ -145,8 +145,8 @@ function Λ_regular(ϵ::AbstractFloat,
     α_cont = α_continuum.(line.λ0,
                           atmos.temperature*1.0,
                           atmos.electron_density*1.0,
-                          populations[:, :, :, 1]*1.0,
-                          populations[:, :, :, 3]*1.0)
+                          LTE_pops[:, :, :, 1]*1.0,
+                          LTE_pops[:, :, :, 3]*1.0)
 
     # destruction probability (Should I include line???)
     ελ = destruction(LTE_pops, atmos.electron_density, atmos.temperature, line)
@@ -231,8 +231,8 @@ function Λ_voronoi(ϵ::AbstractFloat,
     α_cont = α_continuum.(line.λ0,
                           sites.temperature*1.0,
                           sites.electron_density*1.0,
-                          populations[:, 1]*1.0,
-                          populations[:, 3]*1.0)
+                          LTE_pops[:, 1]*1.0,
+                          LTE_pops[:, 3]*1.0)
 
     # Start with the source function as the Planck function
     B_0 = Array{Float64, 2}(undef, (length(line.λ), sites.n))u"kW*m^-2*nm^-1"
