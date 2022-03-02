@@ -212,5 +212,5 @@ function searchlight_regular()
     print("")
 end
 
-searchlight_irregular()
-# searchlight_regular()
+# searchlight_irregular()
+searchlight_regular()

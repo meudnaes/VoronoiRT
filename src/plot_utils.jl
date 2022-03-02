@@ -67,8 +67,8 @@ function plot_top_intensity(atmos::Atmosphere,
                             title::String)
 
     k = [cos(θ*π/180), cos(ϕ*π/180)*sin(θ*π/180), sin(ϕ*π/180)*sin(θ*π/180)]
-    I_top = short_characteristics_up(k, S_λ[idλ, :, :, :], α_tot[idλ, :, :, :],
-                                     atmos, I_0=S_λ[idλ, 1, :, :])
+    I_top = short_characteristics_up(k, S_λ[idλ, :, :, :], S_λ[idλ, 1, :, :],
+                                     α_tot[idλ, :, :, :], atmos)
 
     I_top = ustrip(uconvert.(u"kW*nm^-1*m^-2", I_top[end, 2:end-1, 2:end-1]))
 
@@ -98,8 +98,8 @@ function plot_top_line(atmos::Atmosphere,
 
     k = [cos(θ*π/180), cos(ϕ*π/180)*sin(θ*π/180), sin(ϕ*π/180)*sin(θ*π/180)]
     for iλ in 1:nλ
-        I_λ[iλ, :, :, :] = short_characteristics_up(k, S_λ[iλ, :, :, :], α_tot[iλ, :, :, :],
-                                                    atmos, I_0=S_λ[iλ, 1, :, :])
+        I_λ[iλ, :, :, :] = short_characteristics_up(k, S_λ[iλ, :, :, :], S_λ[iλ, 1, :, :],
+                                                    α_tot[iλ, :, :, :], atmos)
     end
 
     start = line.λidx[1]+1
@@ -254,21 +254,15 @@ function plot_convergence(DATA::String, title::String)
 
 
     converged = argmin(convergence)
-    if converged == length(convergence)
-        # Not Converged
-        return 1
-    else
-        # println(convergence[1:converged-1])
-        plot(convergence[1:converged-1],
-             xlabel="iteration",
-             ylabel="max rel. diff.",
-             title=title,
-             dpi=300,
-             yscale=:log10,
-             ylim=(0.5e-3, 1.2e3))
-        savefig("../img/$(split(title)[1])")
-        return 0
-    end
+    # println(convergence[1:converged-1])
+    plot(convergence[1:converged-1],
+         xlabel="iteration",
+         ylabel="max rel. diff.",
+         title=title,
+         dpi=300,
+         yscale=:log10,
+         ylim=(0.5e-3, 1.2e3))
+    savefig("../img/$(split(title)[1])")
 end
 
 # plotter(read_quantities("../data/regular_ul2n3_zero_radiation_1.h5", periodic=true)..., 0.0, 0.0, "Regular-Line")

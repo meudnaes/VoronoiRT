@@ -197,7 +197,8 @@ function xy_up_ray(k::Vector{Float64}, idz::Int, sign_x::Int, sign_y::Int,
             # Find the Δτ optical path from upwind to grid point
             Δτ_upwind = trapezoidal(r, α_centre, α_upwind)
 
-            w1, w2 =  weights(Δτ_upwind)
+            # Compute weights for formal solution
+            α_ijk, β_ijk, expΔτ = linear_weights(Δτ_upwind)
             # Fill approximate Λ operator
         end
 
@@ -267,7 +268,8 @@ function xy_down_ray(k::Vector{Float64}, idz::Int, sign_x::Int, sign_y::Int,
             # Find the Δτ optical path from upwind to grid point
             Δτ_upwind = trapezoidal(r, α_centre, α_upwind)
 
-            w1, w2 =  weights(Δτ_upwind)
+            # Compute weights for formal solution
+            α_ijk, β_ijk, expΔτ = linear_weights(Δτ_upwind)
         end
         # Update ghost zones
         # I[idx, 1] = I[idx, end-1]
@@ -344,7 +346,8 @@ function yz_up_ray(k::Vector{Float64}, idz::Int, sign_x::Int, sign_y::Int,
             # Find the Δτ optical path from upwind to grid point
             Δτ_upwind = trapezoidal(r, α_centre, α_upwind)
 
-            w1, w2 =  weights(Δτ_upwind)
+            # Compute weights for formal solution
+            α_ijk, β_ijk, expΔτ = linear_weights(Δτ_upwind)
         end
         # Update ghost zones
         # I[idx, 1] = I[idx, end-1]
@@ -426,7 +429,8 @@ function yz_down_ray(k::Vector{Float64}, idz::Int, sign_x::Int, sign_y::Int,
             # Find the Δτ optical path from upwind to grid point
             Δτ_upwind = trapezoidal(r, α_centre, α_upwind)
 
-            w1, w2 =  weights(Δτ_upwind)
+            # Compute weights for formal solution
+            α_ijk, β_ijk, expΔτ = linear_weights(Δτ_upwind)
         end
 
         # Update ghost zones
@@ -504,7 +508,8 @@ function xz_up_ray(k::Vector{Float64}, idz::Int, sign_x::Int, sign_y::Int,
             # Find the Δτ optical path from upwind to grid point
             Δτ_upwind = trapezoidal(r, α_centre, α_upwind)
 
-            w1, w2 =  weights(Δτ_upwind)
+            # Compute weights for formal solution
+            α_ijk, β_ijk, expΔτ = linear_weights(Δτ_upwind)
         end
         # Update ghost zones
         # I[1, idy] = I[end-1, idy]
@@ -586,7 +591,8 @@ function xz_down_ray(k::Vector{Float64}, idz::Int, sign_x::Int, sign_y::Int,
             # Find the Δτ optical path from upwind to grid point
             Δτ_upwind = trapezoidal(r, α_centre, α_upwind)
 
-            w1, w2 =  weights(Δτ_upwind)
+            # Compute weights for formal solution
+            α_ijk, β_ijk, expΔτ = linear_weights(Δτ_upwind)
         end
 
         # Update ghost zones

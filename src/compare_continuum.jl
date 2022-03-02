@@ -173,7 +173,7 @@ function LTE_ray(DATA)
     ϕ = 0.1
 
     k = [cos(θ*π/180), cos(ϕ*π/180)*sin(θ*π/180), sin(ϕ*π/180)*sin(θ*π/180)]
-    intensity = short_characteristics_up(k, S_λ, α_cont, atmos, I_0=S_λ[1,:,:])
+    intensity = short_characteristics_up(k, S_λ, S_λ[1,:,:], α_cont, atmos)
 
     #=
     intensity = Array{Float64, 3}(undef, size(α_cont))u"kW*m^-2*nm^-1"
@@ -563,8 +563,8 @@ function test_with_regular(DATA, quadrature)
 end
 
 
-compare("../data/bifrost_qs006023_s525_half.hdf5", "../quadratures/ul2n3.dat");
-# LTE_ray("../data/bifrost_qs006023_s525_half.hdf5")
+# compare("../data/bifrost_qs006023_s525_half.hdf5", "../quadratures/ul2n3.dat");
+LTE_ray("../data/bifrost_qs006023_s525_half.hdf5")
 # LTE_voronoi("../data/bifrost_qs006023_s525_quarter.hdf5")
 # test_interpolation("../data/bifrost_qs006023_s525_quarter.hdf5", "../quadratures/n1.dat")
 # test_with_regular("../data/bifrost_qs006023_s525_quarter.hdf5", "../quadratures/n1.dat")
