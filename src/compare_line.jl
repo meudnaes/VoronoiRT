@@ -2,6 +2,7 @@ using Plots
 
 include("io.jl")
 include("line.jl")
+include("plot_utils.jl")
 include("functions.jl")
 include("atmosphere.jl")
 include("lambda_iteration.jl")
@@ -157,8 +158,74 @@ function compare(DATA, quadrature)
     # voronoi();
 end
 
+function LTE_line(DATA)
+    θ = 180.0
+    ϕ = 0.0
+
+    nλ_bb = 50
+    nλ_bf = 20
+
+    atmos = Atmosphere(get_atmos(DATA; periodic=true)...)
+    line = HydrogenicLine(test_atom(nλ_bb, nλ_bf)..., atmos.temperature)
+
+    println(ustrip.(atmos.temperature[:, 2:end-1, 2:end-1][:,1,1]))
+    println(ustrip.(atmos.temperature[:, 2:end-1, 2:end-1][1,1,:]))
+    return
+
+    # LTE populations
+    LTE_pops = LTE_populations(line, atmos)
+    populations = copy(LTE_pops)
+
+    LTE_data = "../data/LTE_data.h5"
+
+    create_output_file(LTE_data, length(line.λ),  size(atmos.temperature[:, 2:end-1, 2:end-1]), 1)
+    write_to_file(nλ_bb, "n_bb", LTE_data)
+    write_to_file(nλ_bf, "n_bf", LTE_data)
+    write_to_file(atmos, LTE_data, ghost_cells=true)
+    write_to_file(LTE_pops[:, 2:end-1, 2:end-1, :], LTE_data)
+
+    # The source function is the Planck function
+    B_0 = Array{Float64, 4}(undef, (length(line.λ), size(atmos.temperature)...))u"kW*m^-2*nm^-1"
+    for l in eachindex(line.λ)
+        B_0[l, :, :, :] = B_λ.(line.λ[l], atmos.temperature)
+    end
+
+    # Find continuum extinction and absorption extinction (without Thomson and Rayleigh)
+    α_cont = α_continuum.(line.λ0,
+                          atmos.temperature*1.0,
+                          atmos.electron_density*1.0,
+                          populations[:, :, :, 1]*1.0,
+                          populations[:, :, :, 3]*1.0)
+
+    γ = γ_constant(line,
+                   atmos.temperature,
+                   (populations[:, :, :, 1] .+ populations[:, :, :, 2]),
+                   atmos.electron_density)
+
+    damping_λ = Array{Float64, 4}(undef, size(S_λ))
+    for l in eachindex(line.λ)
+        damping_λ[l, :, :, :] = damping.(γ, line.λ[l], line.ΔD)
+    end
+
+    k = [cos(θ*π/180), cos(ϕ*π/180)*sin(θ*π/180), sin(ϕ*π/180)*sin(θ*π/180)]
+    profile = compute_voigt_profile(line, atmos, damping_λ, k)
+
+    α_tot = Array{Float64, 4}(undef, size(profile))u"m^-1"
+    for l in eachindex(line.λ)
+        α_tot[l,:,:,:] = αline_λ(line,
+                                    profile[l, :, :, :],
+                                    populations[:, :, :, 1],
+                                    populations[:, :, :, 2])
+        α_tot[l,:,:,:] += α_cont
+    end
+
+    plot_top_line(atmos, line, S_λ, α_tot, θ, ϕ, "LTE_line")
+
+end
+
 DATA = "../data/bifrost_qs006023_s525_quarter.hdf5"
 QUADRATURE = "../quadratures/ul2n3.dat"
 
-compare(DATA, QUADRATURE);
+# compare(DATA, QUADRATURE);
+LTE_line(DATA)
 print("")
