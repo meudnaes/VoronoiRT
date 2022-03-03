@@ -177,7 +177,7 @@ function read_irregular(DATA::String)
                          velocity_x, velocity_y, boundaries...,
                          size(positions)[1])
 
-    atmos_size = (2*72, 2*64, 2*64)
+    atmos_size = (72, 64, 64)
 
     atmos, S_λ_grid, populations_grid = Voronoi_to_Raster(sites, atmos_size,
                                                           S_λ, populations;
@@ -261,6 +261,6 @@ function plot_convergence(DATA::String, title::String)
          title=title,
          dpi=300,
          yscale=:log10,
-         ylim=(0.5e-3, 1.2e3))
+         ylim=(0.5e-3, 1.0e1))
     savefig("../img/$(split(title)[1])")
 end

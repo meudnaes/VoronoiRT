@@ -246,7 +246,7 @@ function Λ_voronoi(ϵ::AbstractFloat,
     S_old = zero(S_new)
 
     # destruction probability (Should I include line???)
-    ελ = destruction(populations, sites.electron_density, sites.temperature, line)
+    ελ = destruction(LTE_pops, sites.electron_density, sites.temperature, line)
     thick = ελ .> 1e-2
 
     C = calculate_C(sites, LTE_pops)
