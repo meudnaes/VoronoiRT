@@ -165,13 +165,16 @@ function LTE_line(DATA)
                                                                           LTE_pops[:, :, :, 3]*1.0)
     end
 
-    plot_top_line(atmos, line, S_λ, α_tot, θ, ϕ, "LTE_line")
+    # plot_top_line(atmos, line, S_λ, α_tot, θ, ϕ, "LTE_line")
+    for idλ in eachindex(line.λ)
+        plot_top_intensity(atmos, line, S_λ, α_tot, θ, ϕ, idλ, "LTE_$idλ")
+    end
 
 end
 
 DATA = "../data/bifrost_qs006023_s525_quarter.hdf5"
 QUADRATURE = "../quadratures/ul2n3.dat"
 
-compare(DATA, QUADRATURE);
-# LTE_line(DATA)
+# compare(DATA, QUADRATURE);
+LTE_line(DATA)
 print("")

@@ -53,8 +53,8 @@ struct HydrogenicLine{T <: AbstractFloat}
         ##
         λbf_l = sample_λ_boundfree(nλ_bf, λ1_min, χl, χ∞)
         λbf_u = sample_λ_boundfree(nλ_bf, λ2_min, χu, χ∞)
-        λ = vcat(λbb, λbf_l, λbf_u)
-        λi = [0, nλ_bb, nλ_bb+nλ_bf, nλ_bb+2*nλ_bf]
+        λ = vcat(λbb, λbf_l, λbf_u, 500.0u"nm")
+        λi = [0, nλ_bb, nλ_bb+nλ_bf, nλ_bb+2*nλ_bf+1]
         # Einstein coefficients
         Aul = convert(Quantity{T, Unitful.𝐓^-1}, calc_Aji(λ0, gl / gu, f_value))
         Bul = calc_Bji(λ0, Aul)
@@ -81,12 +81,15 @@ function compute_voigt_profile(line::HydrogenicLine, atmos::Atmosphere,
     v_los = line_of_sight_velocity(atmos, -k)
 
     # calculate line profile
+    # V_v = Vector{Float64}(undef, length(line.λ)) # For testing area under voigt curve...
     profile = Array{Float64, 4}(undef, (length(line.λ), size(v_los)...))u"m^-1"
     for l in eachindex(line.λ)
         v = (line.λ[l] .- line.λ0 .+ line.λ0.*v_los./c_0)./line.ΔD .|> Unitful.NoUnits
+        # V_v[l] = v[4, 4, 4]
         profile[l, :, :, :] = voigt_profile.(damping_λ[l, :, :, :], v, line.ΔD)
     end
 
+    # println(trapz(V_v, profile[:, 4, 4, 4].*line.ΔD[4, 4, 4]) |> Unitful.NoUnits) # 1.0002645422865621
     return profile
 end
 
@@ -106,7 +109,7 @@ function compute_voigt_profile(line::HydrogenicLine, sites::VoronoiSites,
     # calculate line profile
     profile = Array{Float64, 2}(undef, (length(line.λ), sites.n))u"m^-1"
     for l in eachindex(line.λ)
-        v = (line.λ[l] .- line.λ0 .+ line.λ0.*v_los./c_0)./line.ΔD .|> Unitful.NoUnits
+        v = (line.λ[l] - line.λ0 .+ line.λ0 .* v_los ./ c_0) ./ line.ΔD .|> Unitful.NoUnits
         profile[l, :] = voigt_profile.(damping_λ[l, :], v, line.ΔD)
     end
 
