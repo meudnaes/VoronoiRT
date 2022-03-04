@@ -109,6 +109,8 @@ function plot_top_line(atmos::Atmosphere,
 
     for idx in 1:5:size(S_λ)[end]
         for idy in 1:5:size(S_λ)[end-1]
+    for idx in 1:10:size(S_λ)[end]
+        for idy in 1:10:size(S_λ)[end-1]
             loc = "_"*string(idx)*"_"*string(idy)
             I_plot = ustrip(uconvert.(u"kW*nm^-1*m^-2", I_λ))[:, end, idx, idy]
             plot(ustrip.(line.λ[start+3:stop-3]),
@@ -178,6 +180,7 @@ function read_irregular(DATA::String)
                          size(positions)[1])
 
     atmos_size = (72, 64, 64)
+    atmos_size = floor.(Int, (1.5*72, 1.5*64, 1.5*64))
 
     atmos, S_λ_grid, populations_grid = Voronoi_to_Raster(sites, atmos_size,
                                                           S_λ, populations;
@@ -262,5 +265,6 @@ function plot_convergence(DATA::String, title::String)
          dpi=300,
          yscale=:log10,
          ylim=(0.5e-3, 1.0e1))
+         yscale=:log10)
     savefig("../img/$(split(title)[1])")
 end

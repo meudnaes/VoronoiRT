@@ -151,6 +151,8 @@ function Λ_regular(ϵ::AbstractFloat,
     # destruction probability (Should I include line???)
     ελ = destruction(LTE_pops, atmos.electron_density, atmos.temperature, line)
     thick = ελ .> 1e-2
+    thick = ελ .> 1e-3
+    println("Total $(sum(thick.==0)) are too thin for the solver")
 
     # Start with the source function as the Planck function
     B_0 = Array{Float64, 4}(undef, (length(line.λ), size(α_cont)...))u"kW*m^-2*nm^-1"
@@ -226,6 +228,7 @@ function Λ_voronoi(ϵ::AbstractFloat,
     # Initial populations
     populations = zero_radiation_populations(line, sites)
 	# LTE_populations(line, sites)
+    # LTE_populations(line, sites)
 
     # Find continuum extinction and absorption extinction (only with Thomson and Rayleigh)
     α_cont = α_continuum.(line.λ0,
@@ -249,6 +252,9 @@ function Λ_voronoi(ϵ::AbstractFloat,
     ελ = destruction(LTE_pops, sites.electron_density, sites.temperature, line)
     thick = ελ .> 1e-2
 
+    thick = ελ .> 1e-3
+    println("Total $(sum(thick.==0)) are too thin for the solver")
+    
     C = calculate_C(sites, LTE_pops)
 
     i=0
@@ -307,6 +313,7 @@ function destruction(LTE_pops::Array{<:NumberDensity},
     A21 = line.Aji
     B21 = line.Bji
     C21 = Cij(2, 1, electron_density, temperature, LTE_pops)
+    C21 = Cij(2, 1, electron_density, temperature, LTE_pops).*1e3
     B_λ0 = B_λ.(line.λ0, temperature)
     ε_λ0 = C21./(C21 .+ A21 .+ B21.*B_λ0)
 end
