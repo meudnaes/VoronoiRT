@@ -180,11 +180,6 @@ end
 DATA = "../data/bifrost_qs006023_s525_quarter.hdf5"
 QUADRATURE = "../quadratures/ul2n3.dat"
 
-<<<<<<< HEAD
-compare(DATA, QUADRATURE);
-# LTE_line(DATA)
-=======
->>>>>>> 5ec01bf3e9a14a06a8c16bfa7bcb116b9ad56989
 # compare(DATA, QUADRATURE);
 LTE_line(DATA)
 print("")
