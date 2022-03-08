@@ -74,8 +74,8 @@ function γ_constant(line::HydrogenicLine,
     quad_stark_const = const_quadratic_stark(line)
 
     γ = γ_unsold.(unsold_const, temperature, neutral_hydrogen_density)
-    # γ .+= line.Aji
-    γ .+= 4.702e8u"s^-1" # Almost the same as Aji
+    γ .+= line.Aji
+    # γ .+= 4.702e8u"s^-1" # Almost the same as Aji
     γ .+= γ_linear_stark.(electron_density, u, l)
     γ .+= γ_quadratic_stark.(electron_density, temperature, stark_constant=quad_stark_const)
 

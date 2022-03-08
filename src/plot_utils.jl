@@ -67,8 +67,8 @@ function plot_top_intensity(atmos::Atmosphere,
                             title::String)
 
     k = [cos(θ*π/180), cos(ϕ*π/180)*sin(θ*π/180), sin(ϕ*π/180)*sin(θ*π/180)]
-    I_top = short_characteristics_up(k, S_λ[idλ, :, :, :], α_tot[idλ, :, :, :],
-                                     atmos, I_0=S_λ[idλ, 1, :, :])
+    I_top = short_characteristics_up(k, S_λ[idλ, :, :, :], S_λ[idλ, 1, :, :],
+                                     α_tot[idλ, :, :, :], atmos)
 
     I_top = ustrip(uconvert.(u"kW*nm^-1*m^-2", I_top[end, 2:end-1, 2:end-1]))
 
@@ -98,8 +98,8 @@ function plot_top_line(atmos::Atmosphere,
 
     k = [cos(θ*π/180), cos(ϕ*π/180)*sin(θ*π/180), sin(ϕ*π/180)*sin(θ*π/180)]
     for iλ in 1:nλ
-        I_λ[iλ, :, :, :] = short_characteristics_up(k, S_λ[iλ, :, :, :], α_tot[iλ, :, :, :],
-                                                    atmos, I_0=S_λ[iλ, 1, :, :])
+        I_λ[iλ, :, :, :] = short_characteristics_up(k, S_λ[iλ, :, :, :], S_λ[iλ, 1, :, :],
+                                                    α_tot[iλ, :, :, :], atmos)
     end
 
     start = line.λidx[1]+1
@@ -109,15 +109,18 @@ function plot_top_line(atmos::Atmosphere,
 
     for idx in 1:5:size(S_λ)[end]
         for idy in 1:5:size(S_λ)[end-1]
+    for idx in 1:10:size(S_λ)[end]
+        for idy in 1:10:size(S_λ)[end-1]
             loc = "_"*string(idx)*"_"*string(idy)
             I_plot = ustrip(uconvert.(u"kW*nm^-1*m^-2", I_λ))[:, end, idx, idy]
-            plot(ustrip.(line.λ[indices]),
-                 ustrip.(I_plot[indices]),
+            plot(ustrip.(line.λ[start:stop]),
+                 ustrip.(I_plot[start:stop]),
                  xaxis="λ [nm]",
                  yaxis="Intensity [kW m^-2 nm^-1]",
                  dpi=300,
                  rightmargin=10Plots.mm,
-                 title=title*loc)
+                 title=title*loc,
+                 ylim=(-0.01, 0.2))
 
             savefig("../img/compare_line/lines/"*title*loc)
         end
@@ -177,7 +180,8 @@ function read_irregular(DATA::String)
                          velocity_x, velocity_y, boundaries...,
                          size(positions)[1])
 
-    atmos_size = (2*72, 2*64, 2*64)
+    atmos_size = (72, 64, 64)
+    atmos_size = floor.(Int, (1.5*72, 1.5*64, 1.5*64))
 
     atmos, S_λ_grid, populations_grid = Voronoi_to_Raster(sites, atmos_size,
                                                           S_λ, populations;
@@ -254,25 +258,14 @@ function plot_convergence(DATA::String, title::String)
 
 
     converged = argmin(convergence)
-    if converged == length(convergence)
-        # Not Converged
-        return 1
-    else
-        # println(convergence[1:converged-1])
-        plot(convergence[1:converged-1],
-             xlabel="iteration",
-             ylabel="max rel. diff.",
-             title=title,
-             dpi=300,
-             yscale=:log10,
-             ylim=(0.5e-3, 1.2e3))
-        savefig("../img/$(split(title)[1])")
-        return 0
-    end
+    # println(convergence[1:converged-1])
+    plot(convergence[1:converged-1],
+         xlabel="iteration",
+         ylabel="max rel. diff.",
+         title=title,
+         dpi=300,
+         yscale=:log10,
+         ylim=(0.5e-3, 1.0e1))
+         yscale=:log10)
+    savefig("../img/$(split(title)[1])")
 end
-
-plotter(read_quantities("../data/regular_ul2n3_zero_radiation.h5", periodic=true)..., 0.0, 0.0, "Regular-Line")
-# plotter(read_irregular("../data/voronoi_ul2n3_2.h5")..., 0.0, 0.0, "Voronoi-Line")
-
-# plot_convergence("../data/regular_ul2n3_zero_radiation_converged.h5", "Regular grid convergence")
-# plot_convergence("../data/voronoi_ul2n3_2.h5", "Irregular grid convergence")

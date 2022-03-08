@@ -2,6 +2,7 @@ using Plots
 
 include("io.jl")
 include("line.jl")
+include("plot_utils.jl")
 include("functions.jl")
 include("atmosphere.jl")
 include("lambda_iteration.jl")
@@ -10,13 +11,15 @@ global my_seed = 2022
 Random.seed!(my_seed)
 
 function compare(DATA, quadrature)
-    maxiter = 100
+    maxiter = 500
+    println("---Iterating maximum $maxiter iterations---")
+    println("--- ! Boosting collisional rates ! ---")
     ϵ = 1e-3
 
     θ = 10
     ϕ = 10
 
-    n_skip = 3
+    n_skip = 1
 
     nλ_bb = 50
     nλ_bf = 20
@@ -26,7 +29,8 @@ function compare(DATA, quadrature)
         atmos = Atmosphere(get_atmos(DATA; periodic=true, skip=n_skip)...)
         line = HydrogenicLine(test_atom(nλ_bb, nλ_bf)..., atmos.temperature)
 
-        REGULAR_DATA = "../data/regular_ul2n3_skip3.h5"
+        REGULAR_DATA = "../data/regular_ul2n3_zero_radiation_1.h5"
+        REGULAR_DATA = "../data/regular_ul2n3_C.h5"
 
         create_output_file(REGULAR_DATA, length(line.λ), size(atmos.temperature[:, 2:end-1, 2:end-1]), maxiter)
         write_to_file(atmos, REGULAR_DATA, ghost_cells=true)
@@ -34,34 +38,7 @@ function compare(DATA, quadrature)
         write_to_file(nλ_bf, "n_bf", REGULAR_DATA)
 
         @time J_mean, S_λ, α_cont, populations = Λ_regular(ϵ, maxiter, atmos, line, quadrature, REGULAR_DATA)
-
-        γ = γ_constant(line,
-                       atmos.temperature,
-                       (populations[:, :, :, 1] .+ populations[:, :, :, 2]),
-                       atmos.electron_density)
-
-        damping_λ = Array{Float64, 4}(undef, size(S_λ))
-        for l in eachindex(line.λ)
-            damping_λ[l, :, :, :] = damping.(γ, line.λ[l], line.ΔD)
-        end
-
-        k = [cos(θ*π/180), cos(ϕ*π/180)*sin(θ*π/180), sin(ϕ*π/180)*sin(θ*π/180)]
-        profile = compute_voigt_profile(line, atmos, damping_λ, k)
-
-        α_tot = Array{Float64, 4}(undef, size(profile))u"m^-1"
-        for l in eachindex(line.λ)
-            α_tot[l,:,:,:] = αline_λ(line,
-                                        profile[l, :, :, :],
-                                        populations[:, :, :, 1],
-                                        populations[:, :, :, 2])
-            α_tot[l,:,:,:] += α_cont
-        end
-
-        I_top = short_characteristics_up(k, S_λ[6,:,:,:], α_tot[6,:,:,:],
-                                         atmos, I_0=S_λ[6,1,:,:])
-
-        # plot_top_intensity(I_top, atmos.x, atmos.y, "regular_top")
-        return 0
+        return
     end
 
 
@@ -119,44 +96,90 @@ function compare(DATA, quadrature)
         write_to_file(nλ_bf, "n_bf", VORONOI_DATA)
         write_to_file(sites, VORONOI_DATA)
 
-        J_mean, S_λ, α_cont, populations = Λ_voronoi(ϵ, maxiter, sites, line, quadrature, VORONOI_DATA)
-
-        γ = γ_constant(line,
-                       sites.temperature,
-                       (populations[:, 1].+populations[:, 2]),
-                       sites.electron_density)
-
-        damping_λ = Matrix{Float64}(undef, size(S_λ))
-        for l in eachindex(line.λ)
-            damping_λ[l, :] = damping.(γ, line.λ[l], line.ΔD)
-        end
-
-        k = [cos(θ*π/180), cos(ϕ*π/180)*sin(θ*π/180), sin(ϕ*π/180)*sin(θ*π/180)]
-
-        profile = compute_voigt_profile(line, sites, damping_λ, k)
-
-        α_tot = Matrix{Float64}(undef, size(profile))u"m^-1"
-        for l in eachindex(line.λ)
-            α_tot[l, :] = αline_λ(line,
-                                  profile[l, :],
-                                  populations[:, 1],
-                                  populations[:, 2])
-            α_tot[l,:] += α_cont
-        end
-
-        r_factor = 2
-        atmos_from_voronoi, S_λ_grid, α_grid, populations_grid = Voronoi_to_Raster(sites, atmos, S_λ, α_tot, populations, r_factor)
-
-        # plot_top_intensity(I_top, atmos_voronoi.x, atmos_voronoi.y, "irregular_top")
-        return 0
+        @time J_mean, S_λ, α_cont, populations = Λ_voronoi(ϵ, maxiter, sites, line, quadrature, VORONOI_DATA)
+        return
     end
 
+    # regular();
+    voronoi();
     regular();
     # voronoi();
+end
+
+function LTE_line(DATA)
+    θ = 180.0
+    ϕ = 0.0
+
+    nλ_bb = 50
+    nλ_bf = 20
+
+    atmos = Atmosphere(get_atmos(DATA; periodic=true)...)
+    line = HydrogenicLine(test_atom(nλ_bb, nλ_bf)..., atmos.temperature)
+
+    # LTE populations
+    LTE_pops = LTE_populations(line, atmos)
+    populations = copy(LTE_pops)
+
+    LTE_data = "../data/LTE_data.h5"
+
+    # create_output_file(LTE_data, length(line.λ),  size(atmos.temperature[:, 2:end-1, 2:end-1]), 1)
+    # write_to_file(nλ_bb, "n_bb", LTE_data)
+    # write_to_file(nλ_bf, "n_bf", LTE_data)
+    # write_to_file(atmos, LTE_data, ghost_cells=true)
+    # write_to_file(LTE_pops[:, 2:end-1, 2:end-1, :], LTE_data)
+
+    # The source function is the Planck function
+    B_0 = Array{Float64, 4}(undef, (length(line.λ), size(atmos.temperature)...))u"kW*m^-2*nm^-1"
+    for l in eachindex(line.λ)
+        B_0[l, :, :, :] = B_λ.(line.λ[l], atmos.temperature)
+    end
+    S_λ = copy(B_0)
+
+    # Find continuum extinction and absorption extinction (without Thomson and Rayleigh)
+    #=
+    α_cont = α_continuum.(line.λ0,
+                          atmos.temperature,
+                          atmos.electron_density*1.0,
+                          LTE_pops[:, :, :, 1]*1.0,
+                          LTE_pops[:, :, :, 3]*1.0)
+    =#
+
+    γ = γ_constant(line,
+                   atmos.temperature,
+                   (populations[:, :, :, 1] .+ populations[:, :, :, 2]),
+                   atmos.electron_density)
+
+    damping_λ = Array{Float64, 4}(undef, size(S_λ))
+    for l in eachindex(line.λ)
+        damping_λ[l, :, :, :] = damping.(γ, line.λ[l], line.ΔD)
+    end
+
+    k = [cos(θ*π/180), cos(ϕ*π/180)*sin(θ*π/180), sin(ϕ*π/180)*sin(θ*π/180)]
+    profile = compute_voigt_profile(line, atmos, damping_λ, k)
+
+    global α_tot
+    α_tot = Array{Float64, 4}(undef, size(profile))u"m^-1"
+    for l in eachindex(line.λ)
+        α_tot[l,:,:,:] = αline_λ(line,
+                                 profile[l, :, :, :],
+                                 populations[:, :, :, 2],
+                                 populations[:, :, :, 1]) .+ α_continuum.(line.λ[l],
+                                                                          atmos.temperature,
+                                                                          atmos.electron_density*1.0,
+                                                                          LTE_pops[:, :, :, 1]*1.0,
+                                                                          LTE_pops[:, :, :, 3]*1.0)
+    end
+
+    # plot_top_line(atmos, line, S_λ, α_tot, θ, ϕ, "LTE_line")
+    for idλ in eachindex(line.λ)
+        plot_top_intensity(atmos, line, S_λ, α_tot, θ, ϕ, idλ, "LTE_$idλ")
+    end
+
 end
 
 DATA = "../data/bifrost_qs006023_s525_quarter.hdf5"
 QUADRATURE = "../quadratures/ul2n3.dat"
 
-compare(DATA, QUADRATURE);
+# compare(DATA, QUADRATURE);
+LTE_line(DATA)
 print("")

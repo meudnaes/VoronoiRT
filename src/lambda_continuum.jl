@@ -53,11 +53,11 @@ function J_λ_voronoi(S_λ::AbstractArray,
             bottom_layer = sites.layers_up[2] - 1
             bottom_layer_idx = sites.perm_up[1:bottom_layer]
             I_0 = blackbody_λ.(500u"nm", sites.temperature[bottom_layer_idx])
-            J += weights[i]*Delaunay_upII(k, S_λ, α_cont, sites, I_0, n_sweeps)
+            J += weights[i]*Delaunay_upII(k, S_λ, I_0, α_cont, sites, n_sweeps)
         elseif θ < 90
             top_layer = sites.layers_down[2] - 1
             I_0 = zeros(top_layer)u"kW*nm^-1*m^-2"
-            J += weights[i]*Delaunay_downII(k, S_λ, α_cont, sites, I_0, n_sweeps)
+            J += weights[i]*Delaunay_downII(k, S_λ, I_0, α_cont, sites, n_sweeps)
         end
     end
     return J

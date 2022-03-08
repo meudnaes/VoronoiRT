@@ -163,8 +163,11 @@ function LTE_ray(DATA)
     LTE_pops = LTE_ionisation(atmos)
 
     # Find continuum extinction (only with Thomson and Rayleigh)
-    α_cont = α_continuum.(λ, atmos.temperature*1.0, atmos.electron_density*1.0,
-                          LTE_pops[:,:,:,1]*1.0, LTE_pops[:,:,:,3]*1.0)
+    α_cont = α_continuum.(λ,
+                          atmos.temperature*1.0,
+                          atmos.electron_density*1.0,
+                          LTE_pops[:,:,:,1]*1.0,
+                          LTE_pops[:,:,:,3]*1.0)
 
     # Planck function
     S_λ = blackbody_λ.(λ, atmos.temperature)
@@ -173,7 +176,7 @@ function LTE_ray(DATA)
     ϕ = 0.1
 
     k = [cos(θ*π/180), cos(ϕ*π/180)*sin(θ*π/180), sin(ϕ*π/180)*sin(θ*π/180)]
-    intensity = short_characteristics_up(k, S_λ, α_cont, atmos, I_0=S_λ[1,:,:])
+    intensity = short_characteristics_up(k, S_λ, S_λ[1,:,:], α_cont, atmos)
 
     #=
     intensity = Array{Float64, 3}(undef, size(α_cont))u"kW*m^-2*nm^-1"
@@ -563,8 +566,8 @@ function test_with_regular(DATA, quadrature)
 end
 
 
-compare("../data/bifrost_qs006023_s525_half.hdf5", "../quadratures/ul2n3.dat");
-# LTE_ray("../data/bifrost_qs006023_s525_half.hdf5")
+# compare("../data/bifrost_qs006023_s525_half.hdf5", "../quadratures/ul2n3.dat");
+LTE_ray("../data/bifrost_qs006023_s525_half.hdf5")
 # LTE_voronoi("../data/bifrost_qs006023_s525_quarter.hdf5")
 # test_interpolation("../data/bifrost_qs006023_s525_quarter.hdf5", "../quadratures/n1.dat")
 # test_with_regular("../data/bifrost_qs006023_s525_quarter.hdf5", "../quadratures/n1.dat")

@@ -49,17 +49,17 @@ function J_λ_regular(S_λ::Array{<:UnitsIntensity_λ, 4},
                 I_0 =  B_λ.(line.λ[l], atmos.temperature[1,:,:])
                 J_λ[l,:,:,:] .+= weights[i].*short_characteristics_up(k,
                                                                       S_λ[l,:,:,:],
+                                                                      I_0,
                                                                       α_tot[l,:,:,:],
-                                                                      atmos,
-                                                                      I_0=I_0,
+                                                                      atmos;
                                                                       n_sweeps=3)
             elseif θ < 90
                 I_0 = zero(S_λ[l, 1, :, :])
                 J_λ[l,:,:,:] .+= weights[i].*short_characteristics_down(k,
                                                                         S_λ[l,:,:,:],
+                                                                        I_0,
                                                                         α_tot[l,:,:,:],
-                                                                        atmos,
-                                                                        I_0=I_0,
+                                                                        atmos;
                                                                         n_sweeps=3)
             end
         end
@@ -114,12 +114,12 @@ function J_λ_voronoi(S_λ::Matrix{<:UnitsIntensity_λ},
                 bottom_layer = sites.layers_up[2] - 1
                 bottom_layer_idx = sites.perm_up[1:bottom_layer]
                 I_0 = B_λ.(line.λ[l], sites.temperature[bottom_layer_idx])
-                J_λ[l,:] += weights[i]*Delaunay_upII(k, S_λ[l,:], α_tot[l,:], sites, I_0, n_sweeps)
+                J_λ[l,:] += weights[i]*Delaunay_upII(k, S_λ[l,:], I_0, α_tot[l,:], sites, n_sweeps)
 
             elseif θ_array[i] < 90
                 top_layer = sites.layers_down[2] - 1
                 I_0 = zeros(top_layer)u"kW*nm^-1*m^-2"
-                J_λ[l,:] += weights[i]*Delaunay_downII(k, S_λ[l,:], α_tot[l,:], sites, I_0, n_sweeps)
+                J_λ[l,:] += weights[i]*Delaunay_downII(k, S_λ[l,:], I_0, α_tot[l,:], sites, n_sweeps)
             end
 
         end
@@ -145,12 +145,14 @@ function Λ_regular(ϵ::AbstractFloat,
     α_cont = α_continuum.(line.λ0,
                           atmos.temperature*1.0,
                           atmos.electron_density*1.0,
-                          populations[:, :, :, 1]*1.0,
-                          populations[:, :, :, 3]*1.0)
+                          LTE_pops[:, :, :, 1]*1.0,
+                          LTE_pops[:, :, :, 3]*1.0)
 
     # destruction probability (Should I include line???)
     ελ = destruction(LTE_pops, atmos.electron_density, atmos.temperature, line)
     thick = ελ .> 1e-2
+    thick = ελ .> 1e-3
+    println("Total $(sum(thick.==0)) are too thin for the solver")
 
     # Start with the source function as the Planck function
     B_0 = Array{Float64, 4}(undef, (length(line.λ), size(α_cont)...))u"kW*m^-2*nm^-1"
@@ -226,13 +228,14 @@ function Λ_voronoi(ϵ::AbstractFloat,
     # Initial populations
     populations = zero_radiation_populations(line, sites)
 	# LTE_populations(line, sites)
+    # LTE_populations(line, sites)
 
     # Find continuum extinction and absorption extinction (only with Thomson and Rayleigh)
     α_cont = α_continuum.(line.λ0,
                           sites.temperature*1.0,
                           sites.electron_density*1.0,
-                          populations[:, 1]*1.0,
-                          populations[:, 3]*1.0)
+                          LTE_pops[:, 1]*1.0,
+                          LTE_pops[:, 3]*1.0)
 
     # Start with the source function as the Planck function
     B_0 = Array{Float64, 2}(undef, (length(line.λ), sites.n))u"kW*m^-2*nm^-1"
@@ -246,9 +249,12 @@ function Λ_voronoi(ϵ::AbstractFloat,
     S_old = zero(S_new)
 
     # destruction probability (Should I include line???)
-    ελ = destruction(populations, sites.electron_density, sites.temperature, line)
+    ελ = destruction(LTE_pops, sites.electron_density, sites.temperature, line)
     thick = ελ .> 1e-2
 
+    thick = ελ .> 1e-3
+    println("Total $(sum(thick.==0)) are too thin for the solver")
+    
     C = calculate_C(sites, LTE_pops)
 
     i=0
@@ -307,6 +313,7 @@ function destruction(LTE_pops::Array{<:NumberDensity},
     A21 = line.Aji
     B21 = line.Bji
     C21 = Cij(2, 1, electron_density, temperature, LTE_pops)
+    C21 = Cij(2, 1, electron_density, temperature, LTE_pops).*1e3
     B_λ0 = B_λ.(line.λ0, temperature)
     ε_λ0 = C21./(C21 .+ A21 .+ B21.*B_λ0)
 end
