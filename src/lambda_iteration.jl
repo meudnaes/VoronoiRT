@@ -142,16 +142,18 @@ function Λ_regular(ϵ::AbstractFloat,
     populations = zero_radiation_populations(line, atmos)
 
     # Find continuum extinction and absorption extinction (without Thomson and Rayleigh)
-    α_cont = α_continuum.(line.λ0,
-                          atmos.temperature*1.0,
-                          atmos.electron_density*1.0,
-                          LTE_pops[:, :, :, 1]*1.0,
-                          LTE_pops[:, :, :, 3]*1.0)
+    α_cont = α_absorption.(line.λ0,
+                           atmos.temperature,
+                           atmos.electron_density*1.0,
+                           LTE_pops[:,:,:,1].+LTE_pops[:,:,:,2],
+                           LTE_pops[:,:,:,3]) .+
+             α_scattering.(line.λ0,
+                           atmos.electron_density,
+                           LTE_pops[:,:,:,1])
 
     # destruction probability (Should I include line???)
     ελ = destruction(LTE_pops, atmos.electron_density, atmos.temperature, line)
     thick = ελ .> 1e-2
-    thick = ελ .> 1e-3
     println("Total $(sum(thick.==0)) are too thin for the solver")
 
     # Start with the source function as the Planck function
@@ -231,11 +233,14 @@ function Λ_voronoi(ϵ::AbstractFloat,
     # LTE_populations(line, sites)
 
     # Find continuum extinction and absorption extinction (only with Thomson and Rayleigh)
-    α_cont = α_continuum.(line.λ0,
-                          sites.temperature*1.0,
-                          sites.electron_density*1.0,
-                          LTE_pops[:, 1]*1.0,
-                          LTE_pops[:, 3]*1.0)
+    α_cont = α_absorption.(line.λ0,
+                           sites.temperature,
+                           sites.electron_density*1.0,
+                           LTE_pops[:,1].+LTE_pops[:,2],
+                           LTE_pops[:,3]) .+
+             α_scattering.(line.λ0,
+                           sites.electron_density,
+                           LTE_pops[:,1])
 
     # Start with the source function as the Planck function
     B_0 = Array{Float64, 2}(undef, (length(line.λ), sites.n))u"kW*m^-2*nm^-1"
@@ -252,9 +257,8 @@ function Λ_voronoi(ϵ::AbstractFloat,
     ελ = destruction(LTE_pops, sites.electron_density, sites.temperature, line)
     thick = ελ .> 1e-2
 
-    thick = ελ .> 1e-3
     println("Total $(sum(thick.==0)) are too thin for the solver")
-    
+
     C = calculate_C(sites, LTE_pops)
 
     i=0
@@ -312,7 +316,6 @@ function destruction(LTE_pops::Array{<:NumberDensity},
     # destruction, eq (3.98) in Rutten, 2003
     A21 = line.Aji
     B21 = line.Bji
-    C21 = Cij(2, 1, electron_density, temperature, LTE_pops)
     C21 = Cij(2, 1, electron_density, temperature, LTE_pops).*1e3
     B_λ0 = B_λ.(line.λ0, temperature)
     ε_λ0 = C21./(C21 .+ A21 .+ B21.*B_λ0)

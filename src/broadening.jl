@@ -79,6 +79,13 @@ function γ_constant(line::HydrogenicLine,
     γ .+= γ_linear_stark.(electron_density, u, l)
     γ .+= γ_quadratic_stark.(electron_density, temperature, stark_constant=quad_stark_const)
 
-    return γ
+    return 2.0*γ
 
+end
+
+"""
+Compute damping parameter.
+"""
+function damping(γ::Unitful.Frequency, λ::Unitful.Length, ΔλD::Unitful.Length)
+    return (γ * λ^2 / (4 * π * c_0 * ΔλD)) |> Unitful.NoUnits
 end

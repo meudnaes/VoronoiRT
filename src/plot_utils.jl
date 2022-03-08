@@ -107,8 +107,6 @@ function plot_top_line(atmos::Atmosphere,
 
     indices = sortperm(line.λ[start:stop])
 
-    for idx in 1:5:size(S_λ)[end]
-        for idy in 1:5:size(S_λ)[end-1]
     for idx in 1:10:size(S_λ)[end]
         for idy in 1:10:size(S_λ)[end-1]
             loc = "_"*string(idx)*"_"*string(idy)
@@ -119,10 +117,43 @@ function plot_top_line(atmos::Atmosphere,
                  yaxis="Intensity [kW m^-2 nm^-1]",
                  dpi=300,
                  rightmargin=10Plots.mm,
-                 title=title*loc,
-                 ylim=(-0.01, 0.2))
+                 title=title*loc)
 
             savefig("../img/compare_line/lines/"*title*loc)
+        end
+    end
+end
+
+function plot_top_cont(atmos::Atmosphere,
+                       λ::Vector{<:Unitful.Length},
+                       S_λ::Array{<:UnitsIntensity_λ, 4},
+                       α_tot::Array{<:PerLength, 4},
+                       θ::Float64,
+                       ϕ::Float64,
+                       title::String)
+
+    nλ, nz, nx, ny = size(S_λ)
+    I_λ = zero(S_λ)
+
+    k = [cos(θ*π/180), cos(ϕ*π/180)*sin(θ*π/180), sin(ϕ*π/180)*sin(θ*π/180)]
+    for iλ in 1:nλ
+        I_λ[iλ, :, :, :] = short_characteristics_up(k, S_λ[iλ, :, :, :], S_λ[iλ, 1, :, :],
+                                                    α_tot[iλ, :, :, :], atmos)
+    end
+
+    for idx in 1:10:size(S_λ)[end]
+        for idy in 1:10:size(S_λ)[end-1]
+            loc = "_"*string(idx)*"_"*string(idy)
+            I_plot = ustrip(uconvert.(u"kW*nm^-1*m^-2", I_λ))[:, end, idx, idy]
+            plot(ustrip.(λ[:]),
+                 ustrip.(I_plot[:]),
+                 xaxis="λ [nm]",
+                 yaxis="Intensity [kW m^-2 nm^-1]",
+                 dpi=300,
+                 rightmargin=10Plots.mm,
+                 title=title*loc)
+
+            savefig("../img/compare_continuum/"*title*loc)
         end
     end
 end
@@ -264,8 +295,6 @@ function plot_convergence(DATA::String, title::String)
          ylabel="max rel. diff.",
          title=title,
          dpi=300,
-         yscale=:log10,
-         ylim=(0.5e-3, 1.0e1))
          yscale=:log10)
     savefig("../img/$(split(title)[1])")
 end

@@ -53,8 +53,8 @@ struct HydrogenicLine{T <: AbstractFloat}
         ##
         λbf_l = sample_λ_boundfree(nλ_bf, λ1_min, χl, χ∞)
         λbf_u = sample_λ_boundfree(nλ_bf, λ2_min, χu, χ∞)
-        λ = vcat(λbb, λbf_l, λbf_u)
-        λi = [0, nλ_bb, nλ_bb+nλ_bf, nλ_bb+2*nλ_bf]
+        λ = vcat(λbb, λbf_l, λbf_u)#, 500.0u"nm")
+        λi = [0, nλ_bb, nλ_bb+nλ_bf, nλ_bb+2*nλ_bf]#+1]
         # Einstein coefficients
         Aul = convert(Quantity{T, Unitful.𝐓^-1}, calc_Aji(λ0, gl / gu, f_value))
         Bul = calc_Bji(λ0, Aul)
@@ -80,13 +80,14 @@ function compute_voigt_profile(line::HydrogenicLine, atmos::Atmosphere,
     # Remember to use -k!, since k is moving towards the ray
     v_los = line_of_sight_velocity(atmos, -k)
 
-    # calculate line profile
+    # calculate line profile.
     profile = Array{Float64, 4}(undef, (length(line.λ), size(v_los)...))u"m^-1"
     for l in eachindex(line.λ)
         v = (line.λ[l] .- line.λ0 .+ line.λ0.*v_los./c_0)./line.ΔD .|> Unitful.NoUnits
         profile[l, :, :, :] = voigt_profile.(damping_λ[l, :, :, :], v, line.ΔD)
     end
 
+    # println(trapz(V_v, profile[:, 4, 4, 4].*line.ΔD[4, 4, 4]) |> Unitful.NoUnits) # 1.0002645422865621
     return profile
 end
 
@@ -106,11 +107,34 @@ function compute_voigt_profile(line::HydrogenicLine, sites::VoronoiSites,
     # calculate line profile
     profile = Array{Float64, 2}(undef, (length(line.λ), sites.n))u"m^-1"
     for l in eachindex(line.λ)
-        v = (line.λ[l] .- line.λ0 .+ line.λ0.*v_los./c_0)./line.ΔD .|> Unitful.NoUnits
+        v = (line.λ[l] - line.λ0 .+ line.λ0 .* v_los ./ c_0) ./ line.ΔD .|> Unitful.NoUnits
         profile[l, :] = voigt_profile.(damping_λ[l, :], v, line.ΔD)
     end
 
     return profile
+end
+
+function compute_doppler_profile(line::HydrogenicLine, atmos::Atmosphere,
+                                 k::Vector{Float64})
+
+    # calculate line of sight velocity
+    # Remember to use -k!, since k is moving towards the ray
+    v_los = line_of_sight_velocity(atmos, -k)
+
+    # calculate line profile.
+    profile = Array{Float64, 4}(undef, (length(line.λ), size(v_los)...))u"m^-1"
+    for l in eachindex(line.λ)
+        #v = (line.λ[l] .- line.λ0 .+ line.λ0.*v_los./c_0)./line.ΔD .|> Unitful.NoUnits
+        Δλ = line.λ[l] - line.λ0 .+ line.λ0 .* v_los ./ c_0
+        profile[l, :, :, :] = doppler_profile.(Δλ, line.ΔD)
+    end
+
+    # println(trapz(V_v, profile[:, 4, 4, 4].*line.ΔD[4, 4, 4]) |> Unitful.NoUnits) # 1.0002645422865621
+    return profile
+end
+
+function doppler_profile(Δλ::Unitful.Length, ΔλD::Unitful.Length)
+    1/(sqrt(π)*ΔλD)*exp(-(Δλ/ΔλD)^2)
 end
 
 """
@@ -163,7 +187,7 @@ function αline_λ(line::HydrogenicLine,
                  n_j::Array{<:NumberDensity},
                  n_i::Array{<:NumberDensity})
 
-    (h .* c_0 / (4 .* π .* line.λ0) .* profile .* (n_i .* line.Bij .- n_j .* line.Bji)) .|> u"m^-1"
+    return (h*c_0/(4*π*line.λ0) .* profile .* (n_i .* line.Bij .- n_j .* line.Bji)) .|> u"m^-1"
 end
 
 function test_atom(nλ_bb::Int, nλ_bf::Int)
@@ -174,7 +198,7 @@ function test_atom(nλ_bb::Int, nλ_bf::Int)
     gl = 2
     gu = 8
 
-    f_value = 4.162E-01
+    f_value = 4.162e-1
 
     atom_weight = mass_H
 

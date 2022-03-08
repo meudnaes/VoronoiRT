@@ -1,4 +1,5 @@
 using Plots
+include("plot_utils.jl")
 include("voronoi_utils.jl")
 include("lambda_continuum.jl")
 include("irregular_ray_tracing.jl")
@@ -163,17 +164,20 @@ function LTE_ray(DATA)
     LTE_pops = LTE_ionisation(atmos)
 
     # Find continuum extinction (only with Thomson and Rayleigh)
-    α_cont = α_continuum.(λ,
-                          atmos.temperature*1.0,
-                          atmos.electron_density*1.0,
-                          LTE_pops[:,:,:,1]*1.0,
-                          LTE_pops[:,:,:,3]*1.0)
+    α_cont = α_cont = α_absorption.(λ,
+                           atmos.temperature,
+                           atmos.electron_density*1.0,
+                           LTE_pops[:,:,:,1].+LTE_pops[:,:,:,2],
+                           LTE_pops[:,:,:,3]) .+
+             α_scattering.(λ,
+                           atmos.electron_density,
+                           LTE_pops[:,:,:,1])
 
     # Planck function
     S_λ = blackbody_λ.(λ, atmos.temperature)
 
     θ = 170.0
-    ϕ = 0.1
+    ϕ = 15.0
 
     k = [cos(θ*π/180), cos(ϕ*π/180)*sin(θ*π/180), sin(ϕ*π/180)*sin(θ*π/180)]
     intensity = short_characteristics_up(k, S_λ, S_λ[1,:,:], α_cont, atmos)
@@ -207,6 +211,43 @@ function LTE_ray(DATA)
     savefig("../img/compare_continuum/cont500_$(floor(Int, 100*μ))")
 
     return 0
+end
+
+function LTE_cont(DATA)
+    θ = 180.0
+    ϕ = 0.0
+
+    atmos = Atmosphere(get_atmos(DATA; periodic=true)...)
+
+    # LTE populations
+    LTE_pops = LTE_ionisation(atmos)
+
+    λ = collect(LinRange(50, 500, 100))u"nm"
+
+    # The source function is the Planck function
+    B_0 = Array{Float64, 4}(undef, (length(λ), size(atmos.temperature)...))u"kW*m^-2*nm^-1"
+    for l in eachindex(λ)
+        B_0[l, :, :, :] = Transparency.blackbody_λ.(λ[l], atmos.temperature*1.0)
+    end
+    S_λ = copy(B_0)
+
+    α_cont = Array{Float64, 4}(undef, size(B_0))u"m^-1"
+    for l in eachindex(λ)
+        α_cont[l,:,:,:] = α_absorption.(λ[l],
+                                        atmos.temperature,
+                                        atmos.electron_density*1.0,
+                                        LTE_pops[:,:,:,1].+LTE_pops[:,:,:,2],
+                                        LTE_pops[:,:,:,3]) .+
+                          α_scattering.(λ[l],
+                                        atmos.electron_density,
+                                        LTE_pops[:,:,:,1])
+    end
+
+    plot_top_cont(atmos, λ, S_λ, α_cont, θ, ϕ, "LTE_line")
+    # for idλ in eachindex(line.λ)
+        # plot_top_intensity(atmos, line, S_λ, α_tot, θ, ϕ, idλ, "LTE_$idλ")
+    # end
+
 end
 
 function LTE_voronoi(DATA)
@@ -265,8 +306,14 @@ function LTE_voronoi(DATA)
     LTE_pops = LTE_ionisation(sites)
     λ = 500u"nm"
     # Find continuum extinction (only with Thomson and Rayleigh)
-    α_cont = α_continuum.(λ, sites.temperature*1.0, sites.electron_density*1.0,
-                          LTE_pops[:,1]*1.0, LTE_pops[:,3]*1.0)
+    α_cont = α_absorption.(λ,
+                           atmos.temperature,
+                           atmos.electron_density*1.0,
+                           LTE_pops[:,:,:,1].+LTE_pops[:,:,:,2],
+                           LTE_pops[:,:,:,3]) .+
+             α_scattering.(λ,
+                           atmos.electron_density,
+                           LTE_pops[:,:,:,1])
 
     S_λ = blackbody_λ.(λ, sites.temperature)
 
@@ -364,9 +411,15 @@ function test_interpolation(DATA, quadrature)
     # Lte populations
     LTE_pops = LTE_ionisation(sites)
     λ = 500u"nm"
-    # Find continuum extinction (only with Thomson and Rayleigh)
-    α_cont = α_continuum.(λ, sites.temperature*1.0, sites.electron_density*1.0,
-                          LTE_pops[:,1]*1.0, LTE_pops[:,3]*1.0)
+    # Find continuum extinction
+    α_cont = α_absorption.(λ,
+                           atmos.temperature,
+                           atmos.electron_density*1.0,
+                           LTE_pops[:,:,:,1].+LTE_pops[:,:,:,2],
+                           LTE_pops[:,:,:,3]) .+
+             α_scattering.(λ,
+                           atmos.electron_density,
+                           LTE_pops[:,:,:,1])
 
     S_λ = blackbody_λ.(λ, sites.temperature)
 
@@ -522,8 +575,14 @@ function test_with_regular(DATA, quadrature)
     LTE_pops = LTE_ionisation(sites)
     λ = 500u"nm"
     # Find continuum extinction (only with Thomson and Rayleigh)
-    α_cont = α_continuum.(λ, sites.temperature*1.0, sites.electron_density*1.0,
-                       LTE_pops[:,1]*1.0, LTE_pops[:,3]*1.0)
+    α_cont = α_absorption.(λ,
+                           atmos.temperature,
+                           atmos.electron_density*1.0,
+                           LTE_pops[:,:,:,1].+LTE_pops[:,:,:,2],
+                           LTE_pops[:,:,:,3]) .+
+             α_scattering.(λ,
+                           atmos.electron_density,
+                           LTE_pops[:,:,:,1])
     S_λ = blackbody_λ.(λ, sites.temperature)
 
     θ = 170.0
@@ -567,7 +626,8 @@ end
 
 
 # compare("../data/bifrost_qs006023_s525_half.hdf5", "../quadratures/ul2n3.dat");
-LTE_ray("../data/bifrost_qs006023_s525_half.hdf5")
+# LTE_ray("../data/bifrost_qs006023_s525_quarter.hdf5")
+LTE_cont("../data/bifrost_qs006023_s525_quarter.hdf5")
 # LTE_voronoi("../data/bifrost_qs006023_s525_quarter.hdf5")
 # test_interpolation("../data/bifrost_qs006023_s525_quarter.hdf5", "../quadratures/n1.dat")
 # test_with_regular("../data/bifrost_qs006023_s525_quarter.hdf5", "../quadratures/n1.dat")

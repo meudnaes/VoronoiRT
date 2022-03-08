@@ -260,7 +260,7 @@ function xy_up_ray(k::Vector{Float64}, idz::Int, sign_x::Int,
 
             # Compute weights for formal solution
             α_ijk, β_ijk, expΔτ = linear_weights(Δτ_upwind)
-
+            # println(α_ijk + β_ijk + expΔτ)
             # Interpolate to find intensity at upwind point
             I_vals = [I_0[idx_lower, idy_lower] I_0[idx_lower, idy_upper]
                       I_0[idx_upper, idy_lower] I_0[idx_upper, idy_upper]]

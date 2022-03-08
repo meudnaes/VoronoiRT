@@ -75,12 +75,14 @@ function Λ_regular(ϵ::AbstractFloat,
     LTE_pops = LTE_ionisation(atmos)
 
     # Find continuum extinction (only with Thomson and Rayleigh)
-    α_cont = α_continuum.(λ, atmos.temperature*1.0, atmos.electron_density*1.0,
-                          LTE_pops[:,:,:,1]*1.0, LTE_pops[:,:,:,3]*1.0)
+    α_s = α_scattering(λ, atmos.temperature, atmos.electron_density*1.0,
+                       LTE_pops[:,:,:,1])
 
-    α_a = α_absorption.(λ, atmos.temperature*1.0, atmos.electron_density*1.0,
-                        LTE_pops[:,:,:,1]*1.0, LTE_pops[:,:,:,3]*1.0)
+    α_a = α_absorption.(λ, atmos.temperature, atmos.electron_density*1.0,
+                        LTE_pops[:,:,:,1].+LTE_pops[:,:,:,2],
+                        LTE_pops[:,:,:,3])
 
+    α_cont = α_s + α_a
     # destruction
     ε_λ = α_a./α_cont
 
@@ -126,11 +128,14 @@ function Λ_voronoi(ϵ::AbstractFloat,
     LTE_pops = LTE_ionisation(sites)
 
     # Find continuum extinction (only with Thomson and Rayleigh)
-    α_cont = α_continuum.(λ, sites.temperature*1.0, sites.electron_density*1.0,
-                          LTE_pops[:,1]*1.0, LTE_pops[:,3]*1.0)
+    α_s = α_scattering(λ, sites.temperature, sites.electron_density*1.0,
+                       LTE_pops[:,1])
 
-    α_a = α_absorption.(λ, sites.temperature*1.0, sites.electron_density*1.0,
-                        LTE_pops[:,1]*1.0, LTE_pops[:,3]*1.0)
+    α_a = α_absorption.(λ, sites.temperature, sites.electron_density*1.0,
+                        LTE_pops[:,1].+LTE_pops[:,2],
+                        LTE_pops[:,3])
+
+    α_cont = α_s + α_a
 
     # destruction
     ε_λ = α_a ./ α_cont

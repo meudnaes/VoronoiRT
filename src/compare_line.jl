@@ -131,7 +131,7 @@ function LTE_line(DATA)
     # The source function is the Planck function
     B_0 = Array{Float64, 4}(undef, (length(line.λ), size(atmos.temperature)...))u"kW*m^-2*nm^-1"
     for l in eachindex(line.λ)
-        B_0[l, :, :, :] = B_λ.(line.λ[l], atmos.temperature)
+        B_0[l, :, :, :] = Transparency.blackbody_λ.(line.λ[l], atmos.temperature*1.0)
     end
     S_λ = copy(B_0)
 
@@ -146,7 +146,7 @@ function LTE_line(DATA)
 
     γ = γ_constant(line,
                    atmos.temperature,
-                   (populations[:, :, :, 1] .+ populations[:, :, :, 2]),
+                   (LTE_pops[:, :, :, 1] .+ LTE_pops[:, :, :, 2]),
                    atmos.electron_density)
 
     damping_λ = Array{Float64, 4}(undef, size(S_λ))
@@ -155,25 +155,32 @@ function LTE_line(DATA)
     end
 
     k = [cos(θ*π/180), cos(ϕ*π/180)*sin(θ*π/180), sin(ϕ*π/180)*sin(θ*π/180)]
-    profile = compute_voigt_profile(line, atmos, damping_λ, k)
+    profile = compute_doppler_profile(line, atmos, k)
+    #compute_voigt_profile(line, atmos, damping_λ, k)
 
-    global α_tot
-    α_tot = Array{Float64, 4}(undef, size(profile))u"m^-1"
+    α_line = Array{Float64, 4}(undef, size(profile))u"m^-1"
+    α_cont = copy(α_line)
     for l in eachindex(line.λ)
-        α_tot[l,:,:,:] = αline_λ(line,
-                                 profile[l, :, :, :],
-                                 populations[:, :, :, 2],
-                                 populations[:, :, :, 1]) .+ α_continuum.(line.λ[l],
-                                                                          atmos.temperature,
-                                                                          atmos.electron_density*1.0,
-                                                                          LTE_pops[:, :, :, 1]*1.0,
-                                                                          LTE_pops[:, :, :, 3]*1.0)
+        α_line[l,:,:,:] = αline_λ(line,
+                                  profile[l, :, :, :],
+                                  populations[:, :, :, 2],
+                                  populations[:, :, :, 1])
+                                  
+        α_cont[l,:,:,:] = α_absorption.(line.λ[l],
+                                        atmos.temperature,
+                                        atmos.electron_density*1.0,
+                                        LTE_pops[:,:,:,1].+LTE_pops[:,:,:,2],
+                                        LTE_pops[:,:,:,3]) .+
+                          α_scattering.(line.λ[l],
+                                        atmos.electron_density,
+                                        LTE_pops[:,:,:,1])
     end
+    α_tot = α_line .+ α_cont
 
-    # plot_top_line(atmos, line, S_λ, α_tot, θ, ϕ, "LTE_line")
-    for idλ in eachindex(line.λ)
-        plot_top_intensity(atmos, line, S_λ, α_tot, θ, ϕ, idλ, "LTE_$idλ")
-    end
+    plot_top_line(atmos, line, S_λ, α_tot, θ, ϕ, "LTE_line")
+    # for idλ in eachindex(line.λ)
+        # plot_top_intensity(atmos, line, S_λ, α_tot, θ, ϕ, idλ, "LTE_$idλ")
+    # end
 
 end
 
