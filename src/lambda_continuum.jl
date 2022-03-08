@@ -53,11 +53,11 @@ function J_λ_voronoi(S_λ::AbstractArray,
             bottom_layer = sites.layers_up[2] - 1
             bottom_layer_idx = sites.perm_up[1:bottom_layer]
             I_0 = blackbody_λ.(500u"nm", sites.temperature[bottom_layer_idx])
-            J += weights[i]*Delaunay_upII(k, S_λ, α_cont, sites, I_0, n_sweeps)
+            J += weights[i]*Delaunay_upII(k, S_λ, I_0, α_cont, sites, n_sweeps)
         elseif θ < 90
             top_layer = sites.layers_down[2] - 1
             I_0 = zeros(top_layer)u"kW*nm^-1*m^-2"
-            J += weights[i]*Delaunay_downII(k, S_λ, α_cont, sites, I_0, n_sweeps)
+            J += weights[i]*Delaunay_downII(k, S_λ, I_0, α_cont, sites, n_sweeps)
         end
     end
     return J
@@ -75,12 +75,14 @@ function Λ_regular(ϵ::AbstractFloat,
     LTE_pops = LTE_ionisation(atmos)
 
     # Find continuum extinction (only with Thomson and Rayleigh)
-    α_cont = α_continuum.(λ, atmos.temperature*1.0, atmos.electron_density*1.0,
-                          LTE_pops[:,:,:,1]*1.0, LTE_pops[:,:,:,3]*1.0)
+    α_s = α_scattering(λ, atmos.temperature, atmos.electron_density*1.0,
+                       LTE_pops[:,:,:,1])
 
-    α_a = α_absorption.(λ, atmos.temperature*1.0, atmos.electron_density*1.0,
-                        LTE_pops[:,:,:,1]*1.0, LTE_pops[:,:,:,3]*1.0)
+    α_a = α_absorption.(λ, atmos.temperature, atmos.electron_density*1.0,
+                        LTE_pops[:,:,:,1].+LTE_pops[:,:,:,2],
+                        LTE_pops[:,:,:,3])
 
+    α_cont = α_s + α_a
     # destruction
     ε_λ = α_a./α_cont
 
@@ -126,11 +128,14 @@ function Λ_voronoi(ϵ::AbstractFloat,
     LTE_pops = LTE_ionisation(sites)
 
     # Find continuum extinction (only with Thomson and Rayleigh)
-    α_cont = α_continuum.(λ, sites.temperature*1.0, sites.electron_density*1.0,
-                          LTE_pops[:,1]*1.0, LTE_pops[:,3]*1.0)
+    α_s = α_scattering(λ, sites.temperature, sites.electron_density*1.0,
+                       LTE_pops[:,1])
 
-    α_a = α_absorption.(λ, sites.temperature*1.0, sites.electron_density*1.0,
-                        LTE_pops[:,1]*1.0, LTE_pops[:,3]*1.0)
+    α_a = α_absorption.(λ, sites.temperature, sites.electron_density*1.0,
+                        LTE_pops[:,1].+LTE_pops[:,2],
+                        LTE_pops[:,3])
+
+    α_cont = α_s + α_a
 
     # destruction
     ε_λ = α_a ./ α_cont

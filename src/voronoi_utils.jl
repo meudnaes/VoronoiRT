@@ -1,5 +1,7 @@
+# using Unitful
 using NearestNeighbors
 
+# include("atmosphere.jl")
 # include("functions.jl")
 
 """

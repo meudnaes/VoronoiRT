@@ -109,7 +109,7 @@ function searchlight_irregular()
         # Unit vector pointing in the direction of the ray
         k = [cos(θ*π/180), cos(ϕ*π/180)*sin(θ*π/180), sin(ϕ*π/180)*sin(θ*π/180)]
         if θ > 90
-            @time I = Delaunay_upII(k, S, α, sites, I_bottom, n_sweeps)
+            @time I = Delaunay_upII(k, S, I_bottom, α, sites, n_sweeps)
 
             top_I = zeros(length(x), length(y))u"kW*nm^-1*m^-2"
 
@@ -123,7 +123,7 @@ function searchlight_irregular()
 
             plot_searchlight(k, x, y, top_I, R0, "irregular_$(floor(Int,θ))_$(floor(Int,ϕ))")
         elseif θ < 90
-            @time I = Delaunay_downII(k, S, α, sites, I_top, n_sweeps)
+            @time I = Delaunay_downII(k, S, I_top, α, sites, n_sweeps)
 
             bottom_z = 0
             bottom_I = zeros(length(x), length(y))u"kW*nm^-1*m^-2"
@@ -191,16 +191,16 @@ function searchlight_regular()
         # Unit vector pointing in the direction of the ray
         k = [cos(θ*π/180), cos(ϕ*π/180)*sin(θ*π/180), sin(ϕ*π/180)*sin(θ*π/180)]
         if θ > 90
-            I = short_characteristics_up(k, S_0, α, atmos;
-                                         I_0=I_0, pt=true, n_sweeps=3)[:, 2:end-1, 2:end-1]
+            I = short_characteristics_up(k, S_0, I_0, α, atmos;
+                                         pt=true, n_sweeps=3)[:, 2:end-1, 2:end-1]
 
             I = I[end, :, :]
             # npzwrite("../data/searchlight_data/I_$(θ)_$(ϕ)_regular.npy", ustrip.(I))
             plot_searchlight(k, x[2:end-1], y[2:end-1], I, R0, "regular_$(floor(Int,θ))_$(floor(Int,ϕ))")
             println("Bottom: $(I_light*80), Top: $(sum(I))")
         elseif θ < 90
-            I = short_characteristics_down(k, S_0, α, atmos;
-                                           I_0=I_0, pt=true, n_sweeps=3)[:, 2:end-1, 2:end-1]
+            I = short_characteristics_down(k, S_0, I_0, α, atmos;
+                                           pt=true, n_sweeps=3)[:, 2:end-1, 2:end-1]
 
             I = I[1, :, :]
             # npzwrite("../data/searchlight_data/I_$(θ)_$(ϕ)_regular.npy", ustrip.(I))
@@ -212,5 +212,5 @@ function searchlight_regular()
     print("")
 end
 
-searchlight_irregular()
+# searchlight_irregular()
 searchlight_regular()

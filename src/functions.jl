@@ -424,6 +424,30 @@ function coefficients(w1::Float64, w2::Float64, Δτ_upwind::Float64)
 end
 
 """
+    linear_weights(Δτ::AbstractFloat)
+
+Compute weights for linear integration of Source function in formal solution,
+also return weight for I_0.
+"""
+function linear_weights(Δτ::AbstractFloat)
+    local α, β, expΔτ
+    if Δτ < 5e-4
+        expΔτ = 1 - Δτ + 0.5*Δτ^2
+        α = Δτ*(1/2 - Δτ/3)
+        β = Δτ*(1/2 - Δτ/6)
+    elseif Δτ > 50
+        expΔτ = 0.0
+        α = 1/Δτ
+        β = 1.0 - α
+    else
+        expΔτ = exp(-Δτ)
+        α = (1 - expΔτ)/Δτ - expΔτ
+        β = 1 - α - expΔτ
+    end
+    return α, β, expΔτ
+end
+
+"""
     sample_from_extinction(atmos::Atmosphere,
                                 λ0::Unitful.Length,
                                 n_sites::Int)

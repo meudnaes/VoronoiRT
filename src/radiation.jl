@@ -21,23 +21,23 @@ function B_λ(λ::Unitful.Length, T::Unitful.Temperature)
 end
 
 """
-    function α_cont(λ::Unitful.Length, temperature::Unitful.Temperature,
+    function α_absorption(λ::Unitful.Length, temperature::Unitful.Temperature,
                electron_density::NumberDensity, h_ground_density::NumberDensity,
                proton_density::NumberDensity)
 
-Total continuum extinction.
+Extinction from photon destruction processes.
 """
-function α_continuum(λ::Unitful.Length, temperature::Unitful.Temperature,
-                     electron_density::NumberDensity, h_ground_density::NumberDensity,
-                     proton_density::NumberDensity)
+function α_absorption(λ::Unitful.Length, temperature::Unitful.Temperature,
+                      electron_density::NumberDensity, h_neutral_density::NumberDensity,
+                      proton_density::NumberDensity)
 
-    α = max(0u"m^-1", Transparency.hminus_ff_stilley(λ, temperature, h_ground_density, electron_density))
-    α += Transparency.hminus_bf_wbr(λ, temperature, h_ground_density, electron_density)
+    # α = max(0u"m^-1", Transparency.hminus_ff_stilley(λ, temperature, h_ground_density, electron_density))
+    α = hminus_ff(λ, temperature, h_neutral_density, electron_density; recipe="stilley")
+    α += hminus_bf(λ, temperature, h_neutral_density, electron_density; recipe="geltman")
     α += hydrogenic_ff(c_0 / λ, temperature, electron_density, proton_density, 1)
-    α += h2plus_ff(λ, temperature, h_ground_density, proton_density)
-    α += h2plus_bf(λ, temperature, h_ground_density, proton_density)
-    α += thomson(electron_density)
-    α += rayleigh_h(λ, h_ground_density)
+    # hydrogenic_bf ??? why return return 0 * αbf_const * species_densitys
+    α += h2plus_ff(λ, temperature, h_neutral_density, proton_density)
+    α += h2plus_bf(λ, temperature, h_neutral_density, proton_density)
     return α
 end
 
@@ -53,25 +53,18 @@ function α_scattering(λ::Unitful.Length,
                       h_ground_density::NumberDensity)
 
    α = thomson(electron_density)
-   α += rayleigh_h(λ, h_ground_density)
+   α += rayleigh_h(λ, h_ground_density) # Gives the edge... (1217.7 Å)
    return α
 end
 
-"""
-    function α_absorption(λ::Unitful.Length, temperature::Unitful.Temperature,
-               electron_density::NumberDensity, h_ground_density::NumberDensity,
-               proton_density::NumberDensity)
-
-Extinction from photon destruction processes.
-"""
-function α_absorption(λ::Unitful.Length, temperature::Unitful.Temperature,
-                      electron_density::NumberDensity, h_ground_density::NumberDensity,
-                      proton_density::NumberDensity)
-
-    α = max(0u"m^-1", Transparency.hminus_ff_stilley(λ, temperature, h_ground_density, electron_density))
-    α += Transparency.hminus_bf_wbr(λ, temperature, h_ground_density, electron_density)
-    α += hydrogenic_ff(c_0 / λ, temperature, electron_density, proton_density, 1)
-    α += h2plus_ff(λ, temperature, h_ground_density, proton_density)
-    α += h2plus_bf(λ, temperature, h_ground_density, proton_density)
-    return α
-end
+# function α_absorption(λ::Unitful.Length, temperature::Unitful.Temperature,
+                      # electron_density::NumberDensity, h_ground_density::NumberDensity,
+                      # proton_density::NumberDensity)
+#
+    # α = max(0u"m^-1", Transparency.hminus_ff_stilley(λ, temperature, h_ground_density, electron_density))
+    # α += Transparency.hminus_bf_wbr(λ, temperature, h_ground_density, electron_density)
+    # α += hydrogenic_ff(c_0 / λ, temperature, electron_density, proton_density, 1)
+    # α += h2plus_ff(λ, temperature, h_ground_density, proton_density)
+    # α += h2plus_bf(λ, temperature, h_ground_density, proton_density)
+    # return α
+# end

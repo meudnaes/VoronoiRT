@@ -82,14 +82,14 @@ function LTE_populations(line::HydrogenicLine,
     χ = [line.χi, line.χj, line.χ∞]
     # Ionised hydrogen -> g = 1
     g = [line.gi, line.gj, 1]
-    atom_density = atmos.hydrogen_populations
+    atom_density = atmos.hydrogen_populations*1.0
     nz, nx, ny = size(atom_density)
 
     n_levels = 3
     n_relative = ones(Float64, nz, nx, ny, n_levels)
 
     saha_const = (k_B / h) * (2π * m_e) / h
-    saha_factor = 2 * ((saha_const * atmos.temperature).^(3/2) ./ atmos.electron_density) .|> u"m/m"
+    saha_factor = 2 * ((saha_const * atmos.temperature*1.0).^(3/2) ./ atmos.electron_density*1.0) .|> u"m/m"
 
     for i=2:n_levels
         ΔE = χ[i] - χ[1]
