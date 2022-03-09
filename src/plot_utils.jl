@@ -276,11 +276,14 @@ function plotter(atmos::Atmosphere,
     # Find continuum extinction and absorption extinction (only with Thomson and Rayleigh)
     α_cont = Array{Float64, 4}(undef, (length(line.λ), size(atmos.temperature)...))u"m^-1"
     for l in eachindex(line.λ)
-        α_cont[l, :, :, :] = α_continuum.(line.λ[l],
-                                          atmos.temperature*1.0,
-                                          atmos.electron_density*1.0,
-                                          LTE_pops[:, :, :, 1]*1.0,
-                                          LTE_pops[:, :, :, 3]*1.0)
+        α_cont[l, :, :, :] = α_absorption.(line.λ[l],
+                                           atmos.temperature,
+                                           atmos.electron_density*1.0,
+                                           LTE_pops[:,:,:,1].+LTE_pops[:,:,:,2],
+                                           LTE_pops[:,:,:,3]) .+
+                             α_scattering.(line.λ[l],
+                                           atmos.electron_density,
+                                           LTE_pops[:,:,:,1])
     end
 
     α_tot = α_line .+ α_cont
