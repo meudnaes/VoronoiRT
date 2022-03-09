@@ -125,11 +125,10 @@ function compute_doppler_profile(line::HydrogenicLine, atmos::Atmosphere,
     profile = Array{Float64, 4}(undef, (length(line.λ), size(v_los)...))u"m^-1"
     for l in eachindex(line.λ)
         #v = (line.λ[l] .- line.λ0 .+ line.λ0.*v_los./c_0)./line.ΔD .|> Unitful.NoUnits
-        Δλ = line.λ[l] - line.λ0 .+ line.λ0 .* v_los ./ c_0
+        Δλ = line.λ[l] - line.λ0 .+ line.λ0.*v_los./c_0
         profile[l, :, :, :] = doppler_profile.(Δλ, line.ΔD)
     end
 
-    # println(trapz(V_v, profile[:, 4, 4, 4].*line.ΔD[4, 4, 4]) |> Unitful.NoUnits) # 1.0002645422865621
     return profile
 end
 

@@ -72,6 +72,14 @@ function plot_top_intensity(atmos::Atmosphere,
 
     I_top = ustrip(uconvert.(u"kW*nm^-1*m^-2", I_top[end, 2:end-1, 2:end-1]))
 
+    l1 = line.λidx[1]+1
+    l2 = line.λidx[2]
+    if l1 <= idλ <= l2
+        colors = :gist_yarg
+    else
+        colors = :inferno
+    end
+
     heatmap(ustrip(atmos.x[2:end-1]),
          ustrip(atmos.y[2:end-1]),
          transpose(I_top),
@@ -80,7 +88,8 @@ function plot_top_intensity(atmos::Atmosphere,
          dpi=300,
          rightmargin=10Plots.mm,
          title=title*" at $(round(ustrip(line.λ[idλ]); digits=2)) nm",
-         aspect_ratio=:equal)
+         aspect_ratio=:equal,
+         c=colors)
 
     savefig("../img/compare_line/"*title)
 end

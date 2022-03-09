@@ -120,8 +120,7 @@ function LTE_line(DATA)
     LTE_pops = LTE_populations(line, atmos)
     populations = copy(LTE_pops)
 
-    LTE_data = "../data/LTE_data.h5"
-
+    # LTE_data = "../data/LTE_data.h5"
     # create_output_file(LTE_data, length(line.λ),  size(atmos.temperature[:, 2:end-1, 2:end-1]), 1)
     # write_to_file(nλ_bb, "n_bb", LTE_data)
     # write_to_file(nλ_bf, "n_bf", LTE_data)
@@ -131,7 +130,7 @@ function LTE_line(DATA)
     # The source function is the Planck function
     B_0 = Array{Float64, 4}(undef, (length(line.λ), size(atmos.temperature)...))u"kW*m^-2*nm^-1"
     for l in eachindex(line.λ)
-        B_0[l, :, :, :] = Transparency.blackbody_λ.(line.λ[l], atmos.temperature*1.0)
+        B_0[l, :, :, :] = B_λ.(line.λ[l], atmos.temperature*1.0)
     end
     S_λ = copy(B_0)
 
@@ -155,8 +154,8 @@ function LTE_line(DATA)
     end
 
     k = [cos(θ*π/180), cos(ϕ*π/180)*sin(θ*π/180), sin(ϕ*π/180)*sin(θ*π/180)]
-    profile = compute_doppler_profile(line, atmos, k)
-    #compute_voigt_profile(line, atmos, damping_λ, k)
+    profile = compute_voigt_profile(line, atmos, damping_λ, k)
+    # profile = compute_doppler_profile(line, atmos, k)
 
     α_line = Array{Float64, 4}(undef, size(profile))u"m^-1"
     α_cont = copy(α_line)
@@ -165,7 +164,7 @@ function LTE_line(DATA)
                                   profile[l, :, :, :],
                                   populations[:, :, :, 2],
                                   populations[:, :, :, 1])
-                                  
+
         α_cont[l,:,:,:] = α_absorption.(line.λ[l],
                                         atmos.temperature,
                                         atmos.electron_density*1.0,
