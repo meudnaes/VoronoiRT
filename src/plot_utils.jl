@@ -87,9 +87,10 @@ function plot_top_intensity(atmos::Atmosphere,
          yaxis="y",
          dpi=300,
          rightmargin=10Plots.mm,
-         title=title*" at $(round(ustrip(line.λ[idλ]); digits=2)) nm",
+         title=title*" at $(round(ustrip(line.λ[idλ]); digits=4)) nm",
          aspect_ratio=:equal,
-         c=colors)
+         c=colors,
+         clim=(5,200))
 
     savefig("../img/compare_line/"*title)
 end
@@ -160,7 +161,8 @@ function plot_top_cont(atmos::Atmosphere,
                  yaxis="Intensity [kW m^-2 nm^-1]",
                  dpi=300,
                  rightmargin=10Plots.mm,
-                 title=title*loc)
+                 title=title*loc,
+                 clim=(5,200))
 
             savefig("../img/compare_continuum/"*title*loc)
         end

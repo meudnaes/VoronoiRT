@@ -153,8 +153,7 @@ function Λ_regular(ϵ::AbstractFloat,
 
     # destruction probability (Should I include line???)
     ελ = destruction(LTE_pops, atmos.electron_density, atmos.temperature, line)
-    thick = ελ .> 1e-2
-    println("Total $(sum(thick.==0)) are too thin for the solver")
+    println("Minimum $(minimum(ελ)) destruction probability")
 
     # Start with the source function as the Planck function
     B_0 = Array{Float64, 4}(undef, (length(line.λ), size(α_cont)...))u"kW*m^-2*nm^-1"
@@ -172,7 +171,7 @@ function Λ_regular(ϵ::AbstractFloat,
 
     local J_new
     # check where ε < 5e-3, cut above heights
-    while criterion(S_new, S_old, ϵ, i, maxiter, thick, DATA)
+    while criterion(S_new, S_old, ϵ, i, maxiter, DATA)
         #############################
         # Calculate radiation field #
         #############################
@@ -255,9 +254,7 @@ function Λ_voronoi(ϵ::AbstractFloat,
 
     # destruction probability (Should I include line???)
     ελ = destruction(LTE_pops, sites.electron_density, sites.temperature, line)
-    thick = ελ .> 1e-2
-
-    println("Total $(sum(thick.==0)) are too thin for the solver")
+    println("Minimum $(minimum(ελ)) destruction probability")
 
     C = calculate_C(sites, LTE_pops)
 
@@ -265,7 +262,7 @@ function Λ_voronoi(ϵ::AbstractFloat,
 
     local J_new
     # check where ε < 1e-2, cut above heights
-    while criterion(S_new, S_old, ϵ, i, maxiter, thick, DATA)
+    while criterion(S_new, S_old, ϵ, i, maxiter, DATA)
         #############################
         # Calculate radiation field #
         #############################
@@ -316,7 +313,7 @@ function destruction(LTE_pops::Array{<:NumberDensity},
     # destruction, eq (3.98) in Rutten, 2003
     A21 = line.Aji
     B21 = line.Bji
-    C21 = Cij(2, 1, electron_density, temperature, LTE_pops).*1e3
+    C21 = Cij(2, 1, electron_density, temperature, LTE_pops)
     B_λ0 = B_λ.(line.λ0, temperature)
     ε_λ0 = C21./(C21 .+ A21 .+ B21.*B_λ0)
 end
@@ -326,12 +323,11 @@ function criterion(S_new::Array{<:UnitsIntensity_λ, 4},
                    ϵ::Float64,
                    i::Int,
                    maxiter::Int,
-                   indcs,
                    DATA::String)
     diff = 0
     nλ = size(S_new)[1]
     for l in 1:nλ
-        l_diff = maximum(abs.(1 .- S_old[l,:,:,:][indcs]./S_new[l,:,:,:][indcs])) |> Unitful.NoUnits
+        l_diff = maximum(abs.(1 .- S_old[l,:,:,:]./S_new[l,:,:,:])) |> Unitful.NoUnits
         diff = max(diff, l_diff)
         if isnan(l_diff)
             println("NaN DIFF!, index $l")
@@ -353,12 +349,11 @@ function criterion(S_new::Matrix{<:UnitsIntensity_λ},
                    ϵ::Float64,
                    i::Int,
                    maxiter::Int,
-                   indcs,
                    DATA::String)
     diff = 0
     nλ = size(S_new)[1]
     for l in 1:nλ
-        l_diff = maximum(abs.(1 .- S_old[l, :][indcs]./S_new[l, :][indcs])) |> Unitful.NoUnits
+        l_diff = maximum(abs.(1 .- S_old[l, :]./S_new[l, :])) |> Unitful.NoUnits
         diff = max(diff, l_diff)
         if isnan(l_diff)
             println("NaN DIFF!, index $l")

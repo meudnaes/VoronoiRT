@@ -243,10 +243,10 @@ function LTE_cont(DATA)
                                         LTE_pops[:,:,:,1])
     end
 
-    plot_top_cont(atmos, λ, S_λ, α_cont, θ, ϕ, "LTE_line")
-    # for idλ in eachindex(line.λ)
-        # plot_top_intensity(atmos, line, S_λ, α_tot, θ, ϕ, idλ, "LTE_$idλ")
-    # end
+    # plot_top_cont(atmos, λ, S_λ, α_cont, θ, ϕ, "LTE_line")
+    for idλ in eachindex(λ)
+        plot_top_intensity(atmos, λ, S_λ, α_tot, θ, ϕ, idλ, "LTE_$idλ")
+    end
 
 end
 

@@ -11,7 +11,7 @@ global my_seed = 2022
 Random.seed!(my_seed)
 
 function compare(DATA, quadrature)
-    maxiter = 500
+    maxiter = 100
     println("---Iterating maximum $maxiter iterations---")
     println("--- ! Boosting collisional rates ! ---")
     ϵ = 1e-3
@@ -29,7 +29,6 @@ function compare(DATA, quadrature)
         atmos = Atmosphere(get_atmos(DATA; periodic=true, skip=n_skip)...)
         line = HydrogenicLine(test_atom(nλ_bb, nλ_bf)..., atmos.temperature)
 
-        REGULAR_DATA = "../data/regular_ul2n3_zero_radiation_1.h5"
         REGULAR_DATA = "../data/regular_ul2n3_C.h5"
 
         create_output_file(REGULAR_DATA, length(line.λ), size(atmos.temperature[:, 2:end-1, 2:end-1]), maxiter)
@@ -89,7 +88,7 @@ function compare(DATA, quadrature)
 
         line = HydrogenicLine(test_atom(nλ_bb, nλ_bf)..., sites.temperature)
 
-        VORONOI_DATA = "../data/voronoi_ul2n3_2.h5"
+        VORONOI_DATA = "../data/voronoi_ul2n3_C.h5"
 
         create_output_file(VORONOI_DATA, length(line.λ), n_sites, maxiter)
         write_to_file(nλ_bb, "n_bb", VORONOI_DATA)
@@ -100,10 +99,8 @@ function compare(DATA, quadrature)
         return
     end
 
-    # regular();
-    voronoi();
     regular();
-    # voronoi();
+    voronoi();
 end
 
 function LTE_line(DATA)
@@ -176,16 +173,16 @@ function LTE_line(DATA)
     end
     α_tot = α_line .+ α_cont
 
-    plot_top_line(atmos, line, S_λ, α_tot, θ, ϕ, "LTE_line")
-    # for idλ in eachindex(line.λ)
-        # plot_top_intensity(atmos, line, S_λ, α_tot, θ, ϕ, idλ, "LTE_$idλ")
-    # end
+    # plot_top_line(atmos, line, S_λ, α_tot, θ, ϕ, "LTE_line")
+    for idλ in eachindex(line.λ)
+        plot_top_intensity(atmos, line, S_λ, α_tot, θ, ϕ, idλ, "LTE_$idλ")
+    end
 
 end
 
 DATA = "../data/bifrost_qs006023_s525_quarter.hdf5"
 QUADRATURE = "../quadratures/ul2n3.dat"
 
-# compare(DATA, QUADRATURE);
-LTE_line(DATA)
+compare(DATA, QUADRATURE);
+# LTE_line(DATA)
 print("")

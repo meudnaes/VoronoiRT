@@ -2,6 +2,10 @@ include("line.jl")
 include("functions.jl")
 include("voronoi_utils.jl")
 
+# Push system closer to LTE, makes convergence easier.
+# This is instead of developing operator splitting...
+const BOOST = 1.0e8
+
 """
     calculate_C(atmos::Atmosphere,
                 LTE_pops::Array{<:NumberDensity, 4})
@@ -40,7 +44,7 @@ function calculate_C(atmos::Atmosphere,
         C[l,l,:,:,:] .= 0u"s^-1"
     end
 
-    return C
+    return C # ε ~ 0.1 at the upper parts, or on average, minimum should be 1e-2
 end
 
 """
@@ -519,7 +523,7 @@ function Cij(i::Integer,
         C = C .* ( LTE_populations[:,:,:,j] ./ LTE_populations[:,:,:,i] )
     end
 
-    return C
+    return C.*BOOST
 end
 function Cij(i::Integer,
              j::Integer,
@@ -547,7 +551,7 @@ function Cij(i::Integer,
         C = C .* ( LTE_populations[:,j] ./ LTE_populations[:,i] )
     end
 
-    return C
+    return C.*BOOST
 end
 
 
