@@ -48,45 +48,69 @@ x_r -= x_r[2]
 y_r -= y_r[2]
 r_extent = [x_r[0], x_r[30], y_r[0], y_r[30]]
 
+"""
+Create two heatmaps for both searchlight tests in one figure
+"""
 vmax = intensity_r.max()
-fig, ax = plt.subplots(1, 2, figsize=(10,5), constrained_layout=True)
-im1 = ax[0].imshow(intensity_i,
-                   cmap="magma",
-                   origin="lower",
-                   vmax=vmax,
-                   extent=i_extent)
-
-im2 = ax[1].imshow(intensity_r,
+fig, ax = plt.subplots(1, 2, figsize=(11,5), constrained_layout=True)
+im1 = ax[0].imshow(intensity_r,
                    cmap="magma",
                    origin="lower",
                    vmax=vmax,
                    extent=r_extent)
+ax[0].set_xlabel("x"); ax[0].set_ylabel("y")
 
-plt.colorbar(im2, fraction=0.046, pad=0.04)#im2, cax=1)
-# plt.savefig("searchlight_2D.png", dpi=500)
+im2 = ax[1].imshow(intensity_i,
+                   cmap="magma",
+                   origin="lower",
+                   vmax=vmax,
+                   extent=i_extent)
+ax[1].set_xlabel("x"); ax[1].set_ylabel("y")
+
+plt.colorbar(im2, fraction=0.05, pad=0.06)
+plt.savefig("../img/searchlight_2D.png", dpi=500)
 plt.close()
 
+"""
+Create two surface plots for both searchlight tests in one figure
+Following: https://matplotlib.org/stable/gallery/mplot3d/subplot3d.html
+"""
 X_r, Y_r = np.meshgrid(x_r[0:30], y_r[0:30])
 
-fig = plt.figure()
-ax = fig.gca(projection='3d')
-ax.grid(False)
-ax.plot_surface(X_r, Y_r, intensity_r,
-                cmap="magma",
-                vmax = vmax,
-                rstride=1,
-                cstride=1)
+# set up a figure twice as wide as it is tall
+fig = plt.figure(figsize=(10, 6), constrained_layout=True)#figsize=plt.figaspect(0.5))
 
-plt.show()
+# set up the axes for the first plot
+ax = fig.add_subplot(1, 2, 1, projection='3d')
+ax.grid(False)
+ax.set_box_aspect((np.ptp(X_r), np.ptp(Y_r), np.ptp(intensity_i)))
+ax.set_xlabel("x"); ax.set_ylabel("y")
+ax.xaxis.set_pane_color((1.0, 1.0, 1.0, 0.0))
+ax.yaxis.set_pane_color((1.0, 1.0, 1.0, 0.0))
+ax.zaxis.set_pane_color((1.0, 1.0, 1.0, 0.0))
+ax.plot_surface(X_r, Y_r, intensity_r,
+                       cmap="magma",
+                       vmax = vmax,
+                       rstride=1,
+                       cstride=1)
+
+# ax.set_zlim(-1.01, 1.01)
+
 X_i, Y_i = np.meshgrid(x_i[0:305], y_i[0:305])
 
-fig = plt.figure()
-ax = fig.gca(projection='3d')
+# set up the axes for the second plot
+ax = fig.add_subplot(1, 2, 2, projection='3d')
 ax.grid(False)
-ax.plot_surface(X_i, Y_i, intensity_i,
+ax.set_box_aspect((np.ptp(X_i), np.ptp(Y_i), np.ptp(intensity_i)))
+ax.set_xlabel("x"); ax.set_ylabel("y")
+ax.xaxis.set_pane_color((1.0, 1.0, 1.0, 0.0))
+ax.yaxis.set_pane_color((1.0, 1.0, 1.0, 0.0))
+ax.zaxis.set_pane_color((1.0, 1.0, 1.0, 0.0))
+surf = ax.plot_surface(X_i, Y_i, intensity_i,
                 cmap="magma",
                 vmax = vmax,
                 rstride=5,
                 cstride=5)
-# show it
-plt.show()
+fig.colorbar(surf, fraction=0.04, pad=0.06)
+plt.savefig("../img/searchlight_3D.png", dpi=500)
+plt.close()
