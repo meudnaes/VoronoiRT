@@ -4,7 +4,7 @@ include("voronoi_utils.jl")
 
 # Push system closer to LTE, makes convergence easier.
 # This is instead of developing operator splitting...
-const BOOST = 1.0e8
+const BOOST = 2.0e9
 
 """
     calculate_C(atmos::Atmosphere,

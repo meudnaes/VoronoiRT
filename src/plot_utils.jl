@@ -77,20 +77,20 @@ function plot_top_intensity(atmos::Atmosphere,
     if l1 <= idλ <= l2
         colors = :gist_yarg
     else
-        colors = :inferno
+        colors = :magma
     end
 
     heatmap(ustrip(atmos.x[2:end-1]),
-         ustrip(atmos.y[2:end-1]),
-         transpose(I_top),
-         xaxis="x",
-         yaxis="y",
-         dpi=300,
-         rightmargin=10Plots.mm,
-         title=title*" at $(round(ustrip(line.λ[idλ]); digits=4)) nm",
-         aspect_ratio=:equal,
-         c=colors,
-         clim=(5,200))
+            ustrip(atmos.y[2:end-1]),
+            transpose(I_top),
+            xaxis="x",
+            yaxis="y",
+            dpi=300,
+            rightmargin=10Plots.mm,
+            title=title*" at $(round(ustrip(line.λ[idλ]); digits=4)) nm",
+            aspect_ratio=:equal,
+            c=colors,
+            clim=(5,200))
 
     savefig("../img/compare_line/"*title)
 end
@@ -113,7 +113,7 @@ function plot_top_line(atmos::Atmosphere,
     end
 
     start = line.λidx[1]+1
-    stop =  line.λidx[2] #size(S_λ)[1]
+    stop =  line.λidx[2]
 
     indices = sortperm(line.λ[start:stop])
 
@@ -239,7 +239,7 @@ end
             θ::Float64,
             ϕ::Float64)
 
-plot simulations results
+Compute simulations results for beam angle
 """
 function plotter(atmos::Atmosphere,
                  S_λ::Array{<:UnitsIntensity_λ, 4},
@@ -249,6 +249,18 @@ function plotter(atmos::Atmosphere,
                  title::String)
 
     line = HydrogenicLine(test_atom(50, 20)..., atmos.temperature)
+
+    LTE_pops = LTE_populations(line, atmos)
+
+    # Find continuum extinction
+    α_cont = α_absorption.(line.λ0,
+                           atmos.temperature,
+                           atmos.electron_density*1.0,
+                           LTE_pops[:,:,:,1].+LTE_pops[:,:,:,2],
+                           LTE_pops[:,:,:,3]) .+
+             α_scattering.(line.λ0,
+                           atmos.electron_density,
+                           LTE_pops[:,:,:,1])
 
     γ = γ_constant(line,
                    atmos.temperature,
@@ -263,36 +275,15 @@ function plotter(atmos::Atmosphere,
     k = [cos(θ*π/180), cos(ϕ*π/180)*sin(θ*π/180), sin(ϕ*π/180)*sin(θ*π/180)]
     profile = compute_voigt_profile(line, atmos, damping_λ, k)
 
-    α_line = Array{Float64, 4}(undef, size(profile))u"m^-1"
+    α_tot = Array{Float64, 4}(undef, size(profile))u"m^-1"
     for l in eachindex(line.λ)
-        α_line[l, :, :, :] = αline_λ(line,
-                                     profile[l, :, :, :],
-                                     populations[:, :, :, 2],
-                                     populations[:, :, :, 1])
+        α_tot[l, :, :, :] = αline_λ(line,
+                                    profile[l, :, :, :],
+                                    populations[:, :, :, 2],
+                                    populations[:, :, :, 1]) .+ α_cont
     end
 
-    LTE_pops = LTE_populations(line, atmos)*1.0
-
-    # Find continuum extinction and absorption extinction (only with Thomson and Rayleigh)
-    α_cont = Array{Float64, 4}(undef, (length(line.λ), size(atmos.temperature)...))u"m^-1"
-    for l in eachindex(line.λ)
-        α_cont[l, :, :, :] = α_absorption.(line.λ[l],
-                                           atmos.temperature,
-                                           atmos.electron_density*1.0,
-                                           LTE_pops[:,:,:,1].+LTE_pops[:,:,:,2],
-                                           LTE_pops[:,:,:,3]) .+
-                             α_scattering.(line.λ[l],
-                                           atmos.electron_density,
-                                           LTE_pops[:,:,:,1])
-    end
-
-    α_tot = α_line .+ α_cont
-
-    plot_top_line(atmos, line, S_λ, α_tot, θ, ϕ, title)
-
-    # for i in 51:91
-        # plot_top_intensity(atmos, line, S_λ, α_tot, θ, ϕ, i, "i_map/top_intensity_regular"*string(i))
-    # end
+    return atmos, line, S_λ, α_tot
 end
 
 function plot_convergence(DATA::String, title::String)

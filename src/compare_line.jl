@@ -29,7 +29,7 @@ function compare(DATA, quadrature)
         atmos = Atmosphere(get_atmos(DATA; periodic=true, skip=n_skip)...)
         line = HydrogenicLine(test_atom(nλ_bb, nλ_bf)..., atmos.temperature)
 
-        REGULAR_DATA = "../data/regular_ul2n3_C.h5"
+        REGULAR_DATA = "../data/regular_ul7n12_half_C_2e9.h5"
 
         create_output_file(REGULAR_DATA, length(line.λ), size(atmos.temperature[:, 2:end-1, 2:end-1]), maxiter)
         write_to_file(atmos, REGULAR_DATA, ghost_cells=true)
@@ -88,7 +88,7 @@ function compare(DATA, quadrature)
 
         line = HydrogenicLine(test_atom(nλ_bb, nλ_bf)..., sites.temperature)
 
-        VORONOI_DATA = "../data/voronoi_ul2n3_C.h5"
+        VORONOI_DATA = "../data/voronoi_ul7n12_C_2e9.h5"
 
         create_output_file(VORONOI_DATA, length(line.λ), n_sites, maxiter)
         write_to_file(nλ_bb, "n_bb", VORONOI_DATA)
@@ -100,7 +100,7 @@ function compare(DATA, quadrature)
     end
 
     regular();
-    voronoi();
+    # voronoi();
 end
 
 function LTE_line(DATA)
@@ -180,8 +180,8 @@ function LTE_line(DATA)
 
 end
 
-DATA = "../data/bifrost_qs006023_s525_quarter.hdf5"
-QUADRATURE = "../quadratures/ul2n3.dat"
+DATA = "../data/bifrost_qs006023_s525_half.hdf5"
+QUADRATURE = "../quadratures/ul7n12.dat"
 
 compare(DATA, QUADRATURE);
 # LTE_line(DATA)
