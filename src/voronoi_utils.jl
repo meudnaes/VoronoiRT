@@ -629,3 +629,20 @@ function _initialiseII(p_vec::Matrix{<:Unitful.Length}, atmos::Atmosphere)
     end
     return temperature_new, N_e_new, N_H_new, velocity_z_new, velocity_x_new, velocity_y_new
 end
+
+function inv_dist_itp(idxs::AbstractVector,
+                      dists::AbstractVector,
+                      p::AbstractFloat,
+                      values::AbstractVector)
+    avg_inv_dist = 0
+    f = 0
+    for i in 1:length(idxs)
+        idx = idxs[i]
+        if idx > 0
+            inv_dist = 1/dists[i]^p
+            avg_inv_dist += inv_dist
+            f += values[idx]*inv_dist
+        end
+    end
+    f = f/avg_inv_dist
+end
