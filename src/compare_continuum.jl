@@ -293,10 +293,10 @@ function LTE_voronoi(DATA)
     println("---Preprocessing grid---")
 
     # compute neigbours
-    # run(`./voro.sh $sites_file $neighbours_file
-                   # $(x_min) $(x_max)
-                   # $(y_min) $(y_max)
-                   # $(z_min) $(z_max)`)
+    run(`./voro.sh $sites_file $neighbours_file
+                   $(x_min) $(x_max)
+                   $(y_min) $(y_max)
+                   $(z_min) $(z_max)`)
 
     # Voronoi grid
     sites = VoronoiSites(read_cell(neighbours_file, n_sites, positions)...,
