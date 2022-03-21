@@ -1,4 +1,5 @@
 using Plots
+include("line.jl")
 include("plot_utils.jl")
 include("voronoi_utils.jl")
 include("lambda_continuum.jl")
@@ -266,13 +267,16 @@ function LTE_voronoi(DATA)
     z_max = ustrip(atmos.z[end])
 
     n_sites = floor(Int, nz*nx*ny)
-    positions = rand(3, n_sites)
+    # positions = rand(3, n_sites)
 
-    positions[1, :] = positions[1, :].*(z_max - z_min) .+ z_min
-    positions[2, :] = positions[2, :].*(x_max - x_min) .+ x_min
-    positions[3, :] = positions[3, :].*(y_max - y_min) .+ y_min
+    # positions[1, :] = positions[1, :].*(z_max - z_min) .+ z_min
+    # positions[2, :] = positions[2, :].*(x_max - x_min) .+ x_min
+    # positions[3, :] = positions[3, :].*(y_max - y_min) .+ y_min
 
-    positions = positions*1u"m"
+    positions = rejection_sampling(n_sites, atmos,
+                                   sample_from_destruction(atmos))
+
+    # positions = positions*1u"m"
 
     # rejection_sampling(n_sites, atmos, log10.(ustrip.(atmos.hydrogen_populations)))
     # sample_from_extinction(atmos, 500.0u"nm", n_sites)
@@ -289,10 +293,10 @@ function LTE_voronoi(DATA)
     println("---Preprocessing grid---")
 
     # compute neigbours
-    run(`./voro.sh $sites_file $neighbours_file
-                   $(x_min) $(x_max)
-                   $(y_min) $(y_max)
-                   $(z_min) $(z_max)`)
+    # run(`./voro.sh $sites_file $neighbours_file
+                   # $(x_min) $(x_max)
+                   # $(y_min) $(y_max)
+                   # $(z_min) $(z_max)`)
 
     # Voronoi grid
     sites = VoronoiSites(read_cell(neighbours_file, n_sites, positions)...,
@@ -307,18 +311,18 @@ function LTE_voronoi(DATA)
     λ = 500u"nm"
     # Find continuum extinction (only with Thomson and Rayleigh)
     α_cont = α_absorption.(λ,
-                           atmos.temperature,
-                           atmos.electron_density*1.0,
-                           LTE_pops[:,:,:,1].+LTE_pops[:,:,:,2],
-                           LTE_pops[:,:,:,3]) .+
+                           sites.temperature,
+                           sites.electron_density*1.0,
+                           LTE_pops[:,1].+LTE_pops[:,2],
+                           LTE_pops[:,3]) .+
              α_scattering.(λ,
-                           atmos.electron_density,
-                           LTE_pops[:,:,:,1])
+                           sites.electron_density,
+                           LTE_pops[:,1])
 
     S_λ = blackbody_λ.(λ, sites.temperature)
 
-    θ = 175.0
-    ϕ = 0.1
+    θ = 180.0
+    ϕ = 0.0
 
     k = [cos(θ*π/180), cos(ϕ*π/180)*sin(θ*π/180), sin(ϕ*π/180)*sin(θ*π/180)]
     bottom_layer = sites.layers_up[2] - 1
@@ -327,9 +331,9 @@ function LTE_voronoi(DATA)
     I_0 = blackbody_λ.(500u"nm", sites.temperature[bottom_layer_idx])
     intensity = Delaunay_upII(k, S_λ, α_cont, sites, I_0, 3)
 
-    x = collect(LinRange(sites.x_min, sites.x_max, 10*nx))
-    y = collect(LinRange(sites.y_min, sites.y_max, 10*ny))
-    top_z = atmos.z[50]
+    x = collect(LinRange(sites.x_min, sites.x_max, 2*nx))
+    y = collect(LinRange(sites.y_min, sites.y_max, 2*ny))
+    top_z = atmos.z[end]
 
     tree = KDTree(ustrip(sites.positions))
 
@@ -627,8 +631,8 @@ end
 
 # compare("../data/bifrost_qs006023_s525_half.hdf5", "../quadratures/ul2n3.dat");
 # LTE_ray("../data/bifrost_qs006023_s525_quarter.hdf5")
-LTE_cont("../data/bifrost_qs006023_s525_quarter.hdf5")
-# LTE_voronoi("../data/bifrost_qs006023_s525_quarter.hdf5")
+# LTE_cont("../data/bifrost_qs006023_s525_quarter.hdf5")
+LTE_voronoi("../data/bifrost_qs006023_s525_half.hdf5")
 # test_interpolation("../data/bifrost_qs006023_s525_quarter.hdf5", "../quadratures/n1.dat")
 # test_with_regular("../data/bifrost_qs006023_s525_quarter.hdf5", "../quadratures/n1.dat")
 print("")
