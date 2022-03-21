@@ -301,5 +301,5 @@ function plot_convergence(DATA::String, title::String)
          title=title,
          dpi=300,
          yscale=:log10)
-    savefig("../img/$(split(title)[1])")
+    savefig("../img/$title")
 end

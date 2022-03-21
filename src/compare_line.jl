@@ -10,33 +10,46 @@ include("lambda_iteration.jl")
 global my_seed = 2022
 Random.seed!(my_seed)
 
+function sample_from_destruction(atmos::Atmosphere)
+
+    nλ_bb = 0
+    nλ_bf = 0
+    line = HydrogenicLine(test_atom(nλ_bb, nλ_bf)..., atmos.temperature)
+    LTE_pops = LTE_populations(line, atmos)
+    ελ = destruction(LTE_pops, atmos.electron_density, atmos.temperature, line)
+
+    return ustrip.(ελ)
+end
+
 function compare(DATA, quadrature)
     maxiter = 100
     println("---Iterating maximum $maxiter iterations---")
     println("--- ! Boosting collisional rates ! ---")
     ϵ = 1e-3
 
-    θ = 10
-    ϕ = 10
-
     n_skip = 1
 
-    nλ_bb = 50
-    nλ_bf = 20
+    nλ_bb = 20
+    nλ_bf = 50
 
     function regular()
 
         atmos = Atmosphere(get_atmos(DATA; periodic=true, skip=n_skip)...)
         line = HydrogenicLine(test_atom(nλ_bb, nλ_bf)..., atmos.temperature)
 
-        REGULAR_DATA = "../data/regular_ul7n12_half_C_2e9.h5"
+        REGULAR_DATA = "../data/regular_ul7n12_half_C_2e9_2.h5"
 
         create_output_file(REGULAR_DATA, length(line.λ), size(atmos.temperature[:, 2:end-1, 2:end-1]), maxiter)
         write_to_file(atmos, REGULAR_DATA, ghost_cells=true)
         write_to_file(nλ_bb, "n_bb", REGULAR_DATA)
         write_to_file(nλ_bf, "n_bf", REGULAR_DATA)
 
-        @time J_mean, S_λ, α_cont, populations = Λ_regular(ϵ, maxiter, atmos, line, quadrature, REGULAR_DATA)
+        (J_mean, S_λ, α_cont, populations), time = @timed Λ_regular(ϵ, maxiter, atmos, line, quadrature, REGULAR_DATA)
+
+        h5open(REGULAR_DATA, "r+") do file
+           file["time"][:] = time
+        end
+
         return
     end
 
@@ -49,9 +62,18 @@ function compare(DATA, quadrature)
         nz = length(atmos.z)
         ny = length(atmos.y)
 
-        n_sites = floor(Int, nz*nx*ny)
+        n_sites = floor(Int, nz*nx*ny/4)
 
-        positions = rejection_sampling(n_sites, atmos, log10.(ustrip.(atmos.hydrogen_populations)))
+        positions = rejection_sampling(n_sites, atmos,
+                                       sample_from_destruction(atmos))
+
+        # scatter(ustrip.(positions[2,:]),
+                # ustrip.(positions[3,:]),
+                # ustrip.(positions[1,:]),
+                # dpi=300)
+        # savefig("../img/sites")
+
+        # return
 
         sites_file = "../data/sites_compare.txt"
         neighbours_file = "../data/neighbours_compare.txt"
@@ -88,19 +110,24 @@ function compare(DATA, quadrature)
 
         line = HydrogenicLine(test_atom(nλ_bb, nλ_bf)..., sites.temperature)
 
-        VORONOI_DATA = "../data/voronoi_ul7n12_C_2e9.h5"
+        VORONOI_DATA = "../data/voronoi_ul7n12_C_2e9_half_reduced_destruction.h5"
 
         create_output_file(VORONOI_DATA, length(line.λ), n_sites, maxiter)
         write_to_file(nλ_bb, "n_bb", VORONOI_DATA)
         write_to_file(nλ_bf, "n_bf", VORONOI_DATA)
         write_to_file(sites, VORONOI_DATA)
 
-        @time J_mean, S_λ, α_cont, populations = Λ_voronoi(ϵ, maxiter, sites, line, quadrature, VORONOI_DATA)
+        (J_mean, S_λ, α_cont, populations), time = @timed Λ_voronoi(ϵ, maxiter, sites, line, quadrature, VORONOI_DATA)
+
+        h5open(VORONOI_DATA, "r+") do file
+           file["time"][:] = time
+        end
+
         return
     end
 
-    regular();
-    # voronoi();
+    # regular();
+    voronoi();
 end
 
 function LTE_line(DATA)

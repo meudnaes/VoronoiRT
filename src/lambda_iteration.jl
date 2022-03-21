@@ -228,8 +228,6 @@ function Λ_voronoi(ϵ::AbstractFloat,
 
     # Initial populations
     populations = zero_radiation_populations(line, sites)
-	# LTE_populations(line, sites)
-    # LTE_populations(line, sites)
 
     # Find continuum extinction and absorption extinction (only with Thomson and Rayleigh)
     α_cont = α_absorption.(line.λ0,

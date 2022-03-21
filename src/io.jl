@@ -219,6 +219,8 @@ function create_output_file(output_path::String, nλ::Int, atmosphere_size::Tupl
 
         write(file, "n_bb", Vector{Int}(undef, 1))
         write(file, "n_bf", Vector{Int}(undef, 1))
+
+        write(file, "time", Vector{Float64}(undef, 1))
     end
 end
 
@@ -249,5 +251,7 @@ function create_output_file(output_path::String, nλ::Int, n_sites::Int,
 
         write(file, "n_bb", Vector{Int}(undef, 1))
         write(file, "n_bf", Vector{Int}(undef, 1))
+
+        write(file, "time", Vector{Float64}(undef, 1))
     end
 end

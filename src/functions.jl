@@ -387,47 +387,11 @@ function range_bounds(sign::Int, bound::Int)
 end
 
 """
-Computes weights for linear integration of source function,
-approximating `exp(-Δτ)` for very small and very large values of `Δτ`.
-"""
-function weights(Δτ::T) where T <: AbstractFloat
-    if Δτ < 5e-4
-        w1 = Δτ * (1 - Δτ / 2)
-        w2 = Δτ^2 * (0.5f0 - Δτ / 3)
-    elseif Δτ > 50
-        w1 = w2 = one(T)
-    else
-        expΔτ = exp(-Δτ)
-        w1 = 1 - expΔτ
-        w2 = w1 - Δτ * expΔτ
-    end
-    return w1, w2
-end
-
-"""
-    coefficients(w1, w2, Δτ_upwind)
-
-Coefficients for integrating the formal solution with a linear interpolation of
-the source function. w1 and w2 are the weights.
-"""
-function coefficients(w1::Float64, w2::Float64, Δτ_upwind::Float64)
-    if Δτ_upwind == 0
-        a = 0
-        b = 0
-        c = 1
-    else
-        a = w2/Δτ_upwind
-        b = w1 - w2/Δτ_upwind
-        c = exp(-Δτ_upwind)
-    end
-    return a, b, c
-end
-
-"""
     linear_weights(Δτ::AbstractFloat)
 
 Compute weights for linear integration of Source function in formal solution,
-also return weight for I_0.
+also return weight for I_0. Approximates expressions with Taylor expansion for
+large or small optical depth
 """
 function linear_weights(Δτ::AbstractFloat)
     local α, β, expΔτ

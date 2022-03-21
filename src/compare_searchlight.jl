@@ -11,7 +11,7 @@ include("irregular_ray_tracing.jl")
 pyplot()
 
 function searchlight_irregular()
-    nx = ny = nz = 51
+    nx = ny = nz = 21
 
     n_sites = nz*nx*ny
 
@@ -61,6 +61,14 @@ function searchlight_irregular()
                          bounds[2,1]*1u"m", bounds[2,2]*1u"m",
                          bounds[3,1]*1u"m", bounds[3,2]*1u"m",
                          n_sites)
+
+    npzwrite("../python/sites.npy", ustrip.(sites.positions))
+    npzwrite("../python/layers_up.npy", sites.layers_up)
+    npzwrite("../python/perm_up.npy", sites.perm_up)
+    npzwrite("../python/layers_down.npy", sites.layers_down)
+    npzwrite("../python/perm_down.npy", sites.perm_down)
+
+    return
 
     S = zeros(n_sites)u"kW*m^-2*nm^-1"
     α = zeros(n_sites)u"m^-1"
@@ -212,5 +220,5 @@ function searchlight_regular()
     print("")
 end
 
-# searchlight_irregular()
-searchlight_regular()
+searchlight_irregular()
+# searchlight_regular()

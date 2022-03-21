@@ -64,11 +64,10 @@ function Delaunay_upII(k::Vector{Float64},
                     S_centre = S[idx]
                     S_upwind = S[upwind_index]
 
-                    w1, w2 =  weights(Δτ_upwind)
-                    a_ijk, b_ijk, c_ijk = coefficients(w1, w2, Δτ_upwind)
+                    α_ijk, β_ijk, expΔτ = linear_weights(Δτ_upwind)
 
                     I_upwind = I[upwind_index]
-                    I[idx] += (a_ijk*S_upwind + b_ijk*S_centre + c_ijk*I_upwind)*dot_weights[rn]
+                    I[idx] += (expΔτ*I_upwind + α_ijk*S_upwind + β_ijk*S_centre)*dot_weights[rn]
                 end
             end
         end
@@ -134,11 +133,10 @@ function Delaunay_downII(k::Vector{Float64},
                     S_centre = S[idx]
                     S_upwind = S[upwind_index]
 
-                    w1, w2 =  weights(Δτ_upwind)
-                    a_ijk, b_ijk, c_ijk = coefficients(w1, w2, Δτ_upwind)
+                    α_ijk, β_ijk, expΔτ = linear_weights(Δτ_upwind)
 
                     I_upwind = I[upwind_index]
-                    I[idx] += (a_ijk*S_upwind + b_ijk*S_centre + c_ijk*I_upwind)*dot_weights[rn]
+                    I[idx] += (expΔτ*I_upwind + α_ijk*S_upwind + β_ijk*S_centre)*dot_weights[rn]
                 end
             end
         end
