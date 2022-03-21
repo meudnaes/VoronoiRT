@@ -329,7 +329,7 @@ function LTE_voronoi(DATA)
     bottom_layer_idx = sites.perm_up[1:bottom_layer]
     println("---Ray tracing---")
     I_0 = blackbody_λ.(500u"nm", sites.temperature[bottom_layer_idx])
-    intensity = Delaunay_upII(k, S_λ, α_cont, sites, I_0, 3)
+    intensity = Delaunay_upII(k, S_λ, I_0, α_cont, sites, 3)
 
     x = collect(LinRange(sites.x_min, sites.x_max, 2*nx))
     y = collect(LinRange(sites.y_min, sites.y_max, 2*ny))
