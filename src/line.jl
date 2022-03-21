@@ -312,3 +312,31 @@ the energy difference between two levels.
 function transition_λ(χ1::Unitful.Energy, χ2::Unitful.Energy)
     ((h * c_0) / (χ2-χ1)) |> u"nm"
 end
+
+"""
+    sample_from_destruction(atmos::Atmosphere)
+
+Sample Voronoi sites by using destruction probability as probability density.
+"""
+function sample_from_destruction(atmos::Atmosphere)
+
+    nλ_bb = 0
+    nλ_bf = 0
+    line = HydrogenicLine(test_atom(nλ_bb, nλ_bf)..., atmos.temperature)
+    LTE_pops = LTE_populations(line, atmos)
+    ελ = destruction(LTE_pops, atmos.electron_density, atmos.temperature, line)
+
+    return ustrip.(ελ)
+end
+
+function destruction(LTE_pops::Array{<:NumberDensity},
+                     electron_density::Array{<:NumberDensity},
+                     temperature::Array{<:Unitful.Temperature},
+                     line::HydrogenicLine)
+    # destruction, eq (3.98) in Rutten, 2003
+    A21 = line.Aji
+    B21 = line.Bji
+    C21 = Cij(2, 1, electron_density, temperature, LTE_pops)
+    B_λ0 = B_λ.(line.λ0, temperature)
+    ε_λ0 = C21./(C21 .+ A21 .+ B21.*B_λ0)
+end

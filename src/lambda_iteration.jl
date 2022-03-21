@@ -304,18 +304,6 @@ function Λ_voronoi(ϵ::AbstractFloat,
     return J_new, S_new, α_cont, populations
 end
 
-function destruction(LTE_pops::Array{<:NumberDensity},
-                     electron_density::Array{<:NumberDensity},
-                     temperature::Array{<:Unitful.Temperature},
-                     line::HydrogenicLine)
-    # destruction, eq (3.98) in Rutten, 2003
-    A21 = line.Aji
-    B21 = line.Bji
-    C21 = Cij(2, 1, electron_density, temperature, LTE_pops)
-    B_λ0 = B_λ.(line.λ0, temperature)
-    ε_λ0 = C21./(C21 .+ A21 .+ B21.*B_λ0)
-end
-
 function criterion(S_new::Array{<:UnitsIntensity_λ, 4},
                    S_old::Array{<:UnitsIntensity_λ, 4},
                    ϵ::Float64,
