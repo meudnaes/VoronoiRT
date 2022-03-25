@@ -37,7 +37,7 @@ function compare(DATA, quadrature)
         atmos = Atmosphere(get_atmos(DATA; periodic=true, skip=n_skip)...)
         line = HydrogenicLine(test_atom(nλ_bb, nλ_bf)..., atmos.temperature)
 
-        REGULAR_DATA = "../data/regular_ul7n12_half_C_2e9_2.h5"
+        REGULAR_DATA = "../data/regular_ul7n12_half_C_2e9_single.h5"
 
         create_output_file(REGULAR_DATA, length(line.λ), size(atmos.temperature[:, 2:end-1, 2:end-1]), maxiter)
         write_to_file(atmos, REGULAR_DATA, ghost_cells=true)
@@ -62,10 +62,9 @@ function compare(DATA, quadrature)
         nz = length(atmos.z)
         ny = length(atmos.y)
 
-        n_sites = floor(Int, nz*nx*ny/4)
+        n_sites = 500_000# floor(Int, nz*nx*ny)
 
-        positions = rejection_sampling(n_sites, atmos,
-                                       sample_from_destruction(atmos))
+        positions = sample_from_extinction(atmos, 121.562u"nm", n_sites)
 
         # scatter(ustrip.(positions[2,:]),
                 # ustrip.(positions[3,:]),
@@ -110,7 +109,9 @@ function compare(DATA, quadrature)
 
         line = HydrogenicLine(test_atom(nλ_bb, nλ_bf)..., sites.temperature)
 
-        VORONOI_DATA = "../data/voronoi_ul7n12_C_2e9_half_reduced_destruction.h5"
+        VORONOI_DATA = "../data/voronoi_ul7n12_C_2e9_extinction_none.h5"
+        # "no_run.h5"
+         # "../data/voronoi_ul7n12_C_2e9_extinction.h5"
 
         create_output_file(VORONOI_DATA, length(line.λ), n_sites, maxiter)
         write_to_file(nλ_bb, "n_bb", VORONOI_DATA)
@@ -127,7 +128,7 @@ function compare(DATA, quadrature)
     end
 
     # regular();
-    voronoi();
+    # voronoi();
 end
 
 function LTE_line(DATA)
@@ -207,7 +208,7 @@ function LTE_line(DATA)
 
 end
 
-DATA = "../data/bifrost_qs006023_s525_half.hdf5"
+DATA = "../data/bifrost_qs006023_s525.hdf5"
 QUADRATURE = "../quadratures/ul7n12.dat"
 
 compare(DATA, QUADRATURE);

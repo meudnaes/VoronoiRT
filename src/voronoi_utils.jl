@@ -313,12 +313,12 @@ function Voronoi_to_Raster(sites::VoronoiSites,
     α_grid = Array{Float64, 4}(undef, (nλ, nz, nx, ny))u"m^-1"
     populations_grid = Array{Float64, 4}(undef, (nz, nx, ny, 3))u"m^-3"
 
-    tree = KDTree(ustrip(sites.positions))
-    for k in 1:length(z)
+    tree = KDTree(ustrip.(sites.positions))
+    for j in 1:length(y)
         for i in 1:length(x)
-            for j in 1:length(y)
+            for k in 1:length(z)
                 grid_point = [z[k], x[i], y[j]]
-                idx, dist = nn(tree, ustrip(grid_point))
+                idx, dist = nn(tree, ustrip.(grid_point))
                 temperature[k, i, j] = sites.temperature[idx]
                 electron_density[k, i, j] = sites.electron_density[idx]
                 hydrogen_populations[k, i, j] = sites.hydrogen_populations[idx]
@@ -382,12 +382,12 @@ function Voronoi_to_Raster(sites::VoronoiSites,
     S_λ_grid = Array{Float64, 3}(undef, (nz, nx, ny))u"kW*nm^-1*m^-2"
     α_grid = Array{Float64, 3}(undef, (nz, nx, ny))u"m^-1"
 
-    tree = KDTree(ustrip(sites.positions))
-    for k in 1:length(z)
+    tree = KDTree(ustrip.(sites.positions))
+    for j in 1:length(y)
         for i in 1:length(x)
-            for j in 1:length(y)
+            for k in 1:length(z)
                 grid_point = [z[k], x[i], y[j]]
-                idx, dist = nn(tree, ustrip(grid_point))
+                idx, dist = nn(tree, ustrip.(grid_point))
                 temperature[k, i, j] = sites.temperature[idx]
                 electron_density[k, i, j] = sites.electron_density[idx]
                 hydrogen_populations[k, i, j] = sites.hydrogen_populations[idx]
@@ -449,12 +449,12 @@ function Voronoi_to_Raster(sites::VoronoiSites,
     S_λ_grid = Array{Float64, 4}(undef, (nλ, nz, nx, ny))u"kW*nm^-1*m^-2"
     populations_grid = Array{Float64, 4}(undef, (nz, nx, ny, 3))u"m^-3"
 
-    tree = KDTree(ustrip(sites.positions))
-    for k in 1:length(z)
+    tree = KDTree(ustrip.(sites.positions))
+    for j in 1:length(y)
         for i in 1:length(x)
-            for j in 1:length(y)
+            for k in 1:length(z)
                 grid_point = [z[k], x[i], y[j]]
-                idx, dist = nn(tree, ustrip(grid_point))
+                idx, _ = nn(tree, ustrip.(grid_point))
                 temperature[k, i, j] = sites.temperature[idx]
                 electron_density[k, i, j] = sites.electron_density[idx]
                 hydrogen_populations[k, i, j] = sites.hydrogen_populations[idx]
@@ -516,12 +516,12 @@ function Voronoi_to_Raster(sites::VoronoiSites,
     velocity_x = copy(velocity_z)
     velocity_y = copy(velocity_z)
 
-    tree = KDTree(ustrip(sites.positions))
+    tree = KDTree(ustrip.(sites.positions))
     for k in 1:length(z)
         for i in 1:length(x)
             for j in 1:length(y)
                 grid_point = [z[k], x[i], y[j]]
-                idx, dist = nn(tree, ustrip(grid_point))
+                idx, dist = nn(tree, ustrip.(grid_point))
                 temperature[k, i, j] = sites.temperature[idx]
                 electron_density[k, i, j] = sites.electron_density[idx]
                 hydrogen_populations[k, i, j] = sites.hydrogen_populations[idx]

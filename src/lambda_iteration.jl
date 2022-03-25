@@ -24,12 +24,12 @@ function J_λ_regular(S_λ::Array{<:UnitsIntensity_λ, 4},
                    atmos.electron_density)
 
     damping_λ = Array{Float64, 4}(undef, size(S_λ))
-    for l in eachindex(line.λ)
+    Threads.@threads for l in eachindex(line.λ)
         damping_λ[l, :, :, :] = damping.(γ, line.λ[l], line.ΔD)
     end
 
     # total extinction
-    α_tot = Array{Float64, 4}(undef, size(damping_λ))u"m^-1"
+    # α_tot = Array{Float64, 4}(undef, size(damping_λ))u"m^-1"
 
     for i in 1:n_angles
         θ = θ_array[i]
@@ -38,19 +38,19 @@ function J_λ_regular(S_λ::Array{<:UnitsIntensity_λ, 4},
 
         profile = compute_voigt_profile(line, atmos, damping_λ, k)
 
-        for l in eachindex(line.λ)
-            α_tot[l,:,:,:] = αline_λ(line,
-                                     profile[l, :, :, :],
-                                     populations[:, :, :, 2],
-                                     populations[:, :, :, 1])
-            α_tot[l,:,:,:] += α_cont
+        Threads.@threads for l in eachindex(line.λ)
+
+            α_tot = αline_λ(line,
+                            profile[l, :, :, :],
+                            populations[:, :, :, 2],
+                            populations[:, :, :, 1]) + α_cont
 
             if θ > 90
                 I_0 =  B_λ.(line.λ[l], atmos.temperature[1,:,:])
                 J_λ[l,:,:,:] .+= weights[i].*short_characteristics_up(k,
                                                                       S_λ[l,:,:,:],
                                                                       I_0,
-                                                                      α_tot[l,:,:,:],
+                                                                      α_tot,
                                                                       atmos;
                                                                       n_sweeps=3)
             elseif θ < 90
@@ -58,7 +58,7 @@ function J_λ_regular(S_λ::Array{<:UnitsIntensity_λ, 4},
                 J_λ[l,:,:,:] .+= weights[i].*short_characteristics_down(k,
                                                                         S_λ[l,:,:,:],
                                                                         I_0,
-                                                                        α_tot[l,:,:,:],
+                                                                        α_tot,
                                                                         atmos;
                                                                         n_sweeps=3)
             end
@@ -86,14 +86,11 @@ function J_λ_voronoi(S_λ::Matrix{<:UnitsIntensity_λ},
                    sites.electron_density)
 
     damping_λ = Matrix{Float64}(undef, size(S_λ))
-    for l in eachindex(line.λ)
+    Threads.@threads for l in eachindex(line.λ)
        damping_λ[l, :] = damping.(γ, line.λ[l], line.ΔD)
     end
 
     n_sweeps = 3
-
-    # total extinction
-    α_tot = Matrix{Float64}(undef, size(damping_λ))u"m^-1"
 
     for i in 1:n_points
         θ = θ_array[i]
@@ -102,24 +99,23 @@ function J_λ_voronoi(S_λ::Matrix{<:UnitsIntensity_λ},
 
         profile = compute_voigt_profile(line, sites, damping_λ, k)
 
-        for l in eachindex(line.λ)
-            α_tot[l,:] = αline_λ(line,
-                                 profile[l, :],
-                                 populations[:, 2],
-                                 populations[:, 1])
+        Threads.@threads for l in eachindex(line.λ)
 
-            α_tot[l,:] += α_cont
+            α_tot = αline_λ(line,
+                            profile[l, :],
+                            populations[:, 2],
+                            populations[:, 1]) + α_cont
 
             if θ_array[i] > 90
                 bottom_layer = sites.layers_up[2] - 1
                 bottom_layer_idx = sites.perm_up[1:bottom_layer]
                 I_0 = B_λ.(line.λ[l], sites.temperature[bottom_layer_idx])
-                J_λ[l,:] += weights[i]*Delaunay_upII(k, S_λ[l,:], I_0, α_tot[l,:], sites, n_sweeps)
+                J_λ[l,:] += weights[i]*Delaunay_upII(k, S_λ[l,:], I_0, α_tot, sites, n_sweeps)
 
             elseif θ_array[i] < 90
                 top_layer = sites.layers_down[2] - 1
                 I_0 = zeros(top_layer)u"kW*nm^-1*m^-2"
-                J_λ[l,:] += weights[i]*Delaunay_downII(k, S_λ[l,:], I_0, α_tot[l,:], sites, n_sweeps)
+                J_λ[l,:] += weights[i]*Delaunay_downII(k, S_λ[l,:], I_0, α_tot, sites, n_sweeps)
             end
 
         end

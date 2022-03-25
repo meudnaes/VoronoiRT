@@ -1,5 +1,4 @@
 using Plots
-include("line.jl")
 include("plot_utils.jl")
 include("voronoi_utils.jl")
 include("lambda_continuum.jl")
@@ -154,9 +153,10 @@ function compare(DATA, quadrature)
 
 end
 
-function LTE_ray(DATA)
+function LTE_compare(DATA)
 
-    atmos = Atmosphere(get_atmos(DATA; periodic=false, skip=1)...)
+    #=
+    atmos = Atmosphere(get_atmos(DATA; periodic=true, skip=1)...)
 
     # choose a wavelength
     λ = 500u"nm"  # nm
@@ -165,7 +165,7 @@ function LTE_ray(DATA)
     LTE_pops = LTE_ionisation(atmos)
 
     # Find continuum extinction (only with Thomson and Rayleigh)
-    α_cont = α_cont = α_absorption.(λ,
+    α_cont = α_absorption.(λ,
                            atmos.temperature,
                            atmos.electron_density*1.0,
                            LTE_pops[:,:,:,1].+LTE_pops[:,:,:,2],
@@ -177,11 +177,12 @@ function LTE_ray(DATA)
     # Planck function
     S_λ = blackbody_λ.(λ, atmos.temperature)
 
-    θ = 170.0
-    ϕ = 15.0
+    θ = 180.0
+    ϕ = 0.0
 
     k = [cos(θ*π/180), cos(ϕ*π/180)*sin(θ*π/180), sin(ϕ*π/180)*sin(θ*π/180)]
     intensity = short_characteristics_up(k, S_λ, S_λ[1,:,:], α_cont, atmos)
+    =#
 
     #=
     intensity = Array{Float64, 3}(undef, size(α_cont))u"kW*m^-2*nm^-1"
@@ -196,22 +197,130 @@ function LTE_ray(DATA)
     end
     =#
 
-    I_top = ustrip(uconvert.(u"kW*nm^-1*m^-2", intensity[end, :, :]))
-    μ = abs(k[1])
+    # I_regular = transpose.(ustrip.(uconvert.(u"kW*nm^-1*m^-2", intensity[end, 2:end-1, 2:end-1])))
+    # x_regular = atmos.x[2:end-1]
+    # y_regular = atmos.y[2:end-1]
 
-    heatmap(ustrip.(atmos.x),
-            ustrip.(atmos.y),
-            transpose.(I_top),
+    atmos = Atmosphere(get_atmos(DATA; periodic=false, skip=1)...)
+
+    nx = length(atmos.x)
+    nz = length(atmos.z)
+    ny = length(atmos.y)
+
+    x_min = ustrip(atmos.x[1])
+    x_max = ustrip(atmos.x[end])
+    y_min = ustrip(atmos.y[1])
+    y_max = ustrip(atmos.y[end])
+    z_min = ustrip(atmos.z[1])
+    z_max = ustrip(atmos.z[end])
+
+    n_sites = 4_000_000 # floor(Int, nz*nx*ny/2)
+    # positions = rand(3, n_sites)
+
+    # positions[1, :] = positions[1, :].*(z_max - z_min) .+ z_min
+    # positions[2, :] = positions[2, :].*(x_max - x_min) .+ x_min
+    # positions[3, :] = positions[3, :].*(y_max - y_min) .+ y_min
+
+    # positions = positions*1u"m"
+    λ = 500u"nm"
+
+    # positions = sample_from_destruction(atmos, n_sites)
+    positions = sample_from_extinction(atmos, λ, n_sites)
+    # positions = rejection_sampling(n_sites, atmos, ustrip.(atmos.temperature))
+
+
+    sites_file = "../data/sites_continuum_$n_sites.txt"
+    neighbours_file = "../data/neighbours_continuum_$n_sites.txt"
+    # write sites to file
+    write_arrays(ustrip.(positions[2, :]),
+                 ustrip.(positions[3, :]),
+                 ustrip.(positions[1, :]),
+                 sites_file)
+
+    # export sites to voro++, and compute grid information
+    println("---Preprocessing grid---")
+
+    # compute neigbours
+    run(`./voro.sh $sites_file $neighbours_file
+                   $(x_min) $(x_max)
+                   $(y_min) $(y_max)
+                   $(z_min) $(z_max)`)
+
+    # Voronoi grid
+    sites = VoronoiSites(read_cell(neighbours_file, n_sites, positions)...,
+                         _initialise(positions, atmos)...,
+                         z_min*1u"m", z_max*1u"m",
+                         x_min*1u"m", x_max*1u"m",
+                         y_min*1u"m", y_max*1u"m",
+                         n_sites)
+
+    # Lte populations
+    LTE_pops = LTE_ionisation(sites)
+
+    S_λ = Matrix{Float64}(undef, (1, n_sites))u"kW*m^-2*nm^-1"
+    S_λ[1,:] = blackbody_λ.(λ, sites.temperature)
+    # S_λ = cat(S_λ; dims=ndims(S_λ)+1)
+
+    # println(typeof(S_λ))
+    # println(typeof(LTE_pops))
+
+    atmos_size = (nz, nx, ny).*1.5
+    atmos_size = floor.(Int, atmos_size)
+
+    atmos, S_λ_grid, populations_grid = Voronoi_to_Raster(sites, atmos_size,
+                                                          S_λ, LTE_pops;
+                                                          periodic=true)
+
+    # Find continuum extinction (only with Thomson and Rayleigh)
+    α_cont = α_absorption.(λ,
+                           atmos.temperature,
+                           atmos.electron_density*1.0,
+                           populations_grid[:,:,:,1].+populations_grid[:,:,:,2],
+                           populations_grid[:,:,:,3]) .+
+             α_scattering.(λ,
+                           atmos.electron_density,
+                           populations_grid[:,:,:,1])
+
+    θ = 180.0
+    ϕ = 0.0
+
+    k = [cos(θ*π/180), cos(ϕ*π/180)*sin(θ*π/180), sin(ϕ*π/180)*sin(θ*π/180)]
+
+    I_0 = S_λ_grid[1,1,:,:]
+    intensity = short_characteristics_up(k, S_λ_grid[1,:,:,:], I_0, α_cont, atmos; n_sweeps=3)
+
+    I_irregular = transpose.(ustrip.(uconvert.(u"kW*nm^-1*m^-2", intensity[end, 2:end-1, 2:end-1])))
+    x_irregular = atmos.x[2:end-1]
+    y_irregular = atmos.y[2:end-1]
+
+    c_max = maximum(I_regular)
+    c_min = minimum(I_regular)
+
+    # heatmap(x_regular,
+    #         y_regular,
+    #         I_regular,
+    #         xaxis="x",
+    #         yaxis="y",
+    #         dpi=300,
+    #         rightmargin=10Plots.mm,
+    #         title="LTE Intensity (500 nm), Regular Grid",
+    #         aspect_ratio=:equal,
+    #         clim=(c_min, c_max))
+    #
+    # savefig("../img/compare_continuum/LTE_ray_regular")
+
+    heatmap(x_irregular,
+            y_irregular,
+            I_irregular,
             xaxis="x",
             yaxis="y",
             dpi=300,
             rightmargin=10Plots.mm,
-            title="Continuum at 500 nm",
-            aspect_ratio=:equal)
+            title="LTE Intensity (500 nm), Irregular Grid",
+            aspect_ratio=:equal,
+            clim=(c_min, c_max))
 
-    savefig("../img/compare_continuum/cont500_$(floor(Int, 100*μ))")
-
-    return 0
+    savefig("../img/compare_continuum/LTE_ray_irregular_$n_sites")
 end
 
 function LTE_cont(DATA)
@@ -251,117 +360,7 @@ function LTE_cont(DATA)
 
 end
 
-function LTE_voronoi(DATA)
-
-    atmos = Atmosphere(get_atmos(DATA; periodic=false, skip=1)...)
-
-    nx = length(atmos.x)
-    nz = length(atmos.z)
-    ny = length(atmos.y)
-
-    x_min = ustrip(atmos.x[1])
-    x_max = ustrip(atmos.x[end])
-    y_min = ustrip(atmos.y[1])
-    y_max = ustrip(atmos.y[end])
-    z_min = ustrip(atmos.z[1])
-    z_max = ustrip(atmos.z[end])
-
-    n_sites = floor(Int, nz*nx*ny)
-    # positions = rand(3, n_sites)
-
-    # positions[1, :] = positions[1, :].*(z_max - z_min) .+ z_min
-    # positions[2, :] = positions[2, :].*(x_max - x_min) .+ x_min
-    # positions[3, :] = positions[3, :].*(y_max - y_min) .+ y_min
-
-    positions = rejection_sampling(n_sites, atmos,
-                                   sample_from_destruction(atmos))
-
-    # positions = positions*1u"m"
-
-    # rejection_sampling(n_sites, atmos, log10.(ustrip.(atmos.hydrogen_populations)))
-    # sample_from_extinction(atmos, 500.0u"nm", n_sites)
-
-    sites_file = "../data/sites_continuum.txt"
-    neighbours_file = "../data/neighbours_continuum.txt"
-    # write sites to file
-    write_arrays(ustrip.(positions[2, :]),
-                 ustrip.(positions[3, :]),
-                 ustrip.(positions[1, :]),
-                 sites_file)
-
-    # export sites to voro++, and compute grid information
-    println("---Preprocessing grid---")
-
-    # compute neigbours
-    run(`./voro.sh $sites_file $neighbours_file
-                   $(x_min) $(x_max)
-                   $(y_min) $(y_max)
-                   $(z_min) $(z_max)`)
-
-    # Voronoi grid
-    sites = VoronoiSites(read_cell(neighbours_file, n_sites, positions)...,
-                         _initialise(positions, atmos)...,
-                         z_min*1u"m", z_max*1u"m",
-                         x_min*1u"m", x_max*1u"m",
-                         y_min*1u"m", y_max*1u"m",
-                         n_sites)
-
-    # Lte populations
-    LTE_pops = LTE_ionisation(sites)
-    λ = 500u"nm"
-    # Find continuum extinction (only with Thomson and Rayleigh)
-    α_cont = α_absorption.(λ,
-                           sites.temperature,
-                           sites.electron_density*1.0,
-                           LTE_pops[:,1].+LTE_pops[:,2],
-                           LTE_pops[:,3]) .+
-             α_scattering.(λ,
-                           sites.electron_density,
-                           LTE_pops[:,1])
-
-    S_λ = blackbody_λ.(λ, sites.temperature)
-
-    θ = 180.0
-    ϕ = 0.0
-
-    k = [cos(θ*π/180), cos(ϕ*π/180)*sin(θ*π/180), sin(ϕ*π/180)*sin(θ*π/180)]
-    bottom_layer = sites.layers_up[2] - 1
-    bottom_layer_idx = sites.perm_up[1:bottom_layer]
-    println("---Ray tracing---")
-    I_0 = blackbody_λ.(500u"nm", sites.temperature[bottom_layer_idx])
-    intensity = Delaunay_upII(k, S_λ, I_0, α_cont, sites, 3)
-
-    x = collect(LinRange(sites.x_min, sites.x_max, 2*nx))
-    y = collect(LinRange(sites.y_min, sites.y_max, 2*ny))
-    top_z = atmos.z[end]
-
-    tree = KDTree(ustrip(sites.positions))
-
-    I_top = Matrix{Float64}(undef, (length(x), length(y)))u"kW*m^-2*nm^-1"
-    for i in 1:length(x)
-        for j in 1:length(y)
-            position = [top_z, x[i], y[j]]
-            idx, dist = nn(tree, ustrip(position))
-            I_top[i, j] = intensity[idx]
-        end
-    end
-
-    heatmap(ustrip.(x),
-            ustrip.(y),
-            ustrip.(transpose.(I_top)),
-            xaxis="x",
-            yaxis="y",
-            dpi=300,
-            rightmargin=10Plots.mm,
-            title="Top Intensity, Irregular Grid",
-            aspect_ratio=:equal)
-
-    savefig("../img/compare_continuum/irregular_top_I")
-
-    return 0
-end
-
-function test_interpolation(DATA, quadrature)
+function test_interpolation(DATA)
     atmos = Atmosphere(get_atmos(DATA; periodic=false, skip=1)...)
 
     nx = length(atmos.x)
@@ -417,13 +416,13 @@ function test_interpolation(DATA, quadrature)
     λ = 500u"nm"
     # Find continuum extinction
     α_cont = α_absorption.(λ,
-                           atmos.temperature,
-                           atmos.electron_density*1.0,
-                           LTE_pops[:,:,:,1].+LTE_pops[:,:,:,2],
-                           LTE_pops[:,:,:,3]) .+
+                           sites.temperature,
+                           sites.electron_density*1.0,
+                           LTE_pops[:,1].+LTE_pops[:,2],
+                           LTE_pops[:,3]) .+
              α_scattering.(λ,
-                           atmos.electron_density,
-                           LTE_pops[:,:,:,1])
+                           sites.electron_density,
+                           LTE_pops[:,1])
 
     S_λ = blackbody_λ.(λ, sites.temperature)
 
@@ -459,7 +458,7 @@ function test_interpolation(DATA, quadrature)
             yaxis="y",
             dpi=300,
             rightmargin=10Plots.mm,
-            title="Top Intensity, Irregular Grid",
+            title="LTE Intensity (500 nm), Irregular Grid",
             aspect_ratio=:equal)
 
     savefig("../img/compare_continuum/irregular_top_I")
@@ -630,9 +629,8 @@ end
 
 
 # compare("../data/bifrost_qs006023_s525_half.hdf5", "../quadratures/ul2n3.dat");
-# LTE_ray("../data/bifrost_qs006023_s525_quarter.hdf5")
+LTE_compare("../data/bifrost_qs006023_s525.hdf5")
 # LTE_cont("../data/bifrost_qs006023_s525_quarter.hdf5")
-LTE_voronoi("../data/bifrost_qs006023_s525_half.hdf5")
-# test_interpolation("../data/bifrost_qs006023_s525_quarter.hdf5", "../quadratures/n1.dat")
+# test_interpolation("../data/bifrost_qs006023_s525_half.hdf5", "../quadratures/n1.dat")
 # test_with_regular("../data/bifrost_qs006023_s525_quarter.hdf5", "../quadratures/n1.dat")
 print("")

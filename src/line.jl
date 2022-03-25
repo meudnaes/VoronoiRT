@@ -82,7 +82,8 @@ function compute_voigt_profile(line::HydrogenicLine, atmos::Atmosphere,
 
     # calculate line profile.
     profile = Array{Float64, 4}(undef, (length(line.λ), size(v_los)...))u"m^-1"
-    for l in eachindex(line.λ)
+
+    Threads.@threads for l in eachindex(line.λ)
         v = (line.λ[l] .- line.λ0 .+ line.λ0.*v_los./c_0)./line.ΔD .|> Unitful.NoUnits
         profile[l, :, :, :] = voigt_profile.(damping_λ[l, :, :, :], v, line.ΔD)
     end
@@ -106,7 +107,8 @@ function compute_voigt_profile(line::HydrogenicLine, sites::VoronoiSites,
 
     # calculate line profile
     profile = Array{Float64, 2}(undef, (length(line.λ), sites.n))u"m^-1"
-    for l in eachindex(line.λ)
+
+    Threads.@threads for l in eachindex(line.λ)
         v = (line.λ[l] - line.λ0 .+ line.λ0 .* v_los ./ c_0) ./ line.ΔD .|> Unitful.NoUnits
         profile[l, :] = voigt_profile.(damping_λ[l, :], v, line.ΔD)
     end
@@ -143,11 +145,11 @@ Computes the line of sight velocity in all locations of the regular grid, given
 the direction of the ray, k.
 """
 function line_of_sight_velocity(atmos::Atmosphere, k::Vector{Float64})
-    v_los = Array{Unitful.Velocity, 3}(undef, size(atmos.velocity_z))
+    v_los = Array{Float64, 3}(undef, size(atmos.velocity_z))u"m/s"
 
-    for kk in 1:length(atmos.z)
+    for jj in 1:length(atmos.y)
         for ii in 1:length(atmos.x)
-            for jj in 1:length(atmos.y)
+            for kk in 1:length(atmos.z)
                 velocity = [atmos.velocity_z[kk, ii, jj],
                             atmos.velocity_x[kk, ii, jj],
                             atmos.velocity_y[kk, ii, jj]]
@@ -156,7 +158,7 @@ function line_of_sight_velocity(atmos::Atmosphere, k::Vector{Float64})
             end
         end
     end
-    return v_los::Array{Unitful.Velocity, 3}
+    return v_los
 end
 
 """
@@ -166,7 +168,7 @@ Computes the line of sight velocity in all locations of the irregular grid,
 given the direction of the ray, k.
 """
 function line_of_sight_velocity(sites::VoronoiSites, k::Vector{Float64})
-    v_los = Vector{Unitful.Velocity}(undef, sites.n)
+    v_los = Vector{Float64}(undef, sites.n)u"m/s"
 
     for ii in 1:sites.n
         velocity = [sites.velocity_z[ii],
@@ -174,7 +176,7 @@ function line_of_sight_velocity(sites::VoronoiSites, k::Vector{Float64})
                     sites.velocity_y[ii]]
         v_los[ii] = dot(velocity, k)
     end
-    return v_los::Vector{Unitful.Velocity}
+    return v_los
 end
 
 """
@@ -318,7 +320,7 @@ end
 
 Sample Voronoi sites by using destruction probability as probability density.
 """
-function sample_from_destruction(atmos::Atmosphere)
+function sample_from_destruction(atmos::Atmosphere, n_sites::Int)
 
     nλ_bb = 0
     nλ_bf = 0
@@ -326,7 +328,104 @@ function sample_from_destruction(atmos::Atmosphere)
     LTE_pops = LTE_populations(line, atmos)
     ελ = destruction(LTE_pops, atmos.electron_density, atmos.temperature, line)
 
-    return ustrip.(ελ)
+    positions = rejection_sampling(n_sites, atmos, ustrip.(ελ))
+end
+
+"""
+    sample_from_extinction(atmos::Atmosphere,
+                                λ0::Unitful.Length,
+                                n_sites::Int)
+
+Sample Voronoi sites by using continuum extinction as probalility density.
+"""
+function sample_from_extinction(atmos::Atmosphere,
+                                λ0::Unitful.Length,
+                                n_sites::Int)
+
+    populations = LTE_ionisation(atmos)
+
+    # Find continuum extinction and absorption extinction (without Thomson and Rayleigh)
+    α_cont = α_absorption.(λ0,
+                           atmos.temperature,
+                           atmos.electron_density*1.0,
+                           populations[:,:,:,1].+populations[:,:,:,2],
+                           populations[:,:,:,3]) .+
+             α_scattering.(λ0,
+                           atmos.electron_density,
+                           populations[:,:,:,1])
+
+    positions = rejection_sampling(n_sites, atmos, log10.(ustrip.(α_cont)))
+    return positions
+end
+
+function LTE_ionisation(atmos::Atmosphere)
+
+    χl = 0.0u"cm^-1"
+    χu = 82258.211u"cm^-1"
+    χ∞ = 109677.617u"cm^-1"
+
+    χl = Transparency.wavenumber_to_energy(χl)
+    χu = Transparency.wavenumber_to_energy(χu)
+    χ∞ = Transparency.wavenumber_to_energy(χ∞)
+
+    χ = [χl, χu, χ∞]
+    # Ionised hydrogen -> g = 1
+    g = [2, 8, 1]
+    atom_density = atmos.hydrogen_populations
+    nz, nx, ny = size(atom_density)
+
+    n_levels = 3
+    n_relative = ones(Float64, nz, nx, ny, n_levels)
+
+    saha_const = (k_B / h) * (2π * m_e) / h
+    saha_factor = 2 * ((saha_const * atmos.temperature).^(3/2) ./ atmos.electron_density) .|> u"m/m"
+
+    for i=2:n_levels
+        ΔE = χ[i] - χ[1]
+        n_relative[:,:,:,i] = g[i] / g[1] * exp.(-ΔE ./ (k_B * atmos.temperature))
+    end
+
+    # Last level is ionised stage (H II)
+    n_relative[:,:,:,n_levels] .*= saha_factor
+    n_relative[:,:,:,1] = 1 ./ sum(n_relative, dims=4)[:,:,:,1]
+    n_relative[:,:,:,2:end] .*= n_relative[:,:,:,1]
+
+    return n_relative .* atom_density
+end
+
+function LTE_ionisation(sites::VoronoiSites)
+
+    χl = 0.0u"cm^-1"
+    χu = 82258.211u"cm^-1"
+    χ∞ = 109677.617u"cm^-1"
+
+    χl = Transparency.wavenumber_to_energy(χl)
+    χu = Transparency.wavenumber_to_energy(χu)
+    χ∞ = Transparency.wavenumber_to_energy(χ∞)
+
+    χ = [χl, χu, χ∞]
+    # Ionised hydrogen -> g = 1
+    g = [2, 8, 1]
+    atom_density = sites.hydrogen_populations
+    n_sites = length(atom_density)
+
+    n_levels = 3
+    n_relative = ones(Float64, n_sites, n_levels)
+
+    saha_const = (k_B / h) * (2π * m_e) / h
+    saha_factor = 2 * ((saha_const * sites.temperature).^(3/2) ./ sites.electron_density) .|> u"m/m"
+
+    for i=2:n_levels
+        ΔE = χ[i] - χ[1]
+        n_relative[:,i] = g[i] / g[1] * exp.(-ΔE ./ (k_B * sites.temperature))
+    end
+
+    # Last level is ionised stage (H II)
+    n_relative[:,n_levels] .*= saha_factor
+    n_relative[:,1] = 1 ./ sum(n_relative, dims=2)[:,1]
+    n_relative[:,2:end] .*= n_relative[:,1]
+
+    return n_relative .* atom_density
 end
 
 function destruction(LTE_pops::Array{<:NumberDensity},

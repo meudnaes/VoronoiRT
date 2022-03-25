@@ -410,25 +410,3 @@ function linear_weights(Δτ::AbstractFloat)
     end
     return α, β, expΔτ
 end
-
-"""
-    sample_from_extinction(atmos::Atmosphere,
-                                λ0::Unitful.Length,
-                                n_sites::Int)
-
-Sample Voronoi sites by using continuum extinction as probalility density.
-"""
-function sample_from_extinction(atmos::Atmosphere,
-                                λ0::Unitful.Length,
-                                n_sites::Int)
-
-    # Find continuum extinction and absorption extinction (without Thomson and Rayleigh)
-    α_cont = α_continuum.(λ0,
-                          atmos.temperature*1.0,
-                          atmos.electron_density*1.0,
-                          atmos.hydrogen_populations*1.0,
-                          atmos.hydrogen_populations*1.0)
-
-    positions = rejection_sampling(n_sites, atmos, ustrip.(α_cont))
-    return positions
-end
