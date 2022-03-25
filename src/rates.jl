@@ -221,8 +221,8 @@ function Rij(J::Array{<:UnitsIntensity_λ, 4},
     fill!(R,0.0u"s^-1")
 
     for l=1:(nλ-1)
-        R += 2π/hc*((λ[l]*σij[l,:,:,:].*J[l,:,:,:] .+
-                     λ[l+1]*σij[l+1,:,:,:].*J[l+1,:,:,:]).*(λ[l+1] - λ[l]))./1000
+        R += @. 2π/hc*((λ[l]*σij[l,:,:,:]*J[l,:,:,:] +
+                     λ[l+1]*σij[l+1,:,:,:]*J[l+1,:,:,:])*(λ[l+1] - λ[l]))/1000
     end
 
     return R
@@ -236,8 +236,8 @@ function Rij(J::Matrix{<:UnitsIntensity_λ},
     fill!(R,0.0u"s^-1")
 
     for l=1:(nλ-1)
-        R += 2π/hc*((λ[l]*σij[l,:].*J[l,:] .+
-                     λ[l+1]*σij[l+1,:].*J[l+1,:]).*(λ[l+1] - λ[l]))./1000
+        R += @. 2π/hc*((λ[l]*σij[l,:]*J[l,:] +
+                     λ[l+1]*σij[l+1,:]*J[l+1,:])*(λ[l+1] - λ[l]))/1000
     end
 
     return R
@@ -259,8 +259,8 @@ function Rij(J::Array{<:UnitsIntensity_λ, 4},
     fill!(R,0.0u"s^-1")
 
     for l=1:(nλ-1)
-        R +=  2π/hc*(λ[l]*σij[l].*J[l,:,:,:] .+
-                     λ[l+1]*σij[l+1].*J[l+1,:,:,:]).*(λ[l+1] - λ[l])./1000
+        R += @. 2π/hc*(λ[l]*σij[l]*J[l,:,:,:] +
+                     λ[l+1]*σij[l+1]*J[l+1,:,:,:])*(λ[l+1] - λ[l])/1000
     end
 
     return R
@@ -274,8 +274,8 @@ function Rij(J::Matrix{<:UnitsIntensity_λ},
     fill!(R,0.0u"s^-1")
 
     for l=1:(nλ-1)
-        R +=  2π/hc*(λ[l]*σij[l].*J[l,:] .+
-                     λ[l+1]*σij[l+1].*J[l+1,:]).*(λ[l+1] - λ[l])./1000
+        R += @. 2π/hc*(λ[l]*σij[l]*J[l,:] +
+                     λ[l+1]*σij[l+1]*J[l+1,:])*(λ[l+1] - λ[l])/1000
     end
 
     return R
@@ -300,8 +300,8 @@ function Rji(J::Array{<:UnitsIntensity_λ, 4},
 
     # Trapezoid rule
     for l=1:(nλ-1)
-        R += 2π/hc*(σij[l,:,:,:].*Gij[l,:,:,:].*λ[l].*(2*h*c_0^2/λ[l]^5 .+ J[l,:,:,:] ) .+
-                    σij[l+1,:,:,:].*Gij[l+1,:,:,:].*λ[l+1].*(2*h*c_0^2 / λ[l+1]^5 .+ J[l+1,:,:,:] )).*(λ[l+1] - λ[l])
+        R += @. 2π/hc*(σij[l,:,:,:]*Gij[l,:,:,:]*λ[l]*(2*h*c_0^2/λ[l]^5 + J[l,:,:,:] ) +
+                    σij[l+1,:,:,:]*Gij[l+1,:,:,:]*λ[l+1]*(2*h*c_0^2 / λ[l+1]^5 + J[l+1,:,:,:] ))*(λ[l+1] - λ[l])
     end
 
     return R
@@ -317,8 +317,8 @@ function Rji(J::Matrix{<:UnitsIntensity_λ},
 
     # Trapezoid rule
     for l=1:(nλ-1)
-        R += 2π/hc*(σij[l,:].*Gij[l,:].*λ[l].*(2*h*c_0^2/λ[l]^5 .+ J[l,:] ) .+
-                    σij[l+1,:].*Gij[l+1,:].*λ[l+1].*(2*h*c_0^2 / λ[l+1]^5 .+ J[l+1,:] )).*(λ[l+1] - λ[l])
+        R += @. 2π/hc*(σij[l,:]*Gij[l,:]*λ[l]*(2*h*c_0^2/λ[l]^5 + J[l,:] ) +
+                    σij[l+1,:]*Gij[l+1,:]*λ[l+1]*(2*h*c_0^2 / λ[l+1]^5 + J[l+1,:] ))*(λ[l+1] - λ[l])
     end
 
     return R
@@ -343,8 +343,8 @@ function Rji(J::Array{<:UnitsIntensity_λ, 4},
 
     # Trapezoid rule
     for l=1:(nλ-1)
-        R += 2π/hc * (σij[l].*Gij[l,:,:,:].*λ[l].*(2*hc*c_0/λ[l]^5 .+ J[l,:,:,:]) .+
-                      σij[l+1].*Gij[l+1,:,:,:].*λ[l+1].*(2*hc*c_0/λ[l+1]^5 .+ J[l+1,:,:,:])).*(λ[l+1] - λ[l])
+        R += @. 2π/hc * (σij[l]*Gij[l,:,:,:]*λ[l]*(2*hc*c_0/λ[l]^5 + J[l,:,:,:]) +
+                      σij[l+1]*Gij[l+1,:,:,:]*λ[l+1]*(2*hc*c_0/λ[l+1]^5 + J[l+1,:,:,:]))*(λ[l+1] - λ[l])
     end
 
     return R
@@ -360,8 +360,8 @@ function Rji(J::Matrix{<:UnitsIntensity_λ},
 
     # Trapezoid rule
     for l=1:(nλ-1)
-        R += 2π/hc * (σij[l].*Gij[l,:].*λ[l].*(2*hc*c_0/λ[l]^5 .+ J[l,:]) .+
-                      σij[l+1].*Gij[l+1,:].*λ[l+1].*(2*hc*c_0/λ[l+1]^5 .+ J[l+1,:])).*(λ[l+1] - λ[l])
+        R += @. 2π/hc * (σij[l]*Gij[l,:]*λ[l]*(2*hc*c_0/λ[l]^5 + J[l,:]) +
+                      σij[l+1]*Gij[l+1,:]*λ[l+1]*(2*hc*c_0/λ[l+1]^5 + J[l+1,:]))*(λ[l+1] - λ[l])
     end
 
     return R
@@ -463,7 +463,7 @@ function Gij(i::Integer,
     n_ratio = LTE_populations[:,:,:,i] ./LTE_populations[:,:,:,j]
 
     for l=1:nλ
-        G[l,:,:,:] =  n_ratio .* exp.(- hc ./ (k_B*λ[l]*temperature))
+        G[l,:,:,:] = @. n_ratio * exp(- hc / (k_B*λ[l]*temperature))
     end
 
     return G
@@ -481,7 +481,7 @@ function Gij(i::Integer,
     n_ratio = LTE_populations[:,i] ./LTE_populations[:,j]
 
     for l=1:nλ
-        G[l,:] =  n_ratio .* exp.(- hc ./ (k_B*λ[l]*temperature))
+        G[l,:] = @. n_ratio * exp(- hc / (k_B*λ[l]*temperature))
     end
 
     return G
@@ -520,7 +520,7 @@ function Cij(i::Integer,
         elseif i == ionisation_level
             C = coll_ion_hydrogen_johnson.(j, electron_density, temperature)
         end
-        C = C .* ( LTE_populations[:,:,:,j] ./ LTE_populations[:,:,:,i] )
+        C = @. C * ( LTE_populations[:,:,:,j] / LTE_populations[:,:,:,i] )
     end
 
     return C.*BOOST
@@ -548,7 +548,7 @@ function Cij(i::Integer,
         elseif i == ionisation_level
             C = coll_ion_hydrogen_johnson.(j, electron_density, temperature)
         end
-        C = C .* ( LTE_populations[:,j] ./ LTE_populations[:,i] )
+        C = @. C * ( LTE_populations[:,j] / LTE_populations[:,i] )
     end
 
     return C.*BOOST

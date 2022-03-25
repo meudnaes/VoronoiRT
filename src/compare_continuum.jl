@@ -155,7 +155,6 @@ end
 
 function LTE_compare(DATA)
 
-    #=
     atmos = Atmosphere(get_atmos(DATA; periodic=true, skip=1)...)
 
     # choose a wavelength
@@ -182,7 +181,6 @@ function LTE_compare(DATA)
 
     k = [cos(θ*π/180), cos(ϕ*π/180)*sin(θ*π/180), sin(ϕ*π/180)*sin(θ*π/180)]
     intensity = short_characteristics_up(k, S_λ, S_λ[1,:,:], α_cont, atmos)
-    =#
 
     #=
     intensity = Array{Float64, 3}(undef, size(α_cont))u"kW*m^-2*nm^-1"
@@ -197,9 +195,9 @@ function LTE_compare(DATA)
     end
     =#
 
-    # I_regular = transpose.(ustrip.(uconvert.(u"kW*nm^-1*m^-2", intensity[end, 2:end-1, 2:end-1])))
-    # x_regular = atmos.x[2:end-1]
-    # y_regular = atmos.y[2:end-1]
+    I_regular = transpose.(ustrip.(uconvert.(u"kW*nm^-1*m^-2", intensity[end, 2:end-1, 2:end-1])))
+    x_regular = atmos.x[2:end-1]
+    y_regular = atmos.y[2:end-1]
 
     atmos = Atmosphere(get_atmos(DATA; periodic=false, skip=1)...)
 
@@ -214,7 +212,7 @@ function LTE_compare(DATA)
     z_min = ustrip(atmos.z[1])
     z_max = ustrip(atmos.z[end])
 
-    n_sites = 4_000_000 # floor(Int, nz*nx*ny/2)
+    n_sites = 8_000_000 # floor(Int, nz*nx*ny/2)
     # positions = rand(3, n_sites)
 
     # positions[1, :] = positions[1, :].*(z_max - z_min) .+ z_min
@@ -264,7 +262,7 @@ function LTE_compare(DATA)
     # println(typeof(S_λ))
     # println(typeof(LTE_pops))
 
-    atmos_size = (nz, nx, ny).*1.5
+    atmos_size = (nz, nx, ny).*2
     atmos_size = floor.(Int, atmos_size)
 
     atmos, S_λ_grid, populations_grid = Voronoi_to_Raster(sites, atmos_size,
@@ -320,7 +318,7 @@ function LTE_compare(DATA)
             aspect_ratio=:equal,
             clim=(c_min, c_max))
 
-    savefig("../img/compare_continuum/LTE_ray_irregular_$n_sites")
+    savefig("../img/compare_continuum/LTE_ray_irregular_$(n_sites)_2")
 end
 
 function LTE_cont(DATA)

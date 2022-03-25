@@ -109,7 +109,7 @@ function compute_voigt_profile(line::HydrogenicLine, sites::VoronoiSites,
     profile = Array{Float64, 2}(undef, (length(line.λ), sites.n))u"m^-1"
 
     Threads.@threads for l in eachindex(line.λ)
-        v = (line.λ[l] - line.λ0 .+ line.λ0 .* v_los ./ c_0) ./ line.ΔD .|> Unitful.NoUnits
+        v = @. (line.λ[l] - line.λ0 + line.λ0*v_los/c_0)/line.ΔD .|> Unitful.NoUnits
         profile[l, :] = voigt_profile.(damping_λ[l, :], v, line.ΔD)
     end
 
@@ -188,7 +188,7 @@ function αline_λ(line::HydrogenicLine,
                  n_j::Array{<:NumberDensity},
                  n_i::Array{<:NumberDensity})
 
-    return (h*c_0/(4*π*line.λ0) .* profile .* (n_i .* line.Bij .- n_j .* line.Bji)) .|> u"m^-1"
+    return @. (h*c_0/(4*π*line.λ0) * profile * (n_i * line.Bij - n_j * line.Bji)) |> u"m^-1"
 end
 
 function test_atom(nλ_bb::Int, nλ_bf::Int)
@@ -437,5 +437,5 @@ function destruction(LTE_pops::Array{<:NumberDensity},
     B21 = line.Bji
     C21 = Cij(2, 1, electron_density, temperature, LTE_pops)
     B_λ0 = B_λ.(line.λ0, temperature)
-    ε_λ0 = C21./(C21 .+ A21 .+ B21.*B_λ0)
+    ε_λ0 = @. C21/(C21 + A21 + B21*B_λ0)
 end

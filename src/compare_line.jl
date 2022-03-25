@@ -27,7 +27,7 @@ function compare(DATA, quadrature)
     println("--- ! Boosting collisional rates ! ---")
     ϵ = 1e-3
 
-    n_skip = 1
+    n_skip = 4
 
     nλ_bb = 20
     nλ_bf = 50
@@ -37,7 +37,8 @@ function compare(DATA, quadrature)
         atmos = Atmosphere(get_atmos(DATA; periodic=true, skip=n_skip)...)
         line = HydrogenicLine(test_atom(nλ_bb, nλ_bf)..., atmos.temperature)
 
-        REGULAR_DATA = "../data/regular_ul7n12_half_C_2e9_single.h5"
+        REGULAR_DATA = "../data/test.h5"
+        # "regular_ul7n12_half_C_2e9_single.h5"
 
         create_output_file(REGULAR_DATA, length(line.λ), size(atmos.temperature[:, 2:end-1, 2:end-1]), maxiter)
         write_to_file(atmos, REGULAR_DATA, ghost_cells=true)
@@ -127,7 +128,7 @@ function compare(DATA, quadrature)
         return
     end
 
-    # regular();
+    regular();
     # voronoi();
 end
 
