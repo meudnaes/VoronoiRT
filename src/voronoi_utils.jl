@@ -630,6 +630,83 @@ function _initialiseII(p_vec::Matrix{<:Unitful.Length}, atmos::Atmosphere)
     return temperature_new, N_e_new, N_H_new, velocity_z_new, velocity_x_new, velocity_y_new
 end
 
+function Voronoi_to_Raster_inv_dist(sites::VoronoiSites,
+                                    atmos_size::Tuple,
+                                    S_λ::Matrix{<:UnitsIntensity_λ},
+                                    populations::Matrix{<:NumberDensity};
+                                    periodic=false)
+
+    
+    p = 3.0
+    n_neighbours = 15
+    
+    z = collect(LinRange(sites.z_min, sites.z_max,
+                         floor(Int, atmos_size[1])))
+    x = collect(LinRange(sites.x_min, sites.x_max,
+                         floor(Int, atmos_size[2])))
+    y = collect(LinRange(sites.y_min, sites.y_max,
+                         floor(Int, atmos_size[3])))
+
+    nλ = size(S_λ)[1]
+    nz = length(z)
+    nx = length(x)
+    ny = length(y)
+
+    temperature = Array{Float64, 3}(undef, (nz, ny, nx))u"K"
+    electron_density = Array{Float64, 3}(undef, (nz, ny, nx))u"m^-3"
+    hydrogen_populations = Array{Float64, 3}(undef, (nz, ny, nx))u"m^-3"
+    velocity_z = Array{Float64, 3}(undef, (nz, ny, nx))u"m*s^-1"
+    velocity_x = copy(velocity_z)
+    velocity_y = copy(velocity_z)
+    S_λ_grid = Array{Float64, 4}(undef, (nλ, nz, nx, ny))u"kW*nm^-1*m^-2"
+    populations_grid = Array{Float64, 4}(undef, (nz, nx, ny, 3))u"m^-3"
+
+    tree = KDTree(ustrip.(sites.positions))
+    for j in 1:length(y)
+        for i in 1:length(x)
+            for k in 1:length(z)
+                grid_point = [z[k], x[i], y[j]]
+                idxs, dists = knn(tree, ustrip.(grid_point), n_neighbours)
+                
+                temperature[k,i,j] = inv_dist_itp(idxs, dists, p, sites.temperature)
+                electron_density[k,i,j] = inv_dist_itp(idxs, dists, p, sites.electron_density)
+                hydrogen_populations[k,i,j] = inv_dist_itp(idxs, dists, p, sites.hydrogen_populations)
+                velocity_z[k,i,j] = inv_dist_itp(idxs, dists, p, sites.velocity_z)
+                velocity_x[k,i,j] = inv_dist_itp(idxs, dists, p, sites.velocity_x)
+                velocity_y[k,i,j] = inv_dist_itp(idxs, dists, p, sites.velocity_y)
+                for l in nλ 
+                    S_λ_grid[l,k,i,j] = inv_dist_itp(idxs, dists, p, S_λ[l,:])
+                end
+                for u in size(populations)[2]
+                    populations_grid[k,i,j,u] = inv_dist_itp(idxs, dists, p, populations[:,u])
+                end
+                
+            end
+        end
+    end
+
+    if periodic
+        voronoi_atmos = Atmosphere(z,
+                                   periodic_borders(x),
+                                   periodic_borders(y),
+                                   periodic_borders(temperature),
+                                   periodic_borders(electron_density),
+                                   periodic_borders(hydrogen_populations),
+                                   periodic_borders(velocity_z),
+                                   periodic_borders(velocity_x),
+                                   periodic_borders(velocity_y))
+
+        S_λ_grid = periodic_borders(S_λ_grid)
+        populations_grid = periodic_pops(populations_grid)
+    else
+        voronoi_atmos = Atmosphere(z, x, y, temperature,
+                                   electron_density, hydrogen_populations,
+                                   velocity_z, velocity_x, velocity_y)
+    end
+
+    return voronoi_atmos, S_λ_grid, populations_grid
+end
+
 function inv_dist_itp(idxs::AbstractVector,
                       dists::AbstractVector,
                       p::AbstractFloat,

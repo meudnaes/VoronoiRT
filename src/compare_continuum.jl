@@ -1,3 +1,4 @@
+using NPZ
 using Plots
 include("plot_utils.jl")
 include("voronoi_utils.jl")
@@ -153,13 +154,14 @@ function compare(DATA, quadrature)
 
 end
 
-function LTE_compare(DATA)
+function LTE_compare(DATA::String, n_sites::Int)
 
     atmos = Atmosphere(get_atmos(DATA; periodic=true, skip=1)...)
 
     # choose a wavelength
     λ = 500u"nm"  # nm
-
+    
+    """
     # Lte populations
     LTE_pops = LTE_ionisation(atmos)
 
@@ -181,24 +183,12 @@ function LTE_compare(DATA)
 
     k = [cos(θ*π/180), cos(ϕ*π/180)*sin(θ*π/180), sin(ϕ*π/180)*sin(θ*π/180)]
     intensity = short_characteristics_up(k, S_λ, S_λ[1,:,:], α_cont, atmos)
-
-    #=
-    intensity = Array{Float64, 3}(undef, size(α_cont))u"kW*m^-2*nm^-1"
-    for idx in eachindex(atmos.x)
-        for idy in eachindex(atmos.y)
-            intensity[:, idx, idy] = Transparency.piecewise_1D_linear(atmos.z,
-                                              α_cont[:, idx, idy],
-                                              B_λ[:, idx, idy];
-                                              to_end=true,
-                                              initial_condition=:source)
-        end
-    end
-    =#
-
+    
     I_regular = transpose.(ustrip.(uconvert.(u"kW*nm^-1*m^-2", intensity[end, 2:end-1, 2:end-1])))
     x_regular = atmos.x[2:end-1]
     y_regular = atmos.y[2:end-1]
-
+    """
+    
     atmos = Atmosphere(get_atmos(DATA; periodic=false, skip=1)...)
 
     nx = length(atmos.x)
@@ -212,18 +202,17 @@ function LTE_compare(DATA)
     z_min = ustrip(atmos.z[1])
     z_max = ustrip(atmos.z[end])
 
-    n_sites = 8_000_000 # floor(Int, nz*nx*ny/2)
-    # positions = rand(3, n_sites)
+    #positions = rand(3, n_sites)
 
-    # positions[1, :] = positions[1, :].*(z_max - z_min) .+ z_min
-    # positions[2, :] = positions[2, :].*(x_max - x_min) .+ x_min
-    # positions[3, :] = positions[3, :].*(y_max - y_min) .+ y_min
+    #positions[1, :] = positions[1, :].*(z_max - z_min) .+ z_min
+    #positions[2, :] = positions[2, :].*(x_max - x_min) .+ x_min
+    #positions[3, :] = positions[3, :].*(y_max - y_min) .+ y_min
 
-    # positions = positions*1u"m"
-    λ = 500u"nm"
-
-    # positions = sample_from_destruction(atmos, n_sites)
+    #positions = positions*1u"m"
+    
     positions = sample_from_extinction(atmos, λ, n_sites)
+    # positions = sample_from_destruction(atmos, n_sites)
+    # positions = sample_from_temp_gradient(atmos, n_sites)
     # positions = rejection_sampling(n_sites, atmos, ustrip.(atmos.temperature))
 
 
@@ -257,7 +246,6 @@ function LTE_compare(DATA)
 
     S_λ = Matrix{Float64}(undef, (1, n_sites))u"kW*m^-2*nm^-1"
     S_λ[1,:] = blackbody_λ.(λ, sites.temperature)
-    # S_λ = cat(S_λ; dims=ndims(S_λ)+1)
 
     # println(typeof(S_λ))
     # println(typeof(LTE_pops))
@@ -291,72 +279,60 @@ function LTE_compare(DATA)
     x_irregular = atmos.x[2:end-1]
     y_irregular = atmos.y[2:end-1]
 
-    c_max = maximum(I_regular)
-    c_min = minimum(I_regular)
+    npzwrite("../data/LTE/I_irregular_$(n_sites)_extinction.npy", I_irregular)
 
-    # heatmap(x_regular,
-    #         y_regular,
-    #         I_regular,
-    #         xaxis="x",
-    #         yaxis="y",
-    #         dpi=300,
-    #         rightmargin=10Plots.mm,
-    #         title="LTE Intensity (500 nm), Regular Grid",
-    #         aspect_ratio=:equal,
-    #         clim=(c_min, c_max))
-    #
-    # savefig("../img/compare_continuum/LTE_ray_regular")
-
-    heatmap(x_irregular,
-            y_irregular,
-            I_irregular,
-            xaxis="x",
-            yaxis="y",
-            dpi=300,
-            rightmargin=10Plots.mm,
-            title="LTE Intensity (500 nm), Irregular Grid",
-            aspect_ratio=:equal,
-            clim=(c_min, c_max))
-
-    savefig("../img/compare_continuum/LTE_ray_irregular_$(n_sites)_2")
 end
 
-function LTE_cont(DATA)
+
+function LTE_regular(DATA)
+    
+    if occursin("quarter", DATA)
+        RES = "quarter"
+    elseif occursin("half", DATA)
+        RES = "half"
+    else
+        RES = "full"
+    end
+    
+    println("Continuum at $(RES) resolution, regular grid")
+    
+    atmos = Atmosphere(get_atmos(DATA; periodic=true, skip=1)...)
+
+    # choose a wavelength
+    λ = 500u"nm"  # nm
+
+    # Lte populations
+    LTE_pops = LTE_ionisation(atmos)
+
+    # Find continuum extinction (only with Thomson and Rayleigh)
+    α_cont = α_absorption.(λ,
+                           atmos.temperature,
+                           atmos.electron_density*1.0,
+                           LTE_pops[:,:,:,1].+LTE_pops[:,:,:,2],
+                           LTE_pops[:,:,:,3]) .+
+             α_scattering.(λ,
+                           atmos.electron_density,
+                           LTE_pops[:,:,:,1])
+
+    # Planck function
+    S_λ = blackbody_λ.(λ, atmos.temperature)
+
     θ = 180.0
     ϕ = 0.0
 
-    atmos = Atmosphere(get_atmos(DATA; periodic=true)...)
+    k = [cos(θ*π/180), cos(ϕ*π/180)*sin(θ*π/180), sin(ϕ*π/180)*sin(θ*π/180)]
+    intensity = short_characteristics_up(k, S_λ, S_λ[1,:,:], α_cont, atmos)
 
-    # LTE populations
-    LTE_pops = LTE_ionisation(atmos)
+    I_regular = transpose.(ustrip.(uconvert.(u"kW*nm^-1*m^-2", intensity[end, 2:end-1, 2:end-1])))
+    x_regular = atmos.x[2:end-1]
+    y_regular = atmos.y[2:end-1]
 
-    λ = collect(LinRange(50, 500, 100))u"nm"
-
-    # The source function is the Planck function
-    B_0 = Array{Float64, 4}(undef, (length(λ), size(atmos.temperature)...))u"kW*m^-2*nm^-1"
-    for l in eachindex(λ)
-        B_0[l, :, :, :] = Transparency.blackbody_λ.(λ[l], atmos.temperature*1.0)
-    end
-    S_λ = copy(B_0)
-
-    α_cont = Array{Float64, 4}(undef, size(B_0))u"m^-1"
-    for l in eachindex(λ)
-        α_cont[l,:,:,:] = α_absorption.(λ[l],
-                                        atmos.temperature,
-                                        atmos.electron_density*1.0,
-                                        LTE_pops[:,:,:,1].+LTE_pops[:,:,:,2],
-                                        LTE_pops[:,:,:,3]) .+
-                          α_scattering.(λ[l],
-                                        atmos.electron_density,
-                                        LTE_pops[:,:,:,1])
-    end
-
-    # plot_top_cont(atmos, λ, S_λ, α_cont, θ, ϕ, "LTE_line")
-    for idλ in eachindex(λ)
-        plot_top_intensity(atmos, λ, S_λ, α_tot, θ, ϕ, idλ, "LTE_$idλ")
-    end
+    npzwrite("../data/LTE/I_regular_$(RES).npy", I_regular)
+    npzwrite("../data/LTE/y_regular_$(RES).npy", ustrip.(x_regular))
+    npzwrite("../data/LTE/x_regular_$(RES).npy", ustrip.(y_regular))
 
 end
+
 
 function test_interpolation(DATA)
     atmos = Atmosphere(get_atmos(DATA; periodic=false, skip=1)...)
@@ -506,7 +482,7 @@ function test_interpolation(DATA)
     return 0
 end
 
-function test_with_regular(DATA, quadrature)
+function test_with_regular_grid(DATA, quadrature)
     atmos = Atmosphere(get_atmos(DATA; periodic=false, skip=1)...)
 
     nx = length(atmos.x)
@@ -625,10 +601,81 @@ function test_with_regular(DATA, quadrature)
     return 0
 end
 
+function write_grid(DATA::String, n_sites::Int)
+
+    atmos = Atmosphere(get_atmos(DATA; periodic=false, skip=1)...)
+
+    # choose a wavelength
+    λ = 500u"nm"  # nm
+
+    nx = length(atmos.x)
+    nz = length(atmos.z)
+    ny = length(atmos.y)
+
+    x_min = ustrip(atmos.x[1])
+    x_max = ustrip(atmos.x[end])
+    y_min = ustrip(atmos.y[1])
+    y_max = ustrip(atmos.y[end])
+    z_min = ustrip(atmos.z[1])
+    z_max = ustrip(atmos.z[end])
+
+
+    positions = sample_from_extinction(atmos, λ, n_sites)
+    # positions = sample_from_temp_gradient(atmos, n_sites)
+    # positions = rejection_sampling(n_sites, atmos, ustrip.(atmos.temperature))
+
+
+    sites_file = "../data/sites_write.txt"
+    neighbours_file = "../data/neighbours_write.txt"
+    # write sites to file
+    write_arrays(ustrip.(positions[2, :]),
+                 ustrip.(positions[3, :]),
+                 ustrip.(positions[1, :]),
+                 sites_file)
+
+    # export sites to voro++, and compute grid information
+    println("---Preprocessing grid---")
+
+    # compute neigbours
+    #run(`./voro.sh $sites_file $neighbours_file
+    #               $(x_min) $(x_max)
+    #               $(y_min) $(y_max)
+    #               $(z_min) $(z_max)`)
+
+    # Voronoi grid
+    sites = VoronoiSites(read_cell(neighbours_file, n_sites, positions)...,
+                         _initialise(positions, atmos)...,
+                         z_min*1u"m", z_max*1u"m",
+                         x_min*1u"m", x_max*1u"m",
+                         y_min*1u"m", y_max*1u"m",
+                         n_sites)
+
+    # Lte populations
+    LTE_pops = LTE_ionisation(sites)
+
+    # LTE source function --> Planck function
+    S_λ = Matrix{Float64}(undef, (1, n_sites))u"kW*m^-2*nm^-1"
+    S_λ[1,:] = blackbody_λ.(λ, sites.temperature)
+    
+    DATA = "../data/test_interpolation.h5"
+    create_output_file(DATA, 1, n_sites, 1)
+    write_to_file(sites, DATA)
+    write_to_file(S_λ, DATA)
+end
 
 # compare("../data/bifrost_qs006023_s525_half.hdf5", "../quadratures/ul2n3.dat");
-LTE_compare("../data/bifrost_qs006023_s525.hdf5")
-# LTE_cont("../data/bifrost_qs006023_s525_quarter.hdf5")
+# LTE_compare("../data/bifrost_qs006023_s525.hdf5", 100_000)
+# LTE_compare("../data/bifrost_qs006023_s525.hdf5", 250_000)
+# LTE_compare("../data/bifrost_qs006023_s525.hdf5", 500_000)
+# LTE_compare("../data/bifrost_qs006023_s525.hdf5", 1_000_000)
+# LTE_compare("../data/bifrost_qs006023_s525.hdf5", 2_500_000)
+# LTE_compare("../data/bifrost_qs006023_s525.hdf5", 5_000_000)
+# LTE_compare("../data/bifrost_qs006023_s525.hdf5", 10_000_000)
+# LTE_compare("../data/bifrost_qs006023_s525.hdf5", 15_000_000)
+# LTE_regular("../data/bifrost_qs006023_s525_quarter.hdf5")
+# LTE_regular("../data/bifrost_qs006023_s525_half.hdf5")
+# LTE_regular("../data/bifrost_qs006023_s525.hdf5")
 # test_interpolation("../data/bifrost_qs006023_s525_half.hdf5", "../quadratures/n1.dat")
 # test_with_regular("../data/bifrost_qs006023_s525_quarter.hdf5", "../quadratures/n1.dat")
+write_grid("../data/bifrost_qs006023_s525.hdf5", 10_000_000)
 print("")

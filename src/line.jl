@@ -358,6 +358,34 @@ function sample_from_extinction(atmos::Atmosphere,
     return positions
 end
 
+"""
+    sample_from_temp_gradient(atmos::Atmosphere,
+                              λ0::Unitful.Length,
+                              n_sites::Int)
+
+Sample Voronoi sites by using temperature gradient in z-direction as probalility
+density.
+"""
+function sample_from_temp_gradient(atmos::Atmosphere,
+                                   n_sites::Int)
+
+    temperature = ustrip.(atmos.temperature)
+    z = ustrip.(atmos.z)
+
+    temp_gradient = copy(temperature)
+
+    temp_gradient[1,:,:] = @. (temperature[2,:,:] - temperature[1,:,:])/(z[2] - z[1])
+
+    for k in 2:length(z)-1
+        temp_gradient[k,:,:] = @. (temperature[k+1,:,:] - temperature[k,:,:])/(z[k+1] - z[k])
+    end
+
+    temp_gradient[end,:,:] = @. (temperature[end,:,:] - temperature[end-1,:,:])/(z[end] - z[end-1])
+
+    positions = rejection_sampling(n_sites, atmos, abs.(temp_gradient))
+    return positions
+end
+
 function LTE_ionisation(atmos::Atmosphere)
 
     χl = 0.0u"cm^-1"
