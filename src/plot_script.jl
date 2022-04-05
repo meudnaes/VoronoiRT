@@ -2,15 +2,19 @@ include("plot_utils.jl")
 
 θ = 180.0
 ϕ = 0.0
-title = "boost_voronoi_12_extinction"
 
-fname = "../data/voronoi_ul7n12_extinction.h5"
+#title = "boost_regular_12"
 
-plot_convergence(fname, "Irregular Extinction 12 rays")
+fname = "../data/total_ext_5e5_copy.h5"
+title = split(fname, "/")[end]
+title = split(title, ".")[1]
 
+# plot_convergence(fname, "Irregular 12 rays")
+# write_convergence(fname)
 
-# atmos, line, S_λ, α_tot = plotter(read_irregular(fname)..., θ, ϕ, title)
-# atmos, line, S_λ, α_tot = plotter(read_quantities(fname, periodic=true)..., θ, ϕ, title)
+atmos, line, S_λ, α_tot = plotter(read_irregular(fname)..., θ, ϕ, fname)
+# atmos, line, S_λ, α_tot = plotter(read_quantities(fname, periodic=true)..., θ, ϕ, fname)
+write_top_intensity(atmos, line, S_λ, α_tot, θ, ϕ, title+"disk_centre")
 
 # plot_top_line(atmos, line, S_λ, α_tot, θ, ϕ, title)
 

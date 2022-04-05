@@ -1,3 +1,4 @@
+using NPZ
 using Plots
 using UnitfulRecipes
 
@@ -93,6 +94,35 @@ function plot_top_intensity(atmos::Atmosphere,
             clim=(5,200))
 
     savefig("../img/compare_line/"*title)
+end
+
+function write_top_intensity(atmos::Atmosphere,
+                             line::HydrogenicLine,
+                             S_λ::Array{<:UnitsIntensity_λ, 4},
+                             α_tot::Array{<:PerLength, 4},
+                             θ::Float64,
+                             ϕ::Float64,
+                             fname::String)
+
+    l1 = line.λidx[1]+1
+    l2 = line.λidx[2]
+
+    I_top = Array{Float64, 3}(undef, (l2-l1+1,
+                                      length(atmos.x[2:end-1]),
+                                      length(atmos.y[2:end-1])))
+
+    k = [cos(θ*π/180), cos(ϕ*π/180)*sin(θ*π/180), sin(ϕ*π/180)*sin(θ*π/180)]
+    println("--Calculating intensity---")
+    Threads.@threads for idλ in l1:l2
+        intensity = short_characteristics_up(k, S_λ[idλ, :, :, :], S_λ[idλ, 1, :, :],
+                                         α_tot[idλ, :, :, :], atmos)
+
+        intensity = transpose(intensity[end, 2:end-1, 2:end-1])
+        I_top[idλ,:,:] = ustrip(uconvert.(u"kW*nm^-1*m^-2", intensity))
+    end
+
+    println("---Writing to file---")
+    npzwrite("../python/linedata/$(fname).npy", I_top)
 end
 
 function plot_top_line(atmos::Atmosphere,
@@ -222,8 +252,8 @@ function read_irregular(DATA::String)
                          velocity_x, velocity_y, boundaries...,
                          size(positions)[1])
 
-    atmos_size = (72, 64, 64)
-    atmos_size = floor.(Int, (1.5*72, 1.5*64, 1.5*64))
+    atmos_size = (430, 256, 256)
+    atmos_size = floor.(Int, atmos_size.*0.6)
 
     atmos, S_λ_grid, populations_grid = Voronoi_to_Raster(sites, atmos_size,
                                                           S_λ, populations;
@@ -302,4 +332,19 @@ function plot_convergence(DATA::String, title::String)
          dpi=300,
          yscale=:log10)
     savefig("../img/$title")
+end
+
+function write_convergence(DATA::String)
+    local convergence
+    h5open(DATA, "r") do file
+        convergence = read(file, "convergence")[:]
+    end
+
+    fname = split(DATA, "/")[end]
+    fname = split(fname, ".")[1]
+
+    converged = argmin(convergence)
+    convergence=convergence[1:converged-1]
+
+    npzwrite("../python/linedata/$(fname).npy", convergence)
 end

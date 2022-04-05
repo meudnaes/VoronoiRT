@@ -358,6 +358,45 @@ function sample_from_extinction(atmos::Atmosphere,
     return positions
 end
 
+
+function sample_from_total_extinction(atmos::Atmosphere,
+                                      n_sites::Int)
+
+    populations = LTE_ionisation(atmos)
+    line = HydrogenicLine(test_atom(1, 1)..., atmos.temperature)
+
+    γ = γ_constant(line,
+                   atmos.temperature,
+                   (populations[:, :, :, 1] .+ populations[:, :, :, 2]),
+                   atmos.electron_density)
+
+    # damping_λ = Array{Float64, 4}(undef, (1, size(atmos.temperature)...))
+    damping_λ = damping.(γ, line.λ0, line.ΔD)
+
+    # Straight up
+    k = -[1.0, 0.0, 0.0]
+    v_los = line_of_sight_velocity(atmos, -k)
+    v = (line.λ0.*v_los./c_0)./line.ΔD .|> Unitful.NoUnits
+    profile = voigt_profile.(damping_λ[:, :, :], v, line.ΔD)
+    α_line = αline_λ(line,
+                     profile[:, :, :],
+                     populations[:, :, :, 2],
+                     populations[:, :, :, 1])
+
+    α_cont =  α_absorption.(line.λ0,
+                           atmos.temperature,
+                           atmos.electron_density*1.0,
+                           populations[:,:,:,1].+populations[:,:,:,2],
+                           populations[:,:,:,3]) .+
+              α_scattering.(line.λ0,
+                           atmos.electron_density,
+                           populations[:,:,:,1])
+
+    positions = rejection_sampling(n_sites, atmos, log10.(ustrip.(α_line.+α_cont)))
+    return positions
+end
+
+
 """
     sample_from_temp_gradient(atmos::Atmosphere,
                               λ0::Unitful.Length,

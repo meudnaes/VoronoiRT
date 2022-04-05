@@ -160,7 +160,7 @@ function LTE_compare(DATA::String, n_sites::Int)
 
     # choose a wavelength
     λ = 500u"nm"  # nm
-    
+
     """
     # Lte populations
     LTE_pops = LTE_ionisation(atmos)
@@ -183,12 +183,12 @@ function LTE_compare(DATA::String, n_sites::Int)
 
     k = [cos(θ*π/180), cos(ϕ*π/180)*sin(θ*π/180), sin(ϕ*π/180)*sin(θ*π/180)]
     intensity = short_characteristics_up(k, S_λ, S_λ[1,:,:], α_cont, atmos)
-    
+
     I_regular = transpose.(ustrip.(uconvert.(u"kW*nm^-1*m^-2", intensity[end, 2:end-1, 2:end-1])))
     x_regular = atmos.x[2:end-1]
     y_regular = atmos.y[2:end-1]
     """
-    
+
     atmos = Atmosphere(get_atmos(DATA; periodic=false, skip=1)...)
 
     nx = length(atmos.x)
@@ -209,7 +209,7 @@ function LTE_compare(DATA::String, n_sites::Int)
     #positions[3, :] = positions[3, :].*(y_max - y_min) .+ y_min
 
     #positions = positions*1u"m"
-    
+
     positions = sample_from_extinction(atmos, λ, n_sites)
     # positions = sample_from_destruction(atmos, n_sites)
     # positions = sample_from_temp_gradient(atmos, n_sites)
@@ -284,19 +284,23 @@ function LTE_compare(DATA::String, n_sites::Int)
 end
 
 
-function LTE_regular(DATA)
-    
-    if occursin("quarter", DATA)
+function LTE_regular(DATA::String, n_skip::Integer)
+
+    if n_skip == 4
         RES = "quarter"
-    elseif occursin("half", DATA)
+    elseif n_skip == 3
+        RES = "third"
+    elseif n_skip == 2
         RES = "half"
-    else
+    elseif n_skip == 1
         RES = "full"
+    else
+        RES = string(n_skip)
     end
-    
+
     println("Continuum at $(RES) resolution, regular grid")
-    
-    atmos = Atmosphere(get_atmos(DATA; periodic=true, skip=1)...)
+
+    atmos = Atmosphere(get_atmos(DATA; periodic=true, skip=n_skip)...)
 
     # choose a wavelength
     λ = 500u"nm"  # nm
@@ -601,7 +605,7 @@ function test_with_regular_grid(DATA, quadrature)
     return 0
 end
 
-function write_grid(DATA::String, n_sites::Int)
+function compare_interpolations(DATA::String, n_sites::Int)
 
     atmos = Atmosphere(get_atmos(DATA; periodic=false, skip=1)...)
 
@@ -637,10 +641,10 @@ function write_grid(DATA::String, n_sites::Int)
     println("---Preprocessing grid---")
 
     # compute neigbours
-    #run(`./voro.sh $sites_file $neighbours_file
-    #               $(x_min) $(x_max)
-    #               $(y_min) $(y_max)
-    #               $(z_min) $(z_max)`)
+    run(`./voro.sh $sites_file $neighbours_file
+                   $(x_min) $(x_max)
+                   $(y_min) $(y_max)
+                   $(z_min) $(z_max)`)
 
     # Voronoi grid
     sites = VoronoiSites(read_cell(neighbours_file, n_sites, positions)...,
@@ -650,17 +654,93 @@ function write_grid(DATA::String, n_sites::Int)
                          y_min*1u"m", y_max*1u"m",
                          n_sites)
 
+    run(`rm ../data/$sites_file ../data/$neighbours_file`)
+
     # Lte populations
-    LTE_pops = LTE_ionisation(sites)
+    populations = LTE_ionisation(sites)
 
     # LTE source function --> Planck function
     S_λ = Matrix{Float64}(undef, (1, n_sites))u"kW*m^-2*nm^-1"
     S_λ[1,:] = blackbody_λ.(λ, sites.temperature)
-    
-    DATA = "../data/test_interpolation.h5"
-    create_output_file(DATA, 1, n_sites, 1)
-    write_to_file(sites, DATA)
-    write_to_file(S_λ, DATA)
+
+    CMAX = 60.52755753644262
+    CMIN = 20.169713390042126
+
+    atmos_size = (200, 175, 175)#(430, 256, 256)
+
+    θ = 180.0
+    ϕ = 0.0
+
+    k = [cos(θ*π/180), cos(ϕ*π/180)*sin(θ*π/180), sin(ϕ*π/180)*sin(θ*π/180)]
+
+    # Inverse distance interpolation
+    atmos, S_λ_grid, populations_grid = Voronoi_to_Raster_inv_dist(sites, atmos_size, S_λ, populations)
+
+    # Find continuum extinction (only with Thomson and Rayleigh)
+    α_cont = α_absorption.(λ,
+                           atmos.temperature,
+                           atmos.electron_density*1.0,
+                           populations_grid[:,:,:,1].+populations_grid[:,:,:,2],
+                           populations_grid[:,:,:,3]) .+
+             α_scattering.(λ,
+                           atmos.electron_density,
+                           populations_grid[:,:,:,1])
+
+    I_0 = S_λ_grid[1,1,:,:]
+    intensity = short_characteristics_up(k, S_λ_grid[1,:,:,:], I_0, α_cont, atmos; n_sweeps=3)
+
+    I_top = transpose.(ustrip.(uconvert.(u"kW*nm^-1*m^-2", intensity[end, 2:end-1, 2:end-1])))
+    x = ustrip.(atmos.x[2:end-1])
+    y = ustrip.(atmos.y[2:end-1])
+
+    heatmap(x,
+            y,
+            I_top,
+            xaxis="x",
+            yaxis="y",
+            dpi=300,
+            rightmargin=10Plots.mm,
+            title="Inverse Distance interpolation",
+            aspect_ratio=:equal,
+            clim=(CMIN,CMAX))
+
+    savefig("../img/compare_continuum/inv_dist")
+
+    # Nearest neighbour interpolation
+    atmos, S_λ_grid, populations_grid = Voronoi_to_Raster(sites, atmos_size, S_λ, populations)
+
+    # Find continuum extinction (only with Thomson and Rayleigh)
+    α_cont = α_absorption.(λ,
+                           atmos.temperature,
+                           atmos.electron_density*1.0,
+                           populations_grid[:,:,:,1].+populations_grid[:,:,:,2],
+                           populations_grid[:,:,:,3]) .+
+             α_scattering.(λ,
+                           atmos.electron_density,
+                           populations_grid[:,:,:,1])
+
+    I_0 = S_λ_grid[1,1,:,:]
+    intensity = short_characteristics_up(k, S_λ_grid[1,:,:,:], I_0, α_cont, atmos; n_sweeps=3)
+
+    I_top = transpose.(ustrip.(uconvert.(u"kW*nm^-1*m^-2", intensity[end, 2:end-1, 2:end-1])))
+    x = ustrip.(atmos.x[2:end-1])
+    y = ustrip.(atmos.y[2:end-1])
+
+    heatmap(x,
+            y,
+            I_top,
+            xaxis="x",
+            yaxis="y",
+            dpi=300,
+            rightmargin=10Plots.mm,
+            title="Nearest Neighbour interpolation",
+            aspect_ratio=:equal,
+            clim=(CMIN,CMAX))
+
+    savefig("../img/compare_continuum/nearest_neighbour")
+
+
+
 end
 
 # compare("../data/bifrost_qs006023_s525_half.hdf5", "../quadratures/ul2n3.dat");
@@ -674,8 +754,12 @@ end
 # LTE_compare("../data/bifrost_qs006023_s525.hdf5", 15_000_000)
 # LTE_regular("../data/bifrost_qs006023_s525_quarter.hdf5")
 # LTE_regular("../data/bifrost_qs006023_s525_half.hdf5")
-# LTE_regular("../data/bifrost_qs006023_s525.hdf5")
+# LTE_regular("../data/bifrost_qs006023_s525.hdf5", 1)
+# LTE_regular("../data/bifrost_qs006023_s525.hdf5", 2)
+LTE_regular("../data/bifrost_qs006023_s525.hdf5", 3)
+# LTE_regular("../data/bifrost_qs006023_s525.hdf5", 4)
 # test_interpolation("../data/bifrost_qs006023_s525_half.hdf5", "../quadratures/n1.dat")
 # test_with_regular("../data/bifrost_qs006023_s525_quarter.hdf5", "../quadratures/n1.dat")
-write_grid("../data/bifrost_qs006023_s525.hdf5", 10_000_000)
+# write_grid("../data/bifrost_qs006023_s525.hdf5", 10_000_000)
+# compare_interpolations("../data/bifrost_qs006023_s525.hdf5", 500_000)
 print("")

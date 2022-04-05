@@ -1,6 +1,7 @@
 using HDF5
 using Unitful
 
+include("line.jl")
 include("atmosphere.jl")
 include("voronoi_utils.jl")
 
@@ -54,46 +55,6 @@ function write_boundaries(z_min, z_max, x_min, x_max, y_min, y_max, fname::Strin
         println(io, "y_min = $y_min")
         println(io, "y_max = $y_max")
     end
-end
-
-"""
-    function read_quadrature(fname::String)
-
-Read quarature weights and angles from file. Returns weights, horizontal angle,
-azimuthal angle, and number of quadrature points. Quadratures found in
-https://cdsarc.cds.unistra.fr/viz-bin/cat/J/A+A/645/A101#/browse
-from Bestard & Bueno (2021)
-"""
-function read_quadrature(fname::String)
-    n_points = ""
-    switch = false
-    for (i, char) in enumerate(fname)
-        if char == 'n'
-            switch = true
-        elseif switch == true
-            try parse(Int, char)
-                n_points = string(n_points, char)
-            catch
-                break
-            end
-        end
-    end
-
-    n_points = parse(Int, n_points)
-
-    weights = zeros(n_points)
-    θ_array = zeros(n_points)
-    ϕ_array = zeros(n_points)
-
-    open(fname, "r") do io
-        for (i, line) in enumerate(eachline(fname))
-            weights[i] = parse(Float64, split(line)[1])
-            θ_array[i] = parse(Float64, split(line)[2])
-            ϕ_array[i] = parse(Float64, split(line)[3])
-        end
-    end
-
-    return weights::AbstractArray, θ_array::AbstractArray, ϕ_array::AbstractArray, n_points::Int
 end
 
 """
@@ -190,6 +151,14 @@ function write_to_file(n::Int,
     end
 end
 
+function write_to_file(line::HydrogenicLine,
+                       output_path::String)
+    h5open(output_path, "r+") do file
+        file["wavelength"][:] = ustrip.(line.λ .|> u"nm")
+        file["line_center"][:] = ustrip(line.λ0 |> u"nm")
+    end
+end
+
 """
     create_output_file(output_path::String, nλ::Int64, atmosphere_size::Tuple)
 Initialise all output variables for the full atom mode.
@@ -219,6 +188,9 @@ function create_output_file(output_path::String, nλ::Int, atmosphere_size::Tupl
 
         write(file, "n_bb", Vector{Int}(undef, 1))
         write(file, "n_bf", Vector{Int}(undef, 1))
+
+        write(file, "wavelength", Vector{Float64}(undef, nλ))
+        write(file, "line_center", Vector{Float64}(undef, 1))
 
         write(file, "time", Vector{Float64}(undef, 1))
     end
@@ -251,6 +223,9 @@ function create_output_file(output_path::String, nλ::Int, n_sites::Int,
 
         write(file, "n_bb", Vector{Int}(undef, 1))
         write(file, "n_bf", Vector{Int}(undef, 1))
+
+        write(file, "wavelength", Vector{Float64}(undef, nλ))
+        write(file, "line_center", Vector{Float64}(undef, 1))
 
         write(file, "time", Vector{Float64}(undef, 1))
     end

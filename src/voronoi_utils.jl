@@ -223,7 +223,7 @@ function smallest_angle(position::Vector{<:Unitful.Length},
     y_r_r = sites.y_max - position[3]
     y_r_l = position[3] - sites.y_min
 
-    for i in 1:length(neighbours)
+    for i in eachindex(neighbours)
         neighbour = neighbours[i]
         if neighbour > 0
             p_n = sites.positions[:, neighbour]
@@ -450,7 +450,7 @@ function Voronoi_to_Raster(sites::VoronoiSites,
     populations_grid = Array{Float64, 4}(undef, (nz, nx, ny, 3))u"m^-3"
 
     tree = KDTree(ustrip.(sites.positions))
-    for j in 1:length(y)
+    Threads.@threads for j in 1:length(y)
         for i in 1:length(x)
             for k in 1:length(z)
                 grid_point = [z[k], x[i], y[j]]
@@ -551,7 +551,12 @@ function Voronoi_to_Raster(sites::VoronoiSites,
     return voronoi_atmos
 end
 
+"""
+    _initialise(p_vec::Matrix{<:Unitful.Length}, atmos::Atmosphere)
 
+Initialise the irregular grid with atmospheric quantities at every site. Uses
+trilinear interpolation.
+"""
 function _initialise(p_vec::Matrix{<:Unitful.Length}, atmos::Atmosphere)
     println("---Interpolating quantities to new grid---")
     n_sites = length(p_vec[1,:])
@@ -575,6 +580,12 @@ function _initialise(p_vec::Matrix{<:Unitful.Length}, atmos::Atmosphere)
     return temperature_new, N_e_new, N_H_new, velocity_z_new, velocity_x_new, velocity_y_new
 end
 
+"""
+    _initialise(p_vec::Matrix{<:Unitful.Length}, atmos::Atmosphere)
+
+Initialise the irregular grid with atmospheric quantities at every site. Uses
+nearest neighbour interpolation.
+"""
 function _initialiseII(p_vec::Matrix{<:Unitful.Length}, atmos::Atmosphere)
     println("---Interpolating quantities to new grid---")
     n_sites = length(p_vec[1,:])
@@ -636,10 +647,10 @@ function Voronoi_to_Raster_inv_dist(sites::VoronoiSites,
                                     populations::Matrix{<:NumberDensity};
                                     periodic=false)
 
-    
+
     p = 3.0
-    n_neighbours = 15
-    
+    # n_neighbours = 15
+
     z = collect(LinRange(sites.z_min, sites.z_max,
                          floor(Int, atmos_size[1])))
     x = collect(LinRange(sites.x_min, sites.x_max,
@@ -666,21 +677,32 @@ function Voronoi_to_Raster_inv_dist(sites::VoronoiSites,
         for i in 1:length(x)
             for k in 1:length(z)
                 grid_point = [z[k], x[i], y[j]]
-                idxs, dists = knn(tree, ustrip.(grid_point), n_neighbours)
-                
+                idxs, dists = knn(tree, ustrip.(grid_point), 5)
+
+                dists = dists.*1u"m"
+
+                # n_neighbours = sites.neighbours[idx,1]
+                # idxs = sites.neighbours[idx, 2:n_neighbours+1]
+                # idxs = idxs[idxs.>0]
+
+                # idxs = vcat(idxs, idx)
+
+                # dists = vcat(distances(sites.positions[:, idxs], grid_point))
+
+
                 temperature[k,i,j] = inv_dist_itp(idxs, dists, p, sites.temperature)
                 electron_density[k,i,j] = inv_dist_itp(idxs, dists, p, sites.electron_density)
                 hydrogen_populations[k,i,j] = inv_dist_itp(idxs, dists, p, sites.hydrogen_populations)
                 velocity_z[k,i,j] = inv_dist_itp(idxs, dists, p, sites.velocity_z)
                 velocity_x[k,i,j] = inv_dist_itp(idxs, dists, p, sites.velocity_x)
                 velocity_y[k,i,j] = inv_dist_itp(idxs, dists, p, sites.velocity_y)
-                for l in nλ 
+                for l in 1:nλ
                     S_λ_grid[l,k,i,j] = inv_dist_itp(idxs, dists, p, S_λ[l,:])
                 end
-                for u in size(populations)[2]
+                for u in 1:size(populations)[end]
                     populations_grid[k,i,j,u] = inv_dist_itp(idxs, dists, p, populations[:,u])
                 end
-                
+
             end
         end
     end
@@ -707,13 +729,44 @@ function Voronoi_to_Raster_inv_dist(sites::VoronoiSites,
     return voronoi_atmos, S_λ_grid, populations_grid
 end
 
+function read_sites(DATA::String)
+    local positions, temperature, electron_density, hydrogen_populations, S_λ, populations
+    local velocity_z, velocity_x, velocity_y, boundaries
+    h5open(DATA, "r") do file
+        positions = read(file, "positions")[:, :]*u"m"
+        boundaries = read(file, "boundaries")[:]u"m"
+
+        temperature = read(file, "temperature")[:]*u"K"
+
+        electron_density = read(file, "electron_density")[:]*u"m^-3"
+        hydrogen_populations = read(file, "hydrogen_populations")[:]*u"m^-3"
+
+        velocity_z = read(file, "velocity_z")[:]u"m*s^-1"
+        velocity_x = read(file, "velocity_x")[:]u"m*s^-1"
+        velocity_y = read(file, "velocity_y")[:]u"m*s^-1"
+
+        S_λ = read(file, "source_function")[:, :]*u"kW*m^-2*nm^-1"
+    end
+
+    nn = Matrix{Int}(undef, (1, 1))
+    ll = Vector{Int}(undef, 1)
+
+    sites = VoronoiSites(positions, nn, ll, ll, ll, ll, temperature,
+                         electron_density, hydrogen_populations, velocity_z,
+                         velocity_x, velocity_y, boundaries...,
+                         size(positions)[1])
+
+    return sites, S_λ
+end
+
 function inv_dist_itp(idxs::AbstractVector,
                       dists::AbstractVector,
                       p::AbstractFloat,
                       values::AbstractVector)
-    avg_inv_dist = 0
-    f = 0
-    for i in 1:length(idxs)
+    # Fix units
+    avg_inv_dist = 0/(dists[1]^p)
+    f = values[1]*avg_inv_dist
+    for i in eachindex(dists)
         idx = idxs[i]
         if idx > 0
             inv_dist = 1/dists[i]^p
@@ -722,4 +775,15 @@ function inv_dist_itp(idxs::AbstractVector,
         end
     end
     f = f/avg_inv_dist
+    return f
+end
+
+function distances(x1::Matrix{<:Unitful.Length}, x2::Vector{<:Unitful.Length})
+    d = Vector{Float64}(undef, size(x1)[2])u"m"
+    for i in eachindex(d)
+        d[i] = sqrt((x2[1] - x1[1, i])^2 +
+                    (x2[2] - x1[2, i])^2 +
+                    (x2[3] - x1[3, i])^2)
+    end
+    return d
 end

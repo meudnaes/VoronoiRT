@@ -135,7 +135,8 @@ function Λ_regular(ϵ::AbstractFloat,
     LTE_pops = LTE_populations(line, atmos)
 
     # Initial populations
-    populations = zero_radiation_populations(line, atmos)
+    populations = copy(LTE_pops)
+    # zero_radiation_populations(line, atmos)
 
     # Find continuum extinction and absorption extinction (without Thomson and Rayleigh)
     α_cont = α_absorption.(line.λ0,
@@ -223,7 +224,8 @@ function Λ_voronoi(ϵ::AbstractFloat,
     LTE_pops = LTE_populations(line, sites)
 
     # Initial populations
-    populations = zero_radiation_populations(line, sites)
+    populations = copy(LTE_pops)
+    # zero_radiation_populations(line, sites)
 
     # Find continuum extinction and absorption extinction (only with Thomson and Rayleigh)
     α_cont = α_absorption.(line.λ0,

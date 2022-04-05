@@ -3,6 +3,8 @@ import matplotlib as mpl
 import matplotlib.cm as cm
 import matplotlib.pyplot as plt
 
+plt.rcParams['text.usetex'] = True
+
 sites = np.load("sites.npy")
 layers_up = np.load("layers_up.npy") - 1
 perm_up = np.load("perm_up.npy") - 1
@@ -39,10 +41,10 @@ scatter = ax.scatter(sites[1,:],
                      s=5)
 
 
-ax.set_xlabel("x")
-ax.set_ylabel("y")
-ax.set_zlabel("z")
-ax.set_title("Upwards Layers", fontsize=16)
+ax.set_xlabel(r"$x$")
+ax.set_ylabel(r"$y$")
+ax.set_zlabel(r"$z$")
+ax.set_title(r"$\textrm{Upward Layers}$", fontsize=16)
 
 colors = cm.rainbow(np.linspace(0, 1, c_max))
 
@@ -66,10 +68,10 @@ scatter = ax.scatter(sites[1,:],
                      c=colored_sites,
                      s=5)
 
-ax.set_xlabel("x")
-ax.set_ylabel("y")
-ax.set_zlabel("z")
-ax.set_title("Downwards Layers", fontsize=16)
+ax.set_xlabel(r"$x$")
+ax.set_ylabel(r"$y$")
+ax.set_zlabel(r"$z$")
+ax.set_title(r"$\textrm{Downward Layers}$", fontsize=16)
 
 
 
@@ -79,7 +81,7 @@ cb = fig.colorbar(cm.ScalarMappable(norm=norm, cmap=cmap),
                   ax=ax,
                   fraction=0.04,
                   pad=0.1)
-cb.set_label('layer')
+cb.set_label(r'$\rm{layer}$', fontsize=14)
 
-plt.savefig("layers.png", dpi=300)
+plt.savefig("layers.pdf")
 plt.close();

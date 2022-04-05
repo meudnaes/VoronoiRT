@@ -2,7 +2,47 @@ using HDF5
 using Random
 using Unitful
 
-include("io.jl")
+include("atmosphere.jl")
+
+"""
+    function read_quadrature(fname::String)
+
+Read quarature weights and angles from file. Returns weights, horizontal angle,
+azimuthal angle, and number of quadrature points. Quadratures found in
+https://cdsarc.cds.unistra.fr/viz-bin/cat/J/A+A/645/A101#/browse
+from Bestard & Bueno (2021)
+"""
+function read_quadrature(fname::String)
+    n_points = ""
+    switch = false
+    for (i, char) in enumerate(fname)
+        if char == 'n'
+            switch = true
+        elseif switch == true
+            try parse(Int, char)
+                n_points = string(n_points, char)
+            catch
+                break
+            end
+        end
+    end
+
+    n_points = parse(Int, n_points)
+
+    weights = zeros(n_points)
+    θ_array = zeros(n_points)
+    ϕ_array = zeros(n_points)
+
+    open(fname, "r") do io
+        for (i, line) in enumerate(eachline(fname))
+            weights[i] = parse(Float64, split(line)[1])
+            θ_array[i] = parse(Float64, split(line)[2])
+            ϕ_array[i] = parse(Float64, split(line)[3])
+        end
+    end
+
+    return weights::AbstractArray, θ_array::AbstractArray, ϕ_array::AbstractArray, n_points::Int
+end
 
 """
     rejection_sampling(n_sites::Int)
@@ -301,7 +341,7 @@ end
 
 Trapezoidal rule.
 """
-function trapezoidal(Δx, a, b)
+function trapezoidal(Δx::Unitful.Length, a::PerLength, b::PerLength)
     area = Δx*(a + b)/2
     return area
 end

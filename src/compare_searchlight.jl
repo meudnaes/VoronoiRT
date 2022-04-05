@@ -11,7 +11,7 @@ include("irregular_ray_tracing.jl")
 pyplot()
 
 function searchlight_irregular()
-    nx = ny = nz = 21
+    nx = ny = nz = 51
 
     n_sites = nz*nx*ny
 
@@ -46,12 +46,10 @@ function searchlight_irregular()
                  sites_file)
 
     # compute neigbours
-    @time begin
     run(`./voro.sh $sites_file $neighbours_file
             $(bounds[2,1]) $(bounds[2,2])
             $(bounds[3,1]) $(bounds[3,2])
             $(bounds[1,1]) $(bounds[1,2])`)
-    end
 
     # Voronoi grid
     sites = VoronoiSites(read_cell(neighbours_file, n_sites, positions)...,
@@ -61,14 +59,6 @@ function searchlight_irregular()
                          bounds[2,1]*1u"m", bounds[2,2]*1u"m",
                          bounds[3,1]*1u"m", bounds[3,2]*1u"m",
                          n_sites)
-
-    npzwrite("../python/sites.npy", ustrip.(sites.positions))
-    npzwrite("../python/layers_up.npy", sites.layers_up)
-    npzwrite("../python/perm_up.npy", sites.perm_up)
-    npzwrite("../python/layers_down.npy", sites.layers_down)
-    npzwrite("../python/perm_down.npy", sites.perm_down)
-
-    return
 
     S = zeros(n_sites)u"kW*m^-2*nm^-1"
     α = zeros(n_sites)u"m^-1"
@@ -108,6 +98,8 @@ function searchlight_irregular()
 
     RES=500
 
+    tot_time = 0.0
+
     weights, θ_array, ϕ_array, n_angles = read_quadrature("../quadratures/ul7n12.dat")
 
     for i in eachindex(θ_array)
@@ -117,8 +109,9 @@ function searchlight_irregular()
         # Unit vector pointing in the direction of the ray
         k = [cos(θ*π/180), cos(ϕ*π/180)*sin(θ*π/180), sin(ϕ*π/180)*sin(θ*π/180)]
         if θ > 90
-            @time I = Delaunay_upII(k, S, I_bottom, α, sites, n_sweeps)
+            I, time = @timed Delaunay_upII(k, S, I_bottom, α, sites, n_sweeps)
 
+            #=
             top_I = zeros(length(x), length(y))u"kW*nm^-1*m^-2"
 
             for i in 1:length(x)
@@ -130,9 +123,11 @@ function searchlight_irregular()
             end
 
             plot_searchlight(k, x, y, top_I, R0, "irregular_$(floor(Int,θ))_$(floor(Int,ϕ))")
+            =#
         elseif θ < 90
-            @time I = Delaunay_downII(k, S, I_top, α, sites, n_sweeps)
+            I, time = @timed Delaunay_downII(k, S, I_top, α, sites, n_sweeps)
 
+            #=
             bottom_z = 0
             bottom_I = zeros(length(x), length(y))u"kW*nm^-1*m^-2"
 
@@ -145,11 +140,14 @@ function searchlight_irregular()
             end
 
             # npzwrite("../data/searchlight_data/I_$(θ)_$(ϕ)_voronoi.npy", ustrip.(bottom_I))
-            plot_searchlight(k, x, y, bottom_I, R0, "irregular_$(floor(Int,θ))_$(floor(Int,ϕ))")
+            # plot_searchlight(k, x, y, bottom_I, R0, "irregular_$(floor(Int,θ))_$(floor(Int,ϕ))")
+            =#
         end
+        tot_time += time
         # npzwrite("../data/searchlight_data/x_voronoi.npy", x)
         # npzwrite("../data/searchlight_data/y_voronoi.npy", y)
     end
+    println("Total time $tot_time -- avg. time: $(tot_time/12)")
 end
 
 function searchlight_regular()
@@ -192,6 +190,8 @@ function searchlight_regular()
 
     weights, θ_array, ϕ_array, n_angles = read_quadrature("../quadratures/ul7n12.dat")
 
+    tot_time = 0.0
+
     for i in eachindex(θ_array)
         θ = θ_array[i]
         ϕ = ϕ_array[i]
@@ -199,7 +199,7 @@ function searchlight_regular()
         # Unit vector pointing in the direction of the ray
         k = [cos(θ*π/180), cos(ϕ*π/180)*sin(θ*π/180), sin(ϕ*π/180)*sin(θ*π/180)]
         if θ > 90
-            I = short_characteristics_up(k, S_0, I_0, α, atmos;
+            I, time = @timed short_characteristics_up(k, S_0, I_0, α, atmos;
                                          pt=true, n_sweeps=3)[:, 2:end-1, 2:end-1]
 
             I = I[end, :, :]
@@ -207,7 +207,7 @@ function searchlight_regular()
             plot_searchlight(k, x[2:end-1], y[2:end-1], I, R0, "regular_$(floor(Int,θ))_$(floor(Int,ϕ))")
             println("Bottom: $(I_light*80), Top: $(sum(I))")
         elseif θ < 90
-            I = short_characteristics_down(k, S_0, I_0, α, atmos;
+            I, time = @timed short_characteristics_down(k, S_0, I_0, α, atmos;
                                            pt=true, n_sweeps=3)[:, 2:end-1, 2:end-1]
 
             I = I[1, :, :]
@@ -215,10 +215,13 @@ function searchlight_regular()
             plot_searchlight(k, x[2:end-1], y[2:end-1], I, R0, "regular_$(floor(Int,θ))_$(floor(Int,ϕ))")
             println("Top: $(I_light*80), Bottom: $(sum(I))")
         end
+        tot_time += time
     end
+
+    println("Total time $tot_time -- avg. time: $(tot_time/12)")
 
     print("")
 end
 
 searchlight_irregular()
-# searchlight_regular()
+searchlight_regular()

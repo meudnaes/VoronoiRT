@@ -10,6 +10,8 @@ import matplotlib.pyplot as plt
 
 from mpl_toolkits.mplot3d import Axes3D
 
+plt.rcParams['text.usetex'] = True
+
 PATH = "../data/searchlight_data/"
 
 
@@ -59,17 +61,17 @@ if __name__ == "__main__":
                        origin="lower",
                        vmax=vmax,
                        extent=r_extent)
-    ax[0].set_xlabel("x"); ax[0].set_ylabel("y")
+    ax[0].set_xlabel(r"$x$"); ax[0].set_ylabel(r"$y$")
 
     im2 = ax[1].imshow(intensity_i,
                        cmap="magma",
                        origin="lower",
                        vmax=vmax,
                        extent=i_extent)
-    ax[1].set_xlabel("x"); ax[1].set_ylabel("y")
+    ax[1].set_xlabel(r"$x$"); ax[1].set_ylabel(r"$y$")
 
-    plt.colorbar(im2, fraction=0.05, pad=0.06)
-    plt.savefig("../img/searchlight_2D.png", dpi=500)
+    plt.colorbar(im2, fraction=0.04, pad=0.02)
+    plt.savefig("../img/searchlight_2D.pdf")
     plt.close()
 
     """
@@ -79,13 +81,13 @@ if __name__ == "__main__":
     X_r, Y_r = np.meshgrid(x_r[0:30], y_r[0:30])
 
     # set up a figure twice as wide as it is tall
-    fig = plt.figure(figsize=(10, 6), constrained_layout=True)#figsize=plt.figaspect(0.5))
+    fig = plt.figure(figsize=(11, 6), constrained_layout=True)#figsize=plt.figaspect(0.5))
 
     # set up the axes for the first plot
     ax = fig.add_subplot(1, 2, 1, projection='3d')
     ax.grid(False)
     ax.set_box_aspect((np.ptp(X_r), np.ptp(Y_r), np.ptp(intensity_i)))
-    ax.set_xlabel("x"); ax.set_ylabel("y")
+    ax.set_xlabel(r"$x$"); ax.set_ylabel(r"$y$")
     ax.xaxis.set_pane_color((1.0, 1.0, 1.0, 0.0))
     ax.yaxis.set_pane_color((1.0, 1.0, 1.0, 0.0))
     ax.zaxis.set_pane_color((1.0, 1.0, 1.0, 0.0))
@@ -103,7 +105,7 @@ if __name__ == "__main__":
     ax = fig.add_subplot(1, 2, 2, projection='3d')
     ax.grid(False)
     ax.set_box_aspect((np.ptp(X_i), np.ptp(Y_i), np.ptp(intensity_i)))
-    ax.set_xlabel("x"); ax.set_ylabel("y")
+    ax.set_xlabel(r"$x$"); ax.set_ylabel(r"$y$")
     ax.xaxis.set_pane_color((1.0, 1.0, 1.0, 0.0))
     ax.yaxis.set_pane_color((1.0, 1.0, 1.0, 0.0))
     ax.zaxis.set_pane_color((1.0, 1.0, 1.0, 0.0))
@@ -112,6 +114,6 @@ if __name__ == "__main__":
                     vmax = vmax,
                     rstride=5,
                     cstride=5)
-    fig.colorbar(surf, fraction=0.04, pad=0.06)
-    plt.savefig("../img/searchlight_3D.png", dpi=500)
+    fig.colorbar(surf, fraction=0.04, pad=0.02)
+    plt.savefig("../img/searchlight_3D.pdf")
     plt.close()
