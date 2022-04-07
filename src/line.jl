@@ -425,6 +425,21 @@ function sample_from_temp_gradient(atmos::Atmosphere,
     return positions
 end
 
+"""
+    sample_from_hydrogen_ionisation(atmos::Atmosphere,
+                                n_sites::Int)
+
+Sample Voronoi sites by using ionised hydrogen in LTE as probalility density.
+"""
+function sample_from_ionised_hydrogen(atmos::Atmosphere,
+                                         n_sites::Int)
+
+    populations = LTE_ionisation(atmos)
+
+    positions = rejection_sampling(n_sites, atmos, log10.(ustrip.(populations[:,:,:,end])))
+    return positions
+end
+
 function LTE_ionisation(atmos::Atmosphere)
 
     χl = 0.0u"cm^-1"

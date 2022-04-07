@@ -673,7 +673,7 @@ function Voronoi_to_Raster_inv_dist(sites::VoronoiSites,
     populations_grid = Array{Float64, 4}(undef, (nz, nx, ny, 3))u"m^-3"
 
     tree = KDTree(ustrip.(sites.positions))
-    for j in 1:length(y)
+    Threads.@threads for j in 1:length(y)
         for i in 1:length(x)
             for k in 1:length(z)
                 grid_point = [z[k], x[i], y[j]]

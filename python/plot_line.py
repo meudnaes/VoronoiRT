@@ -43,7 +43,12 @@ intensity_third = get_intensity("regular_third_disk_centre.npy", PATH)
 intensity_quarter = get_intensity("regular_quarter_disk_centre.npy", PATH)
 
 intensity_5e5 = get_intensity("voronoi_5e5_disk_centre.npy", PATH)
-intensity_1e6 = get_intensity("voronoi_1e6_disk_centre.npy", PATH)
+intensity_5e5_1dot5 = get_intensity("voronoi_ul7n12_5e5_disk_centre_1dot5.npy", PATH)
+intensity_1e6 = get_intensity("voronoi_ul7n12_1e6_disk_centre_1.npy", PATH)
+intensity_1e6_1dot5 = get_intensity("voronoi_ul7n12_1e6_disk_centre_1dot5.npy", PATH)
+intensity_ext_5e5 = get_intensity("total_ext_5e5_disk_centre_1.npy", PATH)
+intensity_des_5e5 = get_intensity("destruction_5e5_disk_centre_1.npy", PATH)
+intensity_density_5e5 = get_intensity("density_5e5_disk_centre_1.npy", PATH)
 
 convergence_quarter = np.load(PATH+"regular_ul7n12_quarter.npy")
 convergence_half = np.load(PATH+"regular_ul7n12_half.npy")
@@ -99,8 +104,6 @@ fig.colorbar(im, fraction=0.05, pad=0.06)
 
 plt.savefig("../img/compare_line/disk_centre_half.pdf")
 """
-
-
 
 """
 fig, ax = plt.subplots(1, 3, figsize=(9,3), constrained_layout=True)
@@ -166,21 +169,77 @@ plt.savefig("../img/compare_line/convergence.pdf")
 """
 
 """
-fig, ax = plt.subplots(1, 2, figsize=(6,3), constrained_layout=True)
+fig, ax = plt.subplots(1, 3, figsize=(9,3), constrained_layout=True)
 
-ax[0].imshow(intensity_5e5[center, :, :],
+ax[0].imshow(intensity_des_5e5[center, :, :],
+          cmap="gist_gray_r",
+          origin="lower",
+          vmax=CMAX,
+          vmin=CMIN)
+ax[0].set_title(r"$\textrm{Destruction}$")
+ax[0].axis(False)
+
+# Line:
+x = np.load("../data/LTE/x_regular_full.npy")
+pix2Mm = (x.max() - x.min())*1e-6/len(x)
+ax[0].hlines(y=4, xmin=6, xmax=6 + 1/pix2Mm, lw=2, color='w',
+             path_effects=[pe.Stroke(linewidth=3, foreground="black"),pe.Normal()])
+
+# Text:
+ax[0].text(6, 6, r"\textbf{1 Mm}", color='w', fontsize=12,
+           path_effects=[pe.Stroke(linewidth=1, foreground="black"),pe.Normal()])
+
+ax[1].imshow(intensity_ext_5e5[center, :, :],
           cmap="gist_gray_r",
           origin="lower",
           vmax=CMAX,
           vmin=CMIN)
 
-im = ax[1].imshow(intensity_1e6[center, :, :],
+ax[1].set_title(r"$\textrm{Total~Extinction}$")
+ax[1].axis(False)
+
+im = ax[2].imshow(intensity_1e6[center, :, :],
           cmap="gist_gray_r",
           origin="lower",
           vmax=CMAX,
           vmin=CMIN)
+ax[2].set_title(r"$\textrm{Continuum~Extinction}$")
+ax[2].axis(False)
 
 fig.colorbar(im, fraction=0.05, pad=0.06)
-
-plt.savefig("../img/compare_line/disk_centre_5e5_1.pdf")
+#plt.show()
+plt.savefig("../img/compare_line/disk_centre_sites.pdf")
 """
+
+fig, ax = plt.subplots(1, 2, figsize=(6,3), constrained_layout=True)
+
+ax[0].imshow(intensity_1e6[right_wing, :, :],
+          cmap="gist_gray_r",
+          origin="lower",
+          vmax=CMAX,
+          vmin=CMIN)
+ax[0].set_title(r"$\textrm{1~to~1}$")
+ax[0].axis(False)
+
+# Line:
+x = np.load("../data/LTE/x_regular_full.npy")
+pix2Mm = (x.max() - x.min())*1e-6/len(x)
+ax[0].hlines(y=4, xmin=6, xmax=6 + 1/pix2Mm, lw=2, color='w',
+             path_effects=[pe.Stroke(linewidth=3, foreground="black"),pe.Normal()])
+
+# Text:
+ax[0].text(6, 6, r"\textbf{1 Mm}", color='w', fontsize=12,
+           path_effects=[pe.Stroke(linewidth=1, foreground="black"),pe.Normal()])
+
+im=ax[1].imshow(intensity_1e6_1dot5[right_wing, :, :],
+          cmap="gist_gray_r",
+          origin="lower",
+          vmax=CMAX,
+          vmin=CMIN)
+
+ax[1].set_title(r"$\textrm{Upsampled}$")
+ax[1].axis(False)
+
+fig.colorbar(im, fraction=0.05, pad=0.06)
+plt.show()
+# plt.savefig("../img/compare_line/disk_centre_sampling.png")

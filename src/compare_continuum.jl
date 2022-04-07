@@ -666,7 +666,7 @@ function compare_interpolations(DATA::String, n_sites::Int)
     CMAX = 60.52755753644262
     CMIN = 20.169713390042126
 
-    atmos_size = (200, 175, 175)#(430, 256, 256)
+    atmos_size = (430, 256, 256)
 
     θ = 180.0
     ϕ = 0.0
@@ -756,10 +756,10 @@ end
 # LTE_regular("../data/bifrost_qs006023_s525_half.hdf5")
 # LTE_regular("../data/bifrost_qs006023_s525.hdf5", 1)
 # LTE_regular("../data/bifrost_qs006023_s525.hdf5", 2)
-LTE_regular("../data/bifrost_qs006023_s525.hdf5", 3)
+# LTE_regular("../data/bifrost_qs006023_s525.hdf5", 3)
 # LTE_regular("../data/bifrost_qs006023_s525.hdf5", 4)
 # test_interpolation("../data/bifrost_qs006023_s525_half.hdf5", "../quadratures/n1.dat")
 # test_with_regular("../data/bifrost_qs006023_s525_quarter.hdf5", "../quadratures/n1.dat")
 # write_grid("../data/bifrost_qs006023_s525.hdf5", 10_000_000)
-# compare_interpolations("../data/bifrost_qs006023_s525.hdf5", 500_000)
+compare_interpolations("../data/bifrost_qs006023_s525.hdf5", 1_000_000)
 print("")

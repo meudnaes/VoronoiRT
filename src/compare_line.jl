@@ -34,7 +34,7 @@ function compare(DATA, quadrature)
 
     function regular()
 
-        atmos = Atmosphere(get_atmos(DATA; periodic=true, skip=4)...)
+        atmos = Atmosphere(get_atmos(DATA; periodic=true, skip=2)...)
         line = HydrogenicLine(test_atom(nλ_bb, nλ_bf)..., atmos.temperature)
 
         nx = length(atmos.x[2:end-1])
@@ -43,14 +43,14 @@ function compare(DATA, quadrature)
 
         println("sites: $(nx*ny*nz)")
 
-        REGULAR_DATA = "../data/test_LTE_pops.h5"
+        REGULAR_DATA = "../data/no.h5"
         # "regular_ul7n12_half_C_2e9_single.h5"
 
         create_output_file(REGULAR_DATA, length(line.λ), size(atmos.temperature[:, 2:end-1, 2:end-1]), maxiter)
         write_to_file(atmos, REGULAR_DATA, ghost_cells=true)
         write_to_file(nλ_bb, "n_bb", REGULAR_DATA)
         write_to_file(nλ_bf, "n_bf", REGULAR_DATA)
-        write_to_file(line, RTEGULAR_DATA)
+        write_to_file(line, REGULAR_DATA)
 
         (J_mean, S_λ, α_cont, populations), time = @timed Λ_regular(ϵ, maxiter, atmos, line, quadrature, REGULAR_DATA)
 
@@ -70,10 +70,10 @@ function compare(DATA, quadrature)
         nz = length(atmos.z)
         ny = length(atmos.y)
 
-        n_sites = 3_000_000
+        n_sites = 1_000_000
         # 286720# floor(Int, nz*nx*ny)
 
-        positions = sample_from_total_extinction(atmos, n_sites)
+        positions = sample_from_destruction(atmos, n_sites)
         # rejection_sampling(n_sites, atmos, log10.(ustrip.(atmos.hydrogen_populations)))
         # sample_from_destruction(atmos, n_sites)
         # sample_from_extinction(atmos, 121.562u"nm", n_sites)
@@ -116,7 +116,7 @@ function compare(DATA, quadrature)
 
         line = HydrogenicLine(test_atom(nλ_bb, nλ_bf)..., sites.temperature)
 
-        VORONOI_DATA = "../data/total_ext_3e6_copy.h5"
+        VORONOI_DATA = "../data/no.h5"
 
         create_output_file(VORONOI_DATA, length(line.λ), n_sites, maxiter)
         write_to_file(nλ_bb, "n_bb", VORONOI_DATA)

@@ -253,7 +253,7 @@ function read_irregular(DATA::String)
                          size(positions)[1])
 
     atmos_size = (430, 256, 256)
-    atmos_size = floor.(Int, atmos_size.*0.6)
+    atmos_size = floor.(Int, atmos_size.*1.0)
 
     atmos, S_λ_grid, populations_grid = Voronoi_to_Raster(sites, atmos_size,
                                                           S_λ, populations;
@@ -298,7 +298,7 @@ function plotter(atmos::Atmosphere,
                    atmos.electron_density)
 
     damping_λ = Array{Float64, 4}(undef, size(S_λ))
-    for l in eachindex(line.λ)
+    Threads.@threads for l in eachindex(line.λ)
         damping_λ[l, :, :, :] = damping.(γ, line.λ[l], line.ΔD)
     end
 
@@ -306,7 +306,7 @@ function plotter(atmos::Atmosphere,
     profile = compute_voigt_profile(line, atmos, damping_λ, k)
 
     α_tot = Array{Float64, 4}(undef, size(profile))u"m^-1"
-    for l in eachindex(line.λ)
+    Threads.@threads for l in eachindex(line.λ)
         α_tot[l, :, :, :] = αline_λ(line,
                                     profile[l, :, :, :],
                                     populations[:, :, :, 2],
@@ -332,6 +332,7 @@ function plot_convergence(DATA::String, title::String)
          dpi=300,
          yscale=:log10)
     savefig("../img/$title")
+    # println(title)
 end
 
 function write_convergence(DATA::String)
@@ -346,5 +347,5 @@ function write_convergence(DATA::String)
     converged = argmin(convergence)
     convergence=convergence[1:converged-1]
 
-    npzwrite("../python/linedata/$(fname).npy", convergence)
+    npzwrite("../python/convergence/$(fname)_convergence.npy", convergence)
 end

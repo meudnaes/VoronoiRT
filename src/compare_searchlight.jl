@@ -2,6 +2,7 @@ using NPZ
 using Plots
 using NearestNeighbors
 
+include("io.jl")
 include("functions.jl")
 include("plot_utils.jl")
 include("voronoi_utils.jl")
