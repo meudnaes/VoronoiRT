@@ -156,7 +156,7 @@ end
 
 function LTE_compare(DATA::String, n_sites::Int)
 
-    atmos = Atmosphere(get_atmos(DATA; periodic=true, skip=1)...)
+    # atmos = Atmosphere(get_atmos(DATA; periodic=true, skip=1)...)
 
     # choose a wavelength
     λ = 500u"nm"  # nm
@@ -210,7 +210,8 @@ function LTE_compare(DATA::String, n_sites::Int)
 
     #positions = positions*1u"m"
 
-    positions = sample_from_extinction(atmos, λ, n_sites)
+    positions = sample_from_ionised_hydrogen(atmos, n_sites)
+    # sample_from_extinction(atmos, λ, n_sites)
     # positions = sample_from_destruction(atmos, n_sites)
     # positions = sample_from_temp_gradient(atmos, n_sites)
     # positions = rejection_sampling(n_sites, atmos, ustrip.(atmos.temperature))
@@ -240,6 +241,8 @@ function LTE_compare(DATA::String, n_sites::Int)
                          x_min*1u"m", x_max*1u"m",
                          y_min*1u"m", y_max*1u"m",
                          n_sites)
+
+    run(`rm ../data/$sites_file ../data/$neighbours_file`)
 
     # Lte populations
     LTE_pops = LTE_ionisation(sites)
@@ -279,7 +282,7 @@ function LTE_compare(DATA::String, n_sites::Int)
     x_irregular = atmos.x[2:end-1]
     y_irregular = atmos.y[2:end-1]
 
-    npzwrite("../data/LTE/I_irregular_$(n_sites)_extinction.npy", I_irregular)
+    npzwrite("../data/LTE/I_irregular_$(n_sites)_ionised_hydrogen.npy", I_irregular)
 
 end
 
@@ -739,19 +742,14 @@ function compare_interpolations(DATA::String, n_sites::Int)
 
     savefig("../img/compare_continuum/nearest_neighbour")
 
-
-
 end
 
 # compare("../data/bifrost_qs006023_s525_half.hdf5", "../quadratures/ul2n3.dat");
-# LTE_compare("../data/bifrost_qs006023_s525.hdf5", 100_000)
-# LTE_compare("../data/bifrost_qs006023_s525.hdf5", 250_000)
-# LTE_compare("../data/bifrost_qs006023_s525.hdf5", 500_000)
-# LTE_compare("../data/bifrost_qs006023_s525.hdf5", 1_000_000)
-# LTE_compare("../data/bifrost_qs006023_s525.hdf5", 2_500_000)
-# LTE_compare("../data/bifrost_qs006023_s525.hdf5", 5_000_000)
-# LTE_compare("../data/bifrost_qs006023_s525.hdf5", 10_000_000)
-# LTE_compare("../data/bifrost_qs006023_s525.hdf5", 15_000_000)
+n_list = [100_000, 250_000, 500_000, 1_000_000, 2_500_000, 5_000_000, 10_000_000, 15_000_000]
+
+for num_sites in n_list
+    LTE_compare("../data/bifrost_qs006023_s525.hdf5", num_sites)
+end
 # LTE_regular("../data/bifrost_qs006023_s525_quarter.hdf5")
 # LTE_regular("../data/bifrost_qs006023_s525_half.hdf5")
 # LTE_regular("../data/bifrost_qs006023_s525.hdf5", 1)
@@ -761,5 +759,5 @@ end
 # test_interpolation("../data/bifrost_qs006023_s525_half.hdf5", "../quadratures/n1.dat")
 # test_with_regular("../data/bifrost_qs006023_s525_quarter.hdf5", "../quadratures/n1.dat")
 # write_grid("../data/bifrost_qs006023_s525.hdf5", 10_000_000)
-compare_interpolations("../data/bifrost_qs006023_s525.hdf5", 1_000_000)
+# compare_interpolations("../data/bifrost_qs006023_s525.hdf5", 1_000_000)
 print("")

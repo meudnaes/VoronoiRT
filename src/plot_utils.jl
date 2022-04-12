@@ -227,6 +227,7 @@ read quantities from irregular grid simulation from a hdf5 file
 function read_irregular(DATA::String)
     local positions, temperature, electron_density, hydrogen_populations, S_λ, populations
     local velocity_z, velocity_x, velocity_y, boundaries
+    println("--Extracting simulation results---")
     h5open(DATA, "r") do file
         positions = read(file, "positions")[:, :]*u"m"
         boundaries = read(file, "boundaries")[:]u"m"
@@ -255,6 +256,7 @@ function read_irregular(DATA::String)
     atmos_size = (430, 256, 256)
     atmos_size = floor.(Int, atmos_size.*1.0)
 
+    println("--Converting grid---")
     atmos, S_λ_grid, populations_grid = Voronoi_to_Raster(sites, atmos_size,
                                                           S_λ, populations;
                                                           periodic=true)
@@ -335,7 +337,7 @@ function plot_convergence(DATA::String, title::String)
     # println(title)
 end
 
-function write_convergence(DATA::String)
+function write_convergence(DATA::String, title::String)
     local convergence
     h5open(DATA, "r") do file
         convergence = read(file, "convergence")[:]
@@ -347,5 +349,5 @@ function write_convergence(DATA::String)
     converged = argmin(convergence)
     convergence=convergence[1:converged-1]
 
-    npzwrite("../python/convergence/$(fname)_convergence.npy", convergence)
+    npzwrite("../python/convergence/$(title)_convergence.npy", convergence)
 end
