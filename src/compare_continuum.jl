@@ -163,7 +163,7 @@ function LTE_compare(DATA::String, n_sites::Int)
 
     """
     # Lte populations
-    LTE_pops = LTE_ionisation(atmos)
+    LTE_pops = LTE_populations(atmos)
 
     # Find continuum extinction (only with Thomson and Rayleigh)
     α_cont = α_absorption.(λ,
@@ -245,7 +245,7 @@ function LTE_compare(DATA::String, n_sites::Int)
     run(`rm ../data/$sites_file ../data/$neighbours_file`)
 
     # Lte populations
-    LTE_pops = LTE_ionisation(sites)
+    LTE_pops = LTE_populations(sites)
 
     S_λ = Matrix{Float64}(undef, (1, n_sites))u"kW*m^-2*nm^-1"
     S_λ[1,:] = blackbody_λ.(λ, sites.temperature)
@@ -309,7 +309,7 @@ function LTE_regular(DATA::String, n_skip::Integer)
     λ = 500u"nm"  # nm
 
     # Lte populations
-    LTE_pops = LTE_ionisation(atmos)
+    LTE_pops = LTE_populations(atmos)
 
     # Find continuum extinction (only with Thomson and Rayleigh)
     α_cont = α_absorption.(λ,
@@ -393,7 +393,7 @@ function test_interpolation(DATA)
                          n_sites)
 
     # Lte populations
-    LTE_pops = LTE_ionisation(sites)
+    LTE_pops = LTE_populations(sites)
     λ = 500u"nm"
     # Find continuum extinction
     α_cont = α_absorption.(λ,
@@ -556,7 +556,7 @@ function test_with_regular_grid(DATA, quadrature)
                          n_sites)
 
     # Lte populations
-    LTE_pops = LTE_ionisation(sites)
+    LTE_pops = LTE_populations(sites)
     λ = 500u"nm"
     # Find continuum extinction (only with Thomson and Rayleigh)
     α_cont = α_absorption.(λ,
@@ -660,7 +660,7 @@ function compare_interpolations(DATA::String, n_sites::Int)
     run(`rm ../data/$sites_file ../data/$neighbours_file`)
 
     # Lte populations
-    populations = LTE_ionisation(sites)
+    populations = LTE_populations(sites)
 
     # LTE source function --> Planck function
     S_λ = Matrix{Float64}(undef, (1, n_sites))u"kW*m^-2*nm^-1"

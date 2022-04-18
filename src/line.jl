@@ -6,8 +6,11 @@ using LinearAlgebra
 include("functions.jl")
 include("voronoi_utils.jl")
 
-# TODO
-# Explicitly state all functions from Transparency ?
+"""
+    HydrogenicLine{T <: AbstractFloat}
+
+Structure containing all atomic information
+"""
 struct HydrogenicLine{T <: AbstractFloat}
     Aji::Unitful.Frequency{T}
     # Units of Bij/Bji defined for J_lambda
@@ -116,7 +119,15 @@ function compute_voigt_profile(line::HydrogenicLine, sites::VoronoiSites,
     return profile
 end
 
-function compute_doppler_profile(line::HydrogenicLine, atmos::Atmosphere,
+"""
+    compute_doppler_profile(line::HydrogenicLine,
+                                 atmos::Atmosphere,
+                                 k::Vector{Float64})
+
+Computes pure Doppler/thermal broadening. Used for testing.
+"""
+function compute_doppler_profile(line::HydrogenicLine,
+                                 atmos::Atmosphere,
                                  k::Vector{Float64})
 
     # calculate line of sight velocity
@@ -180,6 +191,11 @@ function line_of_sight_velocity(sites::VoronoiSites, k::Vector{Float64})
 end
 
 """
+    αline_λ(line::HydrogenicLine,
+            profile::Array{<:PerLength},
+            n_j::Array{<:NumberDensity},
+            n_i::Array{<:NumberDensity})
+
 Compute line extinction given an `AtomicLine` struct, `profile` defined per wavelength,
 and upper and lower population densities `n_j` and `n_i`.
 """
@@ -191,6 +207,11 @@ function αline_λ(line::HydrogenicLine,
     return @. (h*c_0/(4*π*line.λ0) * profile * (n_i * line.Bij - n_j * line.Bji)) |> u"m^-1"
 end
 
+"""
+    function test_atom(nλ_bb::Int, nλ_bf::Int)
+
+Parameters for two-level atom
+"""
 function test_atom(nλ_bb::Int, nλ_bf::Int)
     χl = 0.0u"cm^-1"
     χu = 82258.211u"cm^-1"
@@ -216,6 +237,7 @@ end
 Get sampling wavelengths. Bound free wavelengths are
 linearly sampled, while the bound-bound follow the
 log-sampling from github.com/ITA-Solar/rh.
+Taken from https://github.com/f0rmIdabel/SolarMCRT
 """
 function sample_λ_line(nλ::Int64,
                        λ0::Unitful.Length,
@@ -272,6 +294,7 @@ end
 Get sampling wavelengths. Bound free wavelengths are
 linearly sampled, while the bound-bound follow the
 log-sampling from github.com/ITA-Solar/rh.
+Taken from https://github.com/f0rmIdabel/SolarMCRT
 """
 function sample_λ_boundfree(nλ::Int64,
                             λ_min::Unitful.Length,
@@ -342,7 +365,7 @@ function sample_from_extinction(atmos::Atmosphere,
                                 λ0::Unitful.Length,
                                 n_sites::Int)
 
-    populations = LTE_ionisation(atmos)
+    populations = LTE_populations(atmos)
 
     # Find continuum extinction and absorption extinction (without Thomson and Rayleigh)
     α_cont = α_absorption.(λ0,
@@ -358,11 +381,17 @@ function sample_from_extinction(atmos::Atmosphere,
     return positions
 end
 
+"""
+    sample_from_total_extinction(atmos::Atmosphere,
+                                 n_sites::Int)
 
+Sample Voronoi sites by using total extinction (for rays moving straight
+upwards) as probalility density.
+"""
 function sample_from_total_extinction(atmos::Atmosphere,
                                       n_sites::Int)
 
-    populations = LTE_ionisation(atmos)
+    populations = LTE_populations(atmos)
     line = HydrogenicLine(test_atom(1, 1)..., atmos.temperature)
 
     γ = γ_constant(line,
@@ -434,13 +463,19 @@ Sample Voronoi sites by using ionised hydrogen in LTE as probalility density.
 function sample_from_ionised_hydrogen(atmos::Atmosphere,
                                          n_sites::Int)
 
-    populations = LTE_ionisation(atmos)
+    populations = LTE_populations(atmos)
 
     positions = rejection_sampling(n_sites, atmos, log10.(ustrip.(populations[:,:,:,end])))
     return positions
 end
 
-function LTE_ionisation(atmos::Atmosphere)
+"""
+    LTE_populations(atmos::Atmosphere)
+
+Ad hoc calculate the atom populations according to LTE. Only used to sample
+points and for continuum calculations
+"""
+function LTE_populations(atmos::Atmosphere)
 
     χl = 0.0u"cm^-1"
     χu = 82258.211u"cm^-1"
@@ -475,7 +510,7 @@ function LTE_ionisation(atmos::Atmosphere)
     return n_relative .* atom_density
 end
 
-function LTE_ionisation(sites::VoronoiSites)
+function LTE_populations(sites::VoronoiSites)
 
     χl = 0.0u"cm^-1"
     χu = 82258.211u"cm^-1"
@@ -510,11 +545,19 @@ function LTE_ionisation(sites::VoronoiSites)
     return n_relative .* atom_density
 end
 
+
+"""
+    destruction(LTE_pops::Array{<:NumberDensity},
+                electron_density::Array{<:NumberDensity},
+                temperature::Array{<:Unitful.Temperature},
+                line::HydrogenicLine)
+
+Calculate the photon destruction probability ε, per eq (3.98) in Rutten, 2003
+"""
 function destruction(LTE_pops::Array{<:NumberDensity},
                      electron_density::Array{<:NumberDensity},
                      temperature::Array{<:Unitful.Temperature},
                      line::HydrogenicLine)
-    # destruction, eq (3.98) in Rutten, 2003
     A21 = line.Aji
     B21 = line.Bji
     C21 = Cij(2, 1, electron_density, temperature, LTE_pops)

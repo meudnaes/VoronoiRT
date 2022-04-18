@@ -72,7 +72,7 @@ function Λ_regular(ϵ::AbstractFloat,
     λ = 500u"nm"  # nm
 
     # Lte populations
-    LTE_pops = LTE_ionisation(atmos)
+    LTE_pops = LTE_populations(atmos)
 
     # Find continuum extinction (only with Thomson and Rayleigh)
     α_s = α_scattering(λ, atmos.temperature, atmos.electron_density*1.0,
@@ -125,7 +125,7 @@ function Λ_voronoi(ϵ::AbstractFloat,
     λ = 500u"nm"  # nm
 
     # Lte populations
-    LTE_pops = LTE_ionisation(sites)
+    LTE_pops = LTE_populations(sites)
 
     # Find continuum extinction (only with Thomson and Rayleigh)
     α_s = α_scattering(λ, sites.temperature, sites.electron_density*1.0,
