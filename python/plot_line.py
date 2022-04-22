@@ -41,9 +41,6 @@ CMIN = 0
 CMAX_wing = 100
 CMIN_wing = 0
 
-CMAX_continuum = 0.45
-CMIN_continuum = 0.05
-
 CMAP = "gist_gray_r"
 CMAP_CONT = "magma"
 
@@ -73,6 +70,7 @@ if __name__ == "__main__":
 
     intensity_ionised_5e5 = get_intensity("ionised_hydrogen_5e5_disk_centre_1.npy", PATH)
     intensity_ionised_1e6 = get_intensity("ionised_hydrogen_1e6_disk_centre_1.npy", PATH)
+    intensity_ionised_2e6 = get_intensity("ionised_hydrogen_2e6_disk_centre_1.npy", PATH)
 
     convergence_quarter = np.load(PATH+"regular_ul7n12_quarter.npy")
     convergence_half = np.load(PATH+"regular_ul7n12_half.npy")
@@ -85,7 +83,7 @@ if __name__ == "__main__":
 
     convergence_ionised_5e5 = np.load("./convergence/ionised_hydrogen_5e5_convergence.npy")
     convergence_ionised_1e6 = np.load("./convergence/ionised_hydrogen_1e6_convergence.npy")
-    # convergence_ionised_2e6 = np.load("./convergence/ionised_hydrogen_2e6_convergence.npy")
+    convergence_ionised_2e6 = np.load("./convergence/ionised_hydrogen_2000000_convergence.npy")
 
     convergence_density_5e5 = np.load("./convergence/density_5e5_convergence.npy")
 
@@ -101,7 +99,61 @@ if __name__ == "__main__":
     red_wing = center + 10
     continuum = np.argmax(wavelength)
 
+    velocity = ((wavelength - lambda0)/lambda0*constants.c).to("km s-1")
+    print("Velocity at blue wing: %.3f" %(velocity[blue_wing].value))
+    print("Velocity at continuum: %.3f" %(velocity[continuum].value))
+
+    CMAX_continuum = intensity_half[continuum, :, :].max()
+    CMIN_continuum = intensity_half[continuum, :, :].min()
+
     font_size()
+
+    # compare sampling methods
+    fig, ax = plt.subplots(1, 2, figsize=(10,4), constrained_layout=True)
+
+    # plot disk-centre intensity in wings and centre, and continuum
+    ax[0].imshow(intensity_cont_ext_2e6[center, :, :],
+                   cmap=CMAP,
+                   origin="lower",
+                   vmax=CMAX,
+                   vmin=CMIN)
+    ax[0].axis(False)
+    ax[0].set_title(r"$\alpha^c~\textrm{sampling}$")
+
+    im = ax[1].imshow(intensity_ionised_2e6[center, :, :],
+                   cmap=CMAP,
+                   origin="lower",
+                   vmax=CMAX,
+                   vmin=CMIN)
+    ax[1].axis(False)
+    ax[1].set_title(r"$N_\textrm{\small{HII}}^\textrm{\small{LTE}}~\textrm{sampling}$")
+
+    x = np.load("../data/LTE/x_regular_full.npy")
+    pix2Mm = (x.max() - x.min())*1e-6/len(x)
+
+    # Line:
+    ax[0].hlines(y=16, xmin=20, xmax=20 + 1/pix2Mm, lw=3, color='w',
+                 path_effects=[pe.Stroke(linewidth=5, foreground="black"),pe.Normal()])
+
+    # ax[0].vlines(x=(40+1/pix2Mm)/2, ymin=14, ymax=18, lw=1/pix2Mm-8.25, color='w',
+                 # path_effects=[pe.Stroke(linewidth=1/pix2Mm-6.25, foreground="black"),pe.Normal()])
+
+    # Text:
+    ax[0].text(18, 20, r"\textbf{1 Mm}", color='w', fontsize=14,
+               path_effects=[pe.Stroke(linewidth=2, foreground="black"),pe.Normal()])
+
+    # Line:
+    ax[1].hlines(y=16, xmin=20, xmax=20 + 1/pix2Mm, lw=3, color='w',
+                 path_effects=[pe.Stroke(linewidth=5, foreground="black"),pe.Normal()])
+
+    # Text:
+    ax[1].text(18, 20, r"\textbf{1 Mm}", color='w', fontsize=14,
+               path_effects=[pe.Stroke(linewidth=2, foreground="black"),pe.Normal()])
+
+    fig.colorbar(im, fraction=0.043, pad=0.04, label=iunits)
+
+    fig.suptitle(r"$\textbf{Disk-centre Intensity at line centre, Irregular Grid}$")
+    plt.close()
 
     ################################################################################
     ################################################################################
@@ -432,8 +484,8 @@ if __name__ == "__main__":
     # ax.plot(convergence_cont_2e6, label=r"$\alpha^\textrm{cont}~2\cdot 10^6~\textrm{sites}$", color="b", ls="dashdot")
     ax.plot(convergence_cont_1e6, label=r"$\alpha^\textrm{cont},~10^6~\textrm{sites}$", color="blue", ls="dashed")
     ax.plot(convergence_cont_3e6, label=r"$\alpha^\textrm{cont},~3\cdot 10^6~\textrm{sites}$", color="blue", ls="dotted")
-    ax.plot(convergence_ionised_5e5, label=r"$N_\textrm{HII},~5\cdot 10^5~\textrm{sites}$", color="red", ls="solid")
-    ax.plot(convergence_ionised_1e6, label=r"$N_\textrm{HII},~10^6~\textrm{sites}$", color="red", ls="dashed")
+    ax.plot(convergence_ionised_5e5, label=r"$N_\textrm{H \small{II}},~5\cdot 10^5~\textrm{sites}$", color="red", ls="solid")
+    ax.plot(convergence_ionised_1e6, label=r"$N_\textrm{H \small{II}},~10^6~\textrm{sites}$", color="red", ls="dashed")
     # ax.plot(convergence_tot_ext_2e6, label=r"$\alpha^\textrm{tot}~2\cdot 10^6~\textrm{sites}$", color="g", ls="dashdot")
     # ax.plot(convergence_tot_ext_1e6, label=r"$\alpha^\textrm{tot}~1\cdot 10^6~\textrm{sites}$", color="g", ls="dashed")
     ax.plot(convergence_destruction_5e5, label=r"$\varepsilon,\quad\quad\, 5\cdot 10^5~\textrm{sites}$", color="gold", ls="solid")
@@ -506,7 +558,7 @@ if __name__ == "__main__":
     # Text:
     ax[2].text(18, 20, r"\textbf{1 Mm}", color='w', fontsize=14,
                path_effects=[pe.Stroke(linewidth=2, foreground="black"),pe.Normal()])
-    
+
     fig.colorbar(im, fraction=0.046, pad=0.04, label=iunits)
     # fig.suptitle(r"$\textbf{Disk-Centre~Intensity~\textit{I}}_{\lambda_0}$")
     # plt.show()
@@ -517,7 +569,6 @@ if __name__ == "__main__":
     ################################################################################
     # plot all lines to highlight differences
 
-    """
     fig, ax = plt.subplots(1, 2, figsize=(10, 6), constrained_layout=True, sharey=True)
 
     I_regular = intensity_half.reshape(len(wavelength), -1)
@@ -530,22 +581,39 @@ if __name__ == "__main__":
     Tb_regular = T_b(wavelength[:, np.newaxis]*units.nm, I_regular)
     Tb_irregular = T_b(wavelength[:, np.newaxis]*units.nm, I_irregular)
 
-    ax[0].plot(wavelength,
-               Tb_regular.value,
+    ax[0].plot(wavelength[center-17:center+18],
+               Tb_regular[center-17:center+18, :].value,
                color='k',
-               lw=0.002)
+               lw=0.025,
+               alpha=0.075)
+    ax[0].plot(wavelength[center-17:center+18],
+               np.mean(Tb_regular[center-17:center+18], axis=1).value,
+               color="deepskyblue", label=r"$\textrm{spatial average}$")
+    ax[0].axvline(lambda0, ls="dashed", color="maroon")
     ax[0].set_xlabel(r"$\textrm{Wavelength [nm]}$")
     ax[0].set_ylabel(r"$\textrm{Brightness Temperature [K]}$")
     ax[0].set_title(r"$\textrm{Regular Grid}$")
+    ax[0].legend(loc="upper right")
+    ax[0].text(x=lambda0+0.001, y=5150, s=r"$\lambda_0$", color="maroon")
+    # ax[0].set_xticks(list(ax[0].get_xticks()) + [lambda0])
+    # ax[0].set_xticklabels([r"$%.2f$" %x for x in list(ax[0].get_xticks())[:-1]] + [r"$\lambda_0$"])
 
-    ax[1].plot(wavelength,
-               Tb_irregular.value,
+    ax[1].plot(wavelength[center-17:center+18],
+               Tb_irregular[center-17:center+18, :].value,
                color='k',
-               lw=0.001)
+               lw=0.00472,
+               alpha=0.1235)
+    ax[1].plot(wavelength[center-17:center+18],
+               np.mean(Tb_irregular[center-17:center+18], axis=1).value,
+               color="deepskyblue", label=r"$\textrm{spatial average}$")
+    ax[1].axvline(lambda0, ls="dashed", color="maroon")
     ax[1].set_xlabel(r"$\textrm{Wavelength [nm]}$")
-    ax[1].set_ylim(5000,30000)
+    ax[1].set_ylim(5000,15000)
     ax[1].set_title(r"$\textrm{Irregular Grid}$")
+    ax[1].legend(loc="upper right")
+    ax[1].text(x=lambda0+0.001, y=5150, s=r"$\lambda_0$", color="maroon")
+    # ax[1].set_xticklabels([r"$%.2f$" %x for x in list(ax[0].get_xticks())[:-1]] + [r"$\lambda_0$"])
+    # ax[1].set_xticks(list(ax[1].get_xticks()) + [lambda0])
 
-    fig.suptitle(r"$\textrm{Disk-Centre Intensity}$")
-    plt.savefig("../img/compare_line/lines.png", dpi=300)
-    """
+    # fig.suptitle(r"$\textrm{Disk-Centre Intensity}$")
+    plt.savefig("../img/compare_line/lines.png", dpi=200)
