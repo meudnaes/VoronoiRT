@@ -58,7 +58,7 @@ ax[0].imshow(intensity_250_000_ionised_hydrogen,
                vmax=CMAX,
                vmin=CMIN)
 ax[0].axis(False)
-ax[0].set_title(r"$2.5\cdot 10^5~\rm{Sites}$")
+ax[0].set_title(r"$2.5\cdot 10^5~\rm{sites}$")
 
 # Line:
 x = np.load(PATH+"x_irregular_100000.npy")
@@ -76,7 +76,7 @@ ax[1].imshow(intensity_2_500_000_ionised_hydrogen,
                vmax=CMAX,
                vmin=CMIN)
 ax[1].axis(False)
-ax[1].set_title(r"$2.5\cdot 10^6~\rm{Sites}$")
+ax[1].set_title(r"$2.5\cdot 10^6~\rm{sites}$")
 
 im = ax[2].imshow(intensity_10_000_000_ionised_hydrogen,
                cmap="magma",
@@ -84,7 +84,7 @@ im = ax[2].imshow(intensity_10_000_000_ionised_hydrogen,
                vmax=CMAX,
                vmin=CMIN)
 ax[2].axis(False)
-ax[2].set_title(r"$10^7~\rm{Sites}$")
+ax[2].set_title(r"$10^7~\rm{sites}$")
 
 
 plt.colorbar(im, fraction=0.046, pad=0.04, label=iunits)
@@ -101,7 +101,7 @@ ax[0].imshow(intensity_250_000,
                vmax=CMAX,
                vmin=CMIN)
 ax[0].axis(False)
-ax[0].set_title(r"$2.5\cdot 10^5~\rm{Sites}$")
+ax[0].set_title(r"$2.5\cdot 10^5~\rm{sites}$")
 
 ax[1].imshow(intensity_2_500_000,
                cmap="magma",
@@ -109,7 +109,7 @@ ax[1].imshow(intensity_2_500_000,
                vmax=CMAX,
                vmin=CMIN)
 ax[1].axis(False)
-ax[1].set_title(r"$2.5\cdot 10^6~\rm{Sites}$")
+ax[1].set_title(r"$2.5\cdot 10^6~\rm{sites}$")
 
 im = ax[2].imshow(intensity_10_000_000,
                cmap="magma",
@@ -117,7 +117,7 @@ im = ax[2].imshow(intensity_10_000_000,
                vmax=CMAX,
                vmin=CMIN)
 ax[2].axis(False)
-ax[2].set_title(r"$10^7~\rm{Sites}$")
+ax[2].set_title(r"$10^7~\rm{sites}$")
 
 x = np.load(PATH+"x_irregular_100000.npy")
 pix2Mm = (x.max() - x.min())*1e-6/len(x)
@@ -148,7 +148,7 @@ ax[2].text(40, 40, r"\textbf{1 Mm}", color='w', fontsize=14,
 
 plt.colorbar(im, fraction=0.046, pad=0.04, label=iunits)
 
-fig.suptitle(r"$\textbf{Disk-centre Intensity 500\,nm, Irregular Grid}$")
+fig.suptitle(r"$\textbf{Disk-centre intensity 500\,nm, irregular grid}$")
 plt.savefig("../img/compare_continuum/LTE500_irregular/LTEmaps.pdf")
 plt.close()
 
@@ -161,7 +161,7 @@ ax[0].imshow(intensity_third,
                vmax=CMAX,
                vmin=CMIN)
 ax[0].axis(False)
-ax[0].set_title(r"$\rm{One-Third~Resolution}$")
+ax[0].set_title(r"$\rm{One-third~resolution}$")
 
 ax[1].imshow(intensity_half,
                cmap="magma",
@@ -169,7 +169,7 @@ ax[1].imshow(intensity_half,
                vmax=CMAX,
                vmin=CMIN)
 ax[1].axis(False)
-ax[1].set_title(r"$\rm{Half~Resolution}$")
+ax[1].set_title(r"$\rm{Half~resolution}$")
 
 im = ax[2].imshow(intensity_full,
                   cmap="magma",
@@ -177,7 +177,7 @@ im = ax[2].imshow(intensity_full,
                   vmax=CMAX,
                   vmin=CMIN)
 ax[2].axis(False)
-ax[2].set_title(r"$\rm{Full~Resolution}$")
+ax[2].set_title(r"$\rm{Full~resolution}$")
 
 # Line:
 x = np.load(PATH+"x_regular_third.npy")
@@ -209,7 +209,7 @@ ax[2].hlines(y=16, xmin=20, xmax=20 + 1/pix2Mm, lw=3, color='w',
 ax[2].text(20, 20, r"\textbf{1 Mm}", color='w', fontsize=14,
            path_effects=[pe.Stroke(linewidth=2, foreground="black"),pe.Normal()])
 
-fig.suptitle(r"$\textbf{Disk-centre Intensity 500\,nm, Regular Grid}$")
+fig.suptitle(r"$\textbf{Disk-centre intensity 500\,nm, regular grid}$")
 plt.colorbar(im, fraction=0.046, pad=0.04, label=iunits)
 plt.savefig("../img/compare_continuum/LTE500_irregular/LTEmaps_regular_grid.pdf")
 plt.close()
@@ -270,7 +270,7 @@ ax[2].text(40, 40, r"\textbf{1 Mm}", color='w', fontsize=14,
 
 plt.colorbar(im, fraction=0.046, pad=0.04, label=iunits)
 
-fig.suptitle(r"$\textbf{Disk-centre Intensity 500\,nm, Irregular Grid}$")
+fig.suptitle(r"$\textbf{Disk-centre intensity 500\,nm, irregular grid}$")
 plt.savefig("../img/compare_continuum/LTE500_irregular/LTEmaps_compare.pdf")
 plt.close()
 

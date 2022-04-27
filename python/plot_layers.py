@@ -48,7 +48,7 @@ scatter = ax.scatter(sites[1,:],
 ax.set_xlabel(r"$x$")
 ax.set_ylabel(r"$y$")
 ax.set_zlabel(r"$z$")
-ax.set_title(r"$\textrm{Upward Layers}$")
+ax.set_title(r"$\textrm{Upward layers}$")
 
 colors = cm.rainbow(np.linspace(0, 1, c_max))
 
@@ -75,7 +75,7 @@ scatter = ax.scatter(sites[1,:],
 ax.set_xlabel(r"$x$")
 ax.set_ylabel(r"$y$")
 ax.set_zlabel(r"$z$")
-ax.set_title(r"$\textrm{Downward Layers}$")
+ax.set_title(r"$\textrm{Downward layers}$")
 
 cmap = mpl.cm.rainbow
 bounds = np.linspace(0, c_max, c_max+1)

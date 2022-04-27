@@ -4,21 +4,18 @@ import numpy as np
 import seaborn as sns
 import matplotlib.pyplot as plt
 
-from plot_line import wavelength, lambda0
+from plot_line import wavelength, lambda0, center, blue_wing
 from plot_searchlight import font_size
 
 plt.rcParams['text.usetex'] = True
 
 font_size()
 
-center = np.argmin(np.abs(wavelength - lambda0))
-blue_wing = center - 10
-
 f = h5py.File("../data/voronoi_ul7n12_3e6.h5", "r")
 p_cont = np.array(f["positions"])
 f.close()
 
-f = h5py.File("../data/ionised_hydrogen_3000000.h5", "r")
+f = h5py.File("../data/ionised_hydrogen_3e6_new.h5", "r")
 p_ion = np.array(f["positions"])
 f.close()
 
@@ -28,8 +25,11 @@ f.close()
 
 z_regular = np.load("./sourcedata/half_res_ul7n12_z.npy")
 
-tau_unity = np.load("./sourcedata/tau_unity.npz")
+tau_unity = np.load("./sourcedata/tau_unity.npy")
 tau_unity = tau_unity.reshape(tau_unity.shape[0], -1)
+
+tau_unity_07 = np.load("./sourcedata/tau_unity_07.npy")
+tau_unity_07 = tau_unity_07.reshape(tau_unity_07.shape[0], -1)
 
 tau_mean = np.mean(tau_unity[0:len(wavelength),:], axis=0)
 
@@ -67,17 +67,22 @@ ax.tick_params(axis="y", colors="blue")
 
 #ax.hist(z/1e6, bins=500, histtype="step")
 ax.set_xlabel(r"$\textrm{Height [Mm]}$")
-ax.set_ylabel(r"$\textrm{Density of Sites per height [1e6/Mm]}$")
+ax.set_ylabel(r"$\textrm{Density of sites per height [}10^6\textrm{/Mm]}$")
 
 ax2 = ax.twinx()  # instantiate a second axes that shares the same x-axis
 # ax2.set_zorder(-1)
 
 sns.histplot(data=tau_unity[center, :]/1e6, element="step", fill=True, stat="density",
-                 ax=ax2, color="maroon", label=r"$\textrm{line core}$", alpha=0.2)
+                 ax=ax2, color="maroon", label=r"$\textrm{line core}$", alpha=0.2, bins=27)
 sns.histplot(data=tau_unity[blue_wing, :]/1e6, element="step", fill=True, stat="density",
-                 ax=ax2, color="orangered", label=r"$\textrm{line wing}$", alpha=0.2)
+                 ax=ax2, color="orangered", label=r"$\textrm{line wing}$", alpha=0.2, bins=27)
 
-ax2.set_ylabel(r"$\textrm{Density of Line formation per height}$")
+# sns.histplot(data=tau_unity_07[center, :]/1e6, element="step", fill=True, stat="density",
+                 # ax=ax2, color="gold", label=r"$\textrm{line core}$", alpha=0.2)
+# sns.histplot(data=tau_unity_07[blue_wing, :]/1e6, element="step", fill=True, stat="density",
+                 # ax=ax2, color="yellow", label=r"$\textrm{line wing}$", alpha=0.2)
+
+ax2.set_ylabel(r"$\textrm{Line formation per height}$")
 ax2.yaxis.label.set_color("#980002")
 ax2.tick_params(axis="y", colors="#980002")
 ax2.legend(loc="upper right")
