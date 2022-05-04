@@ -28,7 +28,7 @@ z_regular = np.load("./sourcedata/half_res_ul7n12_z.npy")
 tau_unity = np.load("./sourcedata/tau_unity.npy")
 tau_unity = tau_unity.reshape(tau_unity.shape[0], -1)
 
-tau_unity_07 = np.load("./sourcedata/tau_unity_07.npy")
+tau_unity_07 = np.load("./sourcedata/tau_unity_7.npy")
 tau_unity_07 = tau_unity_07.reshape(tau_unity_07.shape[0], -1)
 
 tau_mean = np.mean(tau_unity[0:len(wavelength),:], axis=0)
@@ -54,7 +54,7 @@ fig, ax = plt.subplots(figsize=(6,5), constrained_layout=True)
 sns.histplot(data=z_cont/1e6, element="step", fill=False, stat="frequency",
              ax=ax, label=r"$\alpha^c$", color="blue", ls="solid")
 sns.histplot(data=z_ion/1e6, element="step", fill=False, stat="frequency",
-             ax=ax, label=r"$\textrm{N}_\textrm{HII}$", color="dodgerblue", ls="solid")
+             ax=ax, label=r"$\textrm{N}_\textrm{H\,\small{II}}$", color="dodgerblue", ls="solid")
 sns.histplot(data=z_des/1e6, element="step", fill=False, stat="frequency",
              ax=ax, label=r"$\varepsilon$", color="cyan", ls="solid")
 
@@ -62,29 +62,28 @@ y_vals = ax.get_yticks()
 ax.set_yticklabels([r"$%.1f$" %(x*1e-6) for x in y_vals])
 
 ax.legend(loc="upper left")
-ax.yaxis.label.set_color("blue")
 ax.tick_params(axis="y", colors="blue")
 
 #ax.hist(z/1e6, bins=500, histtype="step")
 ax.set_xlabel(r"$\textrm{Height [Mm]}$")
-ax.set_ylabel(r"$\textrm{Density of sites per height [}10^6\textrm{/Mm]}$")
+ax.set_ylabel(r"$\textrm{Density of sites per height [}10^6\textrm{/Mm]}$", color="blue")
 
 ax2 = ax.twinx()  # instantiate a second axes that shares the same x-axis
 # ax2.set_zorder(-1)
 
 sns.histplot(data=tau_unity[center, :]/1e6, element="step", fill=True, stat="density",
-                 ax=ax2, color="maroon", label=r"$\textrm{line core}$", alpha=0.2, bins=27)
+                 ax=ax2, color="maroon", label=r"$\textrm{line core}$", alpha=0.2, bins=31)
 sns.histplot(data=tau_unity[blue_wing, :]/1e6, element="step", fill=True, stat="density",
-                 ax=ax2, color="orangered", label=r"$\textrm{line wing}$", alpha=0.2, bins=27)
+                 ax=ax2, color="orangered", label=r"$\textrm{line wing}$", alpha=0.2, bins=31)
 
 # sns.histplot(data=tau_unity_07[center, :]/1e6, element="step", fill=True, stat="density",
-                 # ax=ax2, color="gold", label=r"$\textrm{line core}$", alpha=0.2)
+#                  ax=ax2, color="gold", label=r"$\textrm{line core}$", alpha=0.2)
 # sns.histplot(data=tau_unity_07[blue_wing, :]/1e6, element="step", fill=True, stat="density",
-                 # ax=ax2, color="yellow", label=r"$\textrm{line wing}$", alpha=0.2)
+#                  ax=ax2, color="yellow", label=r"$\textrm{line wing}$", alpha=0.2)
 
-ax2.set_ylabel(r"$\textrm{Line formation per height}$")
-ax2.yaxis.label.set_color("#980002")
-ax2.tick_params(axis="y", colors="#980002")
+ax2.set_ylabel(r"$\textrm{Line formation per height [arbitrary units]}$", color = "#980002")
+#ax2.tick_params(axis="y", which='both', bottom=False, top=False, labelbottom=False)
+ax2.set_yticks([])
 ax2.legend(loc="upper right")
 
 plt.savefig("../img/sites_histogram.pdf")

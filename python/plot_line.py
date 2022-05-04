@@ -3,6 +3,7 @@ import matplotlib as mpl
 # import matplotlib.cm as cm
 import matplotlib.pyplot as plt
 import matplotlib.patheffects as pe
+import matplotlib.patches as patches
 
 from brightness_temperature import *
 from plot_searchlight import get_intensity, font_size, iunits
@@ -71,6 +72,7 @@ if __name__ == "__main__":
 
     intensity_destruction_5e5 = get_intensity("destruction_5e5_disk_centre_1.npy", PATH)
     intensity_destruction_1e6 = get_intensity("destruction_1e6_disk_centre_1.npy", PATH)
+    intensity_destruction_2e6 = get_intensity("destruction_2e6_disk_centre_1.npy", PATH)
 
     intensity_density_5e5 = get_intensity("density_5e5_disk_centre_1.npy", PATH)
 
@@ -97,6 +99,7 @@ if __name__ == "__main__":
 
     convergence_destruction_5e5 = np.load("./convergence/destruction_5e5_convergence.npy")
     convergence_destruction_1e6 = np.load("./convergence/destruction_1e6_convergence.npy")
+    convergence_destruction_2e6 = np.load("./convergence/destruction_2e6_convergence.npy")
 
     convergence_tot_ext_5e5 = np.load("./convergence/total_ext_5e5_convergence.npy")
     convergence_tot_ext_1e6 = np.load("./convergence/total_ext_1e6_convergence.npy")
@@ -118,39 +121,38 @@ if __name__ == "__main__":
     fig, ax = plt.subplots(1, 2, figsize=(7.5,4), constrained_layout=True)
 
     # plot disk-centre intensity in wings and centre, and continuum
-    ax[0].imshow(intensity_cont_ext_1e6[center, :, :],
+    ax[0].imshow(intensity_destruction_2e6[center, :, :],
                    cmap=CMAP,
                    origin="lower",
                    vmax=CMAX,
                    vmin=CMIN)
     ax[0].axis(False)
-    ax[0].set_title(r"$\alpha^c~\textrm{sampling}$")
+    ax[0].set_title(r"$\varepsilon~\textrm{sampling}$")
 
-    im = ax[1].imshow(intensity_uniform_1e6[center, :, :],
+    im = ax[1].imshow(intensity_cont_ext_2e6[center, :, :],
                    cmap=CMAP,
                    origin="lower",
                    vmax=CMAX,
                    vmin=CMIN)
     ax[1].axis(False)
-    ax[1].set_title(r"$U~\textrm{sampling}$")
+    ax[1].set_title(r"$\alpha^c~\textrm{sampling}$")
 
     x = np.load("../data/LTE/x_regular_full.npy")
     pix2Mm = (x.max() - x.min())*1e-6/len(x)
 
-    # Line:
-    ax[0].hlines(y=16, xmin=20, xmax=20 + 1/pix2Mm, lw=3, color='w',
-                 path_effects=[pe.Stroke(linewidth=5, foreground="black"),pe.Normal()])
-
-    # ax[0].vlines(x=(40+1/pix2Mm)/2, ymin=14, ymax=18, lw=1/pix2Mm-8.25, color='w',
-                 # path_effects=[pe.Stroke(linewidth=1/pix2Mm-6.25, foreground="black"),pe.Normal()])
+    # Scale:
+    rect = patches.Rectangle(xy=[20, 14], width=1/pix2Mm, height=3, color='w',
+                             path_effects=[pe.Stroke(linewidth=3, foreground="black"),pe.Normal()])
+    ax[0].add_patch(rect)
 
     # Text:
     ax[0].text(18, 20, r"\textbf{1 Mm}", color='w', fontsize=14,
                path_effects=[pe.Stroke(linewidth=2, foreground="black"),pe.Normal()])
 
-    # Line:
-    ax[1].hlines(y=16, xmin=20, xmax=20 + 1/pix2Mm, lw=3, color='w',
-                 path_effects=[pe.Stroke(linewidth=5, foreground="black"),pe.Normal()])
+    # Scale:
+    rect = patches.Rectangle(xy=[20, 14], width=1/pix2Mm, height=3, color='w',
+                             path_effects=[pe.Stroke(linewidth=3, foreground="black"),pe.Normal()])
+    ax[1].add_patch(rect)
 
     # Text:
     ax[1].text(18, 20, r"\textbf{1 Mm}", color='w', fontsize=14,
@@ -159,8 +161,9 @@ if __name__ == "__main__":
     fig.colorbar(im, fraction=0.043, pad=0.04, label=iunits)
 
     fig.suptitle(r"$\textbf{Disk-centre intensity at line centre, irregular grid}$")
-    plt.savefig("../img/compare_line/quick_compare.pdf")
+    # plt.savefig("../img/compare_line/quick_compare.pdf")
     plt.close()
+    # plt.show()
 
     ################################################################################
     ################################################################################
@@ -204,38 +207,38 @@ if __name__ == "__main__":
     x = np.load("../data/LTE/x_regular_full.npy")
     pix2Mm = (x.max() - x.min())*1e-6/len(x)
 
-    # Line:
-    ax[0].hlines(y=16, xmin=20, xmax=20 + 1/pix2Mm, lw=3, color='w',
-                 path_effects=[pe.Stroke(linewidth=5, foreground="black"),pe.Normal()])
-
-    # ax[0].vlines(x=(40+1/pix2Mm)/2, ymin=14, ymax=18, lw=1/pix2Mm-8.25, color='w',
-                 # path_effects=[pe.Stroke(linewidth=1/pix2Mm-6.25, foreground="black"),pe.Normal()])
+    # Scale:
+    rect = patches.Rectangle(xy=[20, 14], width=1/pix2Mm, height=3, color='w',
+                             path_effects=[pe.Stroke(linewidth=3, foreground="black"),pe.Normal()])
+    ax[0].add_patch(rect)
 
     # Text:
     ax[0].text(18, 20, r"\textbf{1 Mm}", color='w', fontsize=14,
                path_effects=[pe.Stroke(linewidth=2, foreground="black"),pe.Normal()])
 
-    # Line:
-    ax[1].hlines(y=16, xmin=20, xmax=20 + 1/pix2Mm, lw=3, color='w',
-                 path_effects=[pe.Stroke(linewidth=5, foreground="black"),pe.Normal()])
+    # Scale:
+    rect = patches.Rectangle(xy=[20, 14], width=1/pix2Mm, height=3, color='w',
+                             path_effects=[pe.Stroke(linewidth=3, foreground="black"),pe.Normal()])
+    ax[1].add_patch(rect)
 
     # Text:
     ax[1].text(18, 20, r"\textbf{1 Mm}", color='w', fontsize=14,
                path_effects=[pe.Stroke(linewidth=2, foreground="black"),pe.Normal()])
 
-    # Line:
-    ax[2].hlines(y=16, xmin=20, xmax=20 + 1/pix2Mm, lw=3, color='w',
-                 path_effects=[pe.Stroke(linewidth=5, foreground="black"),pe.Normal()])
+    # Scale:
+    rect = patches.Rectangle(xy=[20, 14], width=1/pix2Mm, height=3, color='w',
+                             path_effects=[pe.Stroke(linewidth=3, foreground="black"),pe.Normal()])
+    ax[2].add_patch(rect)
 
 
     # Text:
     ax[2].text(18, 20, r"\textbf{1 Mm}", color='w', fontsize=14,
                path_effects=[pe.Stroke(linewidth=2, foreground="black"),pe.Normal()])
 
-    # Line:
-    ax[3].hlines(y=16, xmin=20, xmax=20 + 1/pix2Mm, lw=3, color='w',
-                 path_effects=[pe.Stroke(linewidth=5, foreground="black"),pe.Normal()])
-
+    # Scale:
+    rect = patches.Rectangle(xy=[20, 14], width=1/pix2Mm, height=3, color='w',
+                             path_effects=[pe.Stroke(linewidth=3, foreground="black"),pe.Normal()])
+    ax[3].add_patch(rect)
 
     # Text:
     ax[3].text(18, 20, r"\textbf{1 Mm}", color='w', fontsize=14,
@@ -293,37 +296,31 @@ if __name__ == "__main__":
     x = np.load("../data/LTE/x_regular_half.npy")
     pix2Mm = (x.max() - x.min())*1e-6/len(x)
 
-    # Line:
-    ax[0].hlines(y=8, xmin=10, xmax=10 + 1/pix2Mm, lw=3, color='w',
-                 path_effects=[pe.Stroke(linewidth=5, foreground="black"),pe.Normal()])
-
-    # ax[0].vlines(x=(20+1/pix2Mm)/2, ymin=7, ymax=9, lw=1/pix2Mm, color='w',
-                 # path_effects=[pe.Stroke(linewidth=1/pix2Mm, foreground="black"),pe.Normal()])
+    # Scale:
+    rect = patches.Rectangle(xy=[10, 7], width=1/pix2Mm, height=3/2, color='w',
+                             path_effects=[pe.Stroke(linewidth=3, foreground="black"),pe.Normal()])
+    ax[0].add_patch(rect)
 
     # Text:
-    ax[0].text(9, 10, r"\textbf{1 Mm}", color='w', fontsize=14,
+    ax[0].text(10, 10, r"\textbf{1 Mm}", color='w', fontsize=14,
                path_effects=[pe.Stroke(linewidth=2, foreground="black"),pe.Normal()])
 
-    # Line:
-    ax[1].hlines(y=8, xmin=10, xmax=10 + 1/pix2Mm, lw=3, color='w',
-                 path_effects=[pe.Stroke(linewidth=5, foreground="black"),pe.Normal()])
-
-    # ax[1].vlines(x=(20+1/pix2Mm)/2, ymin=7, ymax=9, lw=1/pix2Mm, color='w',
-                 # path_effects=[pe.Stroke(linewidth=1/pix2Mm, foreground="black"),pe.Normal()])
+    # Scale:
+    rect = patches.Rectangle(xy=[10, 7], width=1/pix2Mm, height=3/2, color='w',
+                             path_effects=[pe.Stroke(linewidth=3, foreground="black"),pe.Normal()])
+    ax[1].add_patch(rect)
 
     # Text:
-    ax[1].text(9, 10, r"\textbf{1 Mm}", color='w', fontsize=14,
+    ax[1].text(10, 10, r"\textbf{1 Mm}", color='w', fontsize=14,
                path_effects=[pe.Stroke(linewidth=2, foreground="black"),pe.Normal()])
 
-    # Line:
-    ax[2].hlines(y=8, xmin=10, xmax=10 + 1/pix2Mm, lw=3, color='w',
-                 path_effects=[pe.Stroke(linewidth=5, foreground="black"),pe.Normal()])
-
-    # ax[2].vlines(x=(20+1/pix2Mm)/2, ymin=7, ymax=9, lw=1/pix2Mm, color='w',
-                 # path_effects=[pe.Stroke(linewidth=1/pix2Mm, foreground="black"),pe.Normal()])
+    # Scale:
+    rect = patches.Rectangle(xy=[10, 7], width=1/pix2Mm, height=3/2, color='w',
+                             path_effects=[pe.Stroke(linewidth=3, foreground="black"),pe.Normal()])
+    ax[2].add_patch(rect)
 
     # Text:
-    ax[2].text(9, 10, r"\textbf{1 Mm}", color='w', fontsize=14,
+    ax[2].text(10, 10, r"\textbf{1 Mm}", color='w', fontsize=14,
                path_effects=[pe.Stroke(linewidth=2, foreground="black"),pe.Normal()])
 
     fig.suptitle(r"$\textbf{Disk-centre intensity, regular Grid}$")
@@ -376,37 +373,31 @@ if __name__ == "__main__":
     x = np.load("../data/LTE/x_regular_full.npy")
     pix2Mm = (x.max() - x.min())*1e-6/len(x)
 
-    # Line:
-    ax[0].hlines(y=16, xmin=20, xmax=20 + 1/pix2Mm, lw=3, color='w',
-                 path_effects=[pe.Stroke(linewidth=5, foreground="black"),pe.Normal()])
-
-    # ax[0].vlines(x=(40+1/pix2Mm)/2, ymin=14, ymax=18, lw=1/pix2Mm-8.25, color='w',
-                 # path_effects=[pe.Stroke(linewidth=1/pix2Mm-6.25, foreground="black"),pe.Normal()])
+    # Scale:
+    rect = patches.Rectangle(xy=[20, 14], width=1/pix2Mm, height=3, color='w',
+                             path_effects=[pe.Stroke(linewidth=3, foreground="black"),pe.Normal()])
+    ax[0].add_patch(rect)
 
     # Text:
-    ax[0].text(18, 20, r"\textbf{1 Mm}", color='w', fontsize=14,
+    ax[0].text(20, 20, r"\textbf{1 Mm}", color='w', fontsize=14,
                path_effects=[pe.Stroke(linewidth=2, foreground="black"),pe.Normal()])
 
-    # Line:
-    ax[1].hlines(y=16, xmin=20, xmax=20 + 1/pix2Mm, lw=3, color='w',
-                 path_effects=[pe.Stroke(linewidth=5, foreground="black"),pe.Normal()])
-
-    # ax[1].vlines(x=(40+1/pix2Mm)/2, ymin=14, ymax=18, lw=1/pix2Mm-8.25, color='w',
-                 # path_effects=[pe.Stroke(linewidth=1/pix2Mm-6.25, foreground="black"),pe.Normal()])
+    # Scale:
+    rect = patches.Rectangle(xy=[20, 14], width=1/pix2Mm, height=3, color='w',
+                             path_effects=[pe.Stroke(linewidth=3, foreground="black"),pe.Normal()])
+    ax[1].add_patch(rect)
 
     # Text:
-    ax[1].text(18, 20, r"\textbf{1 Mm}", color='w', fontsize=14,
+    ax[1].text(20, 20, r"\textbf{1 Mm}", color='w', fontsize=14,
                path_effects=[pe.Stroke(linewidth=2, foreground="black"),pe.Normal()])
 
-    # Line:
-    ax[2].hlines(y=16, xmin=20, xmax=20 + 1/pix2Mm, lw=3, color='w',
-                 path_effects=[pe.Stroke(linewidth=5, foreground="black"),pe.Normal()])
-
-    # ax[2].vlines(x=(40+1/pix2Mm)/2, ymin=14, ymax=18, lw=1/pix2Mm-8.25, color='w',
-                 # path_effects=[pe.Stroke(linewidth=1/pix2Mm-6.25, foreground="black"),pe.Normal()])
+    # Scale:
+    rect = patches.Rectangle(xy=[20, 14], width=1/pix2Mm, height=3, color='w',
+                             path_effects=[pe.Stroke(linewidth=3, foreground="black"),pe.Normal()])
+    ax[2].add_patch(rect)
 
     # Text:
-    ax[2].text(18, 20, r"\textbf{1 Mm}", color='w', fontsize=14,
+    ax[2].text(20, 20, r"\textbf{1 Mm}", color='w', fontsize=14,
                path_effects=[pe.Stroke(linewidth=2, foreground="black"),pe.Normal()])
 
     fig.suptitle(r"$\textbf{Disk-centre intensity, irregular grid}$")
@@ -445,10 +436,12 @@ if __name__ == "__main__":
     # Line:
     x = np.load("../data/LTE/x_regular_quarter.npy")
     pix2Mm = (x.max() - x.min())*1e-6/len(x)
-    ax[0].hlines(y=8/2, xmin=10/2, xmax=10/2 + 1/pix2Mm, lw=3, color='w',
-                 path_effects=[pe.Stroke(linewidth=5, foreground="black"),pe.Normal()])
+    # Scale:
+    rect = patches.Rectangle(xy=[10/2, 7/2], width=1/pix2Mm, height=3/4, color='w',
+                             path_effects=[pe.Stroke(linewidth=3, foreground="black"),pe.Normal()])
+    ax[0].add_patch(rect)
     # Text:
-    ax[0].text(9/2, 10/2, r"\textbf{1 Mm}", color='w', fontsize=14,
+    ax[0].text(11/2, 10/2, r"\textbf{1 Mm}", color='w', fontsize=14,
                path_effects=[pe.Stroke(linewidth=2, foreground="black"),pe.Normal()])
 
 
@@ -456,20 +449,24 @@ if __name__ == "__main__":
     # Line:
     x = np.load("../data/LTE/x_regular_third.npy")
     pix2Mm = (x.max() - x.min())*1e-6/len(x)
-    ax[1].hlines(y=8*2/3, xmin=10*2/3, xmax=10*2/3 + 1/pix2Mm, lw=3, color='w',
-                 path_effects=[pe.Stroke(linewidth=5, foreground="black"),pe.Normal()])
+    # Scale:
+    rect = patches.Rectangle(xy=[10*2/3, 7*2/3], width=1/pix2Mm, height=1, color='w',
+                             path_effects=[pe.Stroke(linewidth=3, foreground="black"),pe.Normal()])
+    ax[1].add_patch(rect)
 
     # Text:
-    ax[1].text(9*2/3, 10*2/3, r"\textbf{1 Mm}", color='w', fontsize=14,
+    ax[1].text(11*2/3, 10*2/3, r"\textbf{1 Mm}", color='w', fontsize=14,
                path_effects=[pe.Stroke(linewidth=2, foreground="black"),pe.Normal()])
 
     # Line:
     x = np.load("../data/LTE/x_regular_half.npy")
     pix2Mm = (x.max() - x.min())*1e-6/len(x)
-    ax[2].hlines(y=8, xmin=10, xmax=10 + 1/pix2Mm, lw=3, color='w',
-                 path_effects=[pe.Stroke(linewidth=5, foreground="black"),pe.Normal()])
+    # Scale:
+    rect = patches.Rectangle(xy=[10, 7], width=1/pix2Mm, height=3/2, color='w',
+                             path_effects=[pe.Stroke(linewidth=3, foreground="black"),pe.Normal()])
+    ax[2].add_patch(rect)
     # Text:
-    ax[2].text(9, 10, r"\textbf{1 Mm}", color='w', fontsize=14,
+    ax[2].text(11, 10, r"\textbf{1 Mm}", color='w', fontsize=14,
                path_effects=[pe.Stroke(linewidth=2, foreground="black"),pe.Normal()])
 
     # fig.suptitle(r"$\textbf{Disk-centre Intensity line centre, Regular Grid}$")
@@ -487,7 +484,7 @@ if __name__ == "__main__":
     ax[0].plot(convergence_quarter, label=r"$\textrm{regular (1/4 res.)}$", color="k", ls="solid")
     ax[0].plot(convergence_ionised_5e5, label=r"$N_\textrm{H\,\small{II}}$", color="red", ls="solid")
     ax[0].plot(convergence_cont_5e5, label=r"$\alpha^\textrm{cont}$", color="blue", ls="dashed")
-    ax[0].plot(convergence_tot_ext_5e5, label=r"$\alpha^\textrm{tot}$", color="gold", ls="solid")
+    # ax[0].plot(convergence_tot_ext_5e5, label=r"$\alpha^\textrm{tot}$", color="gold", ls="solid")
     ax[0].plot(convergence_density_5e5, label=r"$\rho$", color="gray", ls="dashdot")
     ax[0].plot(convergence_destruction_5e5, label=r"$\varepsilon$", color="cyan", ls="solid")
 
@@ -495,7 +492,7 @@ if __name__ == "__main__":
     ax[1].plot(convergence_destruction_1e6, label=r"$\varepsilon$", color="cyan", ls="solid")
     ax[1].plot(convergence_cont_1e6, label=r"$\alpha^\textrm{cont}$", color="blue", ls="dashed")
     ax[1].plot(convergence_ionised_1e6, label=r"$N_\textrm{H\,\small{II}}$", color="red", ls="solid")
-    ax[1].plot(convergence_uniform_1e6, label=r"$U~\textrm{(uniform)}$", color="pink", ls="solid")
+    ax[1].plot(convergence_uniform_1e6, label=r"$U~\textrm{(uniform)}$", color="gold", ls="solid")
 
     ax[2].plot(convergence_half, label=r"$\textrm{regular (1/2 res.)}$", color="k", ls="solid")
     ax[2].plot(convergence_cont_3e6, label=r"$\alpha^\textrm{cont}$", color="blue", ls="dashed")
@@ -557,28 +554,31 @@ if __name__ == "__main__":
     x = np.load("../data/LTE/x_regular_full.npy")
     pix2Mm = (x.max() - x.min())*1e-6/len(x)
 
-    # Line:
-    ax[0].hlines(y=16, xmin=20, xmax=20 + 1/pix2Mm, lw=3, color='w',
-                 path_effects=[pe.Stroke(linewidth=5, foreground="black"),pe.Normal()])
+    # Scale:
+    rect = patches.Rectangle(xy=[20, 14], width=1/pix2Mm, height=3, color='w',
+                             path_effects=[pe.Stroke(linewidth=3, foreground="black"),pe.Normal()])
+    ax[0].add_patch(rect)
 
     # Text:
-    ax[0].text(18, 20, r"\textbf{1 Mm}", color='w', fontsize=14,
+    ax[0].text(21, 20, r"\textbf{1 Mm}", color='w', fontsize=14,
                path_effects=[pe.Stroke(linewidth=2, foreground="black"),pe.Normal()])
 
-    # Line:
-    ax[1].hlines(y=16, xmin=20, xmax=20 + 1/pix2Mm, lw=3, color='w',
-                 path_effects=[pe.Stroke(linewidth=5, foreground="black"),pe.Normal()])
+    # Scale:
+    rect = patches.Rectangle(xy=[20, 14], width=1/pix2Mm, height=3, color='w',
+                             path_effects=[pe.Stroke(linewidth=3, foreground="black"),pe.Normal()])
+    ax[1].add_patch(rect)
 
     # Text:
-    ax[1].text(18, 20, r"\textbf{1 Mm}", color='w', fontsize=14,
+    ax[1].text(21, 20, r"\textbf{1 Mm}", color='w', fontsize=14,
                path_effects=[pe.Stroke(linewidth=2, foreground="black"),pe.Normal()])
 
-    # Line:
-    ax[2].hlines(y=16, xmin=20, xmax=20 + 1/pix2Mm, lw=3, color='w',
-                 path_effects=[pe.Stroke(linewidth=5, foreground="black"),pe.Normal()])
+    # Scale:
+    rect = patches.Rectangle(xy=[20, 14], width=1/pix2Mm, height=3, color='w',
+                             path_effects=[pe.Stroke(linewidth=3, foreground="black"),pe.Normal()])
+    ax[2].add_patch(rect)
 
     # Text:
-    ax[2].text(18, 20, r"\textbf{1 Mm}", color='w', fontsize=14,
+    ax[2].text(21, 20, r"\textbf{1 Mm}", color='w', fontsize=14,
                path_effects=[pe.Stroke(linewidth=2, foreground="black"),pe.Normal()])
 
     fig.colorbar(im, fraction=0.046, pad=0.04, label=iunits)

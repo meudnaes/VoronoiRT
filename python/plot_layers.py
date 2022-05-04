@@ -3,6 +3,7 @@ import matplotlib as mpl
 import matplotlib.cm as cm
 import matplotlib.pyplot as plt
 
+from copy import copy
 from plot_searchlight import font_size
 
 plt.rcParams['text.usetex'] = True
@@ -28,7 +29,7 @@ for i in range(len(perm_up)):
     layer = np.searchsorted(layers_up, i)
     colored_sites[idx,:] = colors[layer]
 
-fig = plt.figure(figsize=(9.3,4), constrained_layout=True)
+fig = plt.figure(figsize=(10.75,4.8), constrained_layout=True)
 ax = fig.add_subplot(1, 2, 1, projection='3d')
 
 ax.grid(False)
@@ -42,7 +43,8 @@ scatter = ax.scatter(sites[1,:],
                      sites[2,:],
                      sites[0,:],
                      c=colored_sites,
-                     s=3)
+                     s=3,
+                     rasterized=True)
 
 
 ax.set_xlabel(r"$x$")
@@ -70,12 +72,16 @@ scatter = ax.scatter(sites[1,:],
                      sites[2,:],
                      sites[0,:],
                      c=colored_sites,
-                     s=3)
+                     s=3,
+                     rasterized=True)
 
 ax.set_xlabel(r"$x$")
 ax.set_ylabel(r"$y$")
 ax.set_zlabel(r"$z$")
 ax.set_title(r"$\textrm{Downward layers}$")
+
+layer_tick_locs = np.arange(c_max) + 0.5
+layer_tick_label = np.arange(1, c_max + 1)
 
 cmap = mpl.cm.rainbow
 bounds = np.linspace(0, c_max, c_max+1)
@@ -84,7 +90,9 @@ cb = fig.colorbar(cm.ScalarMappable(norm=norm, cmap=cmap),
                   ax=ax,
                   fraction=0.046,
                   pad=0.2)
-cb.set_label(r'$\rm{layer}$')
 
-plt.savefig("../img/layers.pdf")
+cb.set_ticks(layer_tick_locs)
+cb.set_ticklabels(layer_tick_label)
+
+plt.savefig("../img/layers.pdf", dpi=200)
 plt.close();

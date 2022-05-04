@@ -77,6 +77,8 @@ plt.savefig("../img/compare_line/source_diff.pdf")
 """
 
 S_diff = S_diff.reshape(S_diff.shape[0], -1)
+S_median = np.median(S_diff, axis=1)
+print(S_median.shape)
 
 fig, ax = plt.subplots(figsize=(6, 5.5), constrained_layout=True, sharey=True)
 
@@ -86,6 +88,13 @@ ax.plot(regular_z/1e6,
         lw=0.0035,
         alpha=1.0,
         rasterized=True)
+
+ax.plot(regular_z/1e6,
+        S_median,
+        color="cyan",
+        label="median")
+
+ax.legend(loc="upper right")
 
 ax.set_xlabel(r"$\textrm{Height [Mm]}$")
 ax.set_ylabel(r"$\textrm{Max rel. diff.,}~\max_\lambda\left(1 - S_\textrm{irregular}/S_\textrm{regular}\right)$")

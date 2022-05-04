@@ -3,6 +3,7 @@ import matplotlib as mpl
 # import matplotlib.cm as cm
 import matplotlib.pyplot as plt
 import matplotlib.patheffects as pe
+import matplotlib.patches as patches
 
 from plot_searchlight import get_intensity, iunits, font_size
 
@@ -88,7 +89,7 @@ ax[2].set_title(r"$10^7~\rm{sites}$")
 
 
 plt.colorbar(im, fraction=0.046, pad=0.04, label=iunits)
-# plt.savefig("../img/compare_continuum/LTE500_irregular/LTEmaps.pdf")
+# plt.savefig("../img/compare_continuum/LTE500_irregular/blblb.pdf")
 # plt.show()
 plt.close()
 
@@ -122,26 +123,29 @@ ax[2].set_title(r"$10^7~\rm{sites}$")
 x = np.load(PATH+"x_irregular_100000.npy")
 pix2Mm = (x.max() - x.min())*1e-6/len(x)
 
-# Line:
-ax[0].hlines(y=32, xmin=40, xmax=40 + 1/pix2Mm, lw=3, color='w',
-             path_effects=[pe.Stroke(linewidth=5, foreground="black"),pe.Normal()])
+# Scale:
+rect = patches.Rectangle(xy=[40, 28], width=1/pix2Mm, height=6, color='w',
+                             path_effects=[pe.Stroke(linewidth=3, foreground="black"),pe.Normal()])
+ax[0].add_patch(rect)
 # Text:
 ax[0].text(40, 40, r"\textbf{1 Mm}", color='w', fontsize=14,
            path_effects=[pe.Stroke(linewidth=2, foreground="black"),pe.Normal()])
 
 
 
-# Line:
-ax[1].hlines(y=32, xmin=40, xmax=40 + 1/pix2Mm, lw=3, color='w',
-             path_effects=[pe.Stroke(linewidth=5, foreground="black"),pe.Normal()])
+# Scale:
+rect = patches.Rectangle(xy=[40, 28], width=1/pix2Mm, height=6, color='w',
+                             path_effects=[pe.Stroke(linewidth=3, foreground="black"),pe.Normal()])
+ax[1].add_patch(rect)
 
 # Text:
 ax[1].text(40, 40, r"\textbf{1 Mm}", color='w', fontsize=14,
            path_effects=[pe.Stroke(linewidth=2, foreground="black"),pe.Normal()])
 
-# Line:
-ax[2].hlines(y=32, xmin=40, xmax=40 + 1/pix2Mm, lw=3, color='w',
-             path_effects=[pe.Stroke(linewidth=5, foreground="black"),pe.Normal()])
+# Scale:
+rect = patches.Rectangle(xy=[40, 28], width=1/pix2Mm, height=6, color='w',
+                             path_effects=[pe.Stroke(linewidth=3, foreground="black"),pe.Normal()])
+ax[2].add_patch(rect)
 # Text:
 ax[2].text(40, 40, r"\textbf{1 Mm}", color='w', fontsize=14,
            path_effects=[pe.Stroke(linewidth=2, foreground="black"),pe.Normal()])
@@ -161,7 +165,7 @@ ax[0].imshow(intensity_third,
                vmax=CMAX,
                vmin=CMIN)
 ax[0].axis(False)
-ax[0].set_title(r"$\rm{One-third~resolution}$")
+ax[0].set_title(r"$\textrm{One-third~resolution}$")
 
 ax[1].imshow(intensity_half,
                cmap="magma",
@@ -182,8 +186,10 @@ ax[2].set_title(r"$\rm{Full~resolution}$")
 # Line:
 x = np.load(PATH+"x_regular_third.npy")
 pix2Mm = (x.max() - x.min())*1e-6/len(x)
-ax[0].hlines(y=16/3, xmin=20/3, xmax=20/3 + 1/pix2Mm, lw=3, color='w',
-             path_effects=[pe.Stroke(linewidth=5, foreground="black"),pe.Normal()])
+# Scale:
+rect = patches.Rectangle(xy=[20/3, 14/3], width=1/pix2Mm, height=1, color='w',
+                             path_effects=[pe.Stroke(linewidth=3, foreground="black"),pe.Normal()])
+ax[0].add_patch(rect)
 # Text:
 ax[0].text(20/3, 20/3, r"\textbf{1 Mm}", color='w', fontsize=14,
            path_effects=[pe.Stroke(linewidth=2, foreground="black"),pe.Normal()])
@@ -193,8 +199,10 @@ ax[0].text(20/3, 20/3, r"\textbf{1 Mm}", color='w', fontsize=14,
 # Line:
 x = np.load(PATH+"x_regular_half.npy")
 pix2Mm = (x.max() - x.min())*1e-6/len(x)
-ax[1].hlines(y=8, xmin=10, xmax=10 + 1/pix2Mm, lw=3, color='w',
-             path_effects=[pe.Stroke(linewidth=5, foreground="black"),pe.Normal()])
+# Scale:
+rect = patches.Rectangle(xy=[20/2, 14/2], width=1/pix2Mm, height=3/2, color='w',
+                             path_effects=[pe.Stroke(linewidth=3, foreground="black"),pe.Normal()])
+ax[1].add_patch(rect)
 
 # Text:
 ax[1].text(10, 10, r"\textbf{1 Mm}", color='w', fontsize=14,
@@ -203,8 +211,10 @@ ax[1].text(10, 10, r"\textbf{1 Mm}", color='w', fontsize=14,
 # Line:
 x = np.load(PATH+"x_regular_full.npy")
 pix2Mm = (x.max() - x.min())*1e-6/len(x)
-ax[2].hlines(y=16, xmin=20, xmax=20 + 1/pix2Mm, lw=3, color='w',
-             path_effects=[pe.Stroke(linewidth=5, foreground="black"),pe.Normal()])
+# Scale:
+rect = patches.Rectangle(xy=[20, 14], width=1/pix2Mm, height=3, color='w',
+                             path_effects=[pe.Stroke(linewidth=3, foreground="black"),pe.Normal()])
+ax[2].add_patch(rect)
 # Text:
 ax[2].text(20, 20, r"\textbf{1 Mm}", color='w', fontsize=14,
            path_effects=[pe.Stroke(linewidth=2, foreground="black"),pe.Normal()])
@@ -244,26 +254,30 @@ ax[0].set_title(r"$\rm{Sites~from}~U$")
 x = np.load(PATH+"x_irregular_100000.npy")
 pix2Mm = (x.max() - x.min())*1e-6/len(x)
 
-# Line:
-ax[0].hlines(y=32, xmin=40, xmax=40 + 1/pix2Mm, lw=3, color='w',
-             path_effects=[pe.Stroke(linewidth=5, foreground="black"),pe.Normal()])
+# Scale:
+rect = patches.Rectangle(xy=[40, 28], width=1/pix2Mm, height=6, color='w',
+                             path_effects=[pe.Stroke(linewidth=3, foreground="black"),pe.Normal()])
+ax[0].add_patch(rect)
+
 # Text:
 ax[0].text(40, 40, r"\textbf{1 Mm}", color='w', fontsize=14,
            path_effects=[pe.Stroke(linewidth=2, foreground="black"),pe.Normal()])
 
 
 
-# Line:
-ax[1].hlines(y=32, xmin=40, xmax=40 + 1/pix2Mm, lw=3, color='w',
-             path_effects=[pe.Stroke(linewidth=5, foreground="black"),pe.Normal()])
+# Scale:
+rect = patches.Rectangle(xy=[40, 28], width=1/pix2Mm, height=6, color='w',
+                             path_effects=[pe.Stroke(linewidth=3, foreground="black"),pe.Normal()])
+ax[1].add_patch(rect)
 
 # Text:
 ax[1].text(40, 40, r"\textbf{1 Mm}", color='w', fontsize=14,
            path_effects=[pe.Stroke(linewidth=2, foreground="black"),pe.Normal()])
 
-# Line:
-ax[2].hlines(y=32, xmin=40, xmax=40 + 1/pix2Mm, lw=3, color='w',
-             path_effects=[pe.Stroke(linewidth=5, foreground="black"),pe.Normal()])
+# Scale:
+rect = patches.Rectangle(xy=[40, 28], width=1/pix2Mm, height=6, color='w',
+                             path_effects=[pe.Stroke(linewidth=3, foreground="black"),pe.Normal()])
+ax[2].add_patch(rect)
 # Text:
 ax[2].text(40, 40, r"\textbf{1 Mm}", color='w', fontsize=14,
            path_effects=[pe.Stroke(linewidth=2, foreground="black"),pe.Normal()])
