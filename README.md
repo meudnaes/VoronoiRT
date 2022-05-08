@@ -16,3 +16,5 @@ Rasiative transer on irregular grids is performed and tested against regular gri
 - **NLTE spectral synthesis** are performed in `compare_line.jl`
 
 Data are written to file with `plot_utils.jl`, and plotted/analysed with `python`. Figures generated from the results are located in the image folder [img/](https://github.com/meudnaes/VoronoiRT/tree/master/img).
+
+Any questions regarding the repository can be directed to: m.e.r.udnas@astro.uio.no
