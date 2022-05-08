@@ -1,3 +1,6 @@
+
+[![DOI](https://zenodo.org/badge/411663522.svg)](https://zenodo.org/badge/latestdoi/411663522)
+
 # VoronoiRT
 
 ## 3D Radiative Transfer simulations on irregular grids
@@ -18,5 +21,3 @@ Rasiative transer on irregular grids is performed and tested against regular gri
 Data are written to file with `plot_utils.jl`, and plotted/analysed with `python`. Figures generated from the results are located in the image folder [img/](https://github.com/meudnaes/VoronoiRT/tree/master/img).
 
 Any questions regarding the repository can be directed to: m.e.r.udnas@astro.uio.no
-
-[![DOI](https://zenodo.org/badge/411663522.svg)](https://zenodo.org/badge/latestdoi/411663522)
