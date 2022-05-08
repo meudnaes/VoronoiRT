@@ -1,0 +1,1 @@
+Data for spectral line
