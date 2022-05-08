@@ -89,7 +89,7 @@ ax[2].set_title(r"$10^7~\rm{sites}$")
 
 
 plt.colorbar(im, fraction=0.046, pad=0.04, label=iunits)
-# plt.savefig("../img/compare_continuum/LTE500_irregular/blblb.pdf")
+# plt.savefig("../img/compare_continuum/blblb.pdf")
 # plt.show()
 plt.close()
 
@@ -153,7 +153,7 @@ ax[2].text(40, 40, r"\textbf{1 Mm}", color='w', fontsize=14,
 plt.colorbar(im, fraction=0.046, pad=0.04, label=iunits)
 
 fig.suptitle(r"$\textbf{Disk-centre intensity 500\,nm, irregular grid}$")
-plt.savefig("../img/compare_continuum/LTE500_irregular/LTEmaps.pdf")
+plt.savefig("../img/compare_continuum/LTEmaps.pdf")
 plt.close()
 
 
@@ -221,7 +221,7 @@ ax[2].text(20, 20, r"\textbf{1 Mm}", color='w', fontsize=14,
 
 fig.suptitle(r"$\textbf{Disk-centre intensity 500\,nm, regular grid}$")
 plt.colorbar(im, fraction=0.046, pad=0.04, label=iunits)
-plt.savefig("../img/compare_continuum/LTE500_irregular/LTEmaps_regular_grid.pdf")
+plt.savefig("../img/compare_continuum/LTEmaps_regular_grid.pdf")
 plt.close()
 
 
@@ -285,7 +285,7 @@ ax[2].text(40, 40, r"\textbf{1 Mm}", color='w', fontsize=14,
 plt.colorbar(im, fraction=0.046, pad=0.04, label=iunits)
 
 fig.suptitle(r"$\textbf{Disk-centre intensity 500\,nm, irregular grid}$")
-plt.savefig("../img/compare_continuum/LTE500_irregular/LTEmaps_compare.pdf")
+plt.savefig("../img/compare_continuum/LTEmaps_compare.pdf")
 plt.close()
 
 """

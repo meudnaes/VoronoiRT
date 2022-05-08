@@ -76,6 +76,12 @@ sns.histplot(data=tau_unity[center, :]/1e6, element="step", fill=True, stat="den
 sns.histplot(data=tau_unity[blue_wing, :]/1e6, element="step", fill=True, stat="density",
                  ax=ax2, color="orangered", label=r"$\textrm{line wing}$", alpha=0.2, bins=31)
 
+#hist, bins = np.histogram(tau_unity[center, :]/1e6, bins=31, density=True)
+#ax2.bar(bins[:-1], hist/hist.max(), alpha=0.2, color="maroon", width=1)
+#
+#hist, bins = np.histogram(tau_unity[blue_wing, :]/1e6, bins=31, density=True)
+#ax2.bar(bins[:-1], hist/hist.max(), alpha=0.2, color="orangered", width=1)
+
 # sns.histplot(data=tau_unity_07[center, :]/1e6, element="step", fill=True, stat="density",
 #                  ax=ax2, color="gold", label=r"$\textrm{line core}$", alpha=0.2)
 # sns.histplot(data=tau_unity_07[blue_wing, :]/1e6, element="step", fill=True, stat="density",

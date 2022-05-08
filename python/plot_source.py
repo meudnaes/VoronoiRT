@@ -16,7 +16,7 @@ PATH = "./sourcedata/"
 font_size()
 
 source_half_res = np.load("./sourcedata/half_res_ul7n12_source.npy")[:,:,:,:]
-source_irregular = np.load("./sourcedata/voronoi_ul7n12_3e6_2_source.npy")[:,:,:,:]
+source_irregular = np.load("./sourcedata/ionised_hydrogen_3e6_new_2_source.npy")[:,:,:,:]
 
 print(source_half_res.shape)
 print(source_irregular.shape)
@@ -25,7 +25,7 @@ S_diff = np.abs(1 - source_irregular/source_half_res)
 S_diff = np.max(S_diff, axis=0)
 
 regular_z = np.load("./sourcedata/half_res_ul7n12_z.npy")
-irregular_z = np.load("./sourcedata/voronoi_ul7n12_3e6_2_z.npy")
+irregular_z = np.load("./sourcedata/ionised_hydrogen_3e6_new_2_z.npy")
 
 print(np.sum(regular_z - irregular_z))
 
@@ -77,8 +77,10 @@ plt.savefig("../img/compare_line/source_diff.pdf")
 """
 
 S_diff = S_diff.reshape(S_diff.shape[0], -1)
+
 S_median = np.median(S_diff, axis=1)
 print(S_median.shape)
+
 
 fig, ax = plt.subplots(figsize=(6, 5.5), constrained_layout=True, sharey=True)
 

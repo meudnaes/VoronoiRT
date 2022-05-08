@@ -79,6 +79,7 @@ if __name__ == "__main__":
     intensity_ionised_5e5 = get_intensity("ionised_hydrogen_5e5_disk_centre_1.npy", PATH)
     intensity_ionised_1e6 = get_intensity("ionised_hydrogen_1e6_disk_centre_1.npy", PATH)
     intensity_ionised_2e6 = get_intensity("ionised_hydrogen_2e6_disk_centre_1.npy", PATH)
+    intensity_ionised_3e6 = get_intensity("ionised_hydrogen_3e6_new_disk_centre_1.npy", PATH)
 
     intensity_uniform_1e6 = get_intensity("uniform_1e6_disk_centre_1.npy", PATH)
 
@@ -94,6 +95,7 @@ if __name__ == "__main__":
     convergence_ionised_5e5 = np.load("./convergence/ionised_hydrogen_5e5_convergence.npy")
     convergence_ionised_1e6 = np.load("./convergence/ionised_hydrogen_1e6_convergence.npy")
     convergence_ionised_2e6 = np.load("./convergence/ionised_hydrogen_2000000_convergence.npy")
+    convergence_ionised_3e6 = np.load("./convergence/ionised_hydrogen_3e6_new_convergence.npy")
 
     convergence_density_5e5 = np.load("./convergence/density_5e5_convergence.npy")
 
@@ -121,21 +123,21 @@ if __name__ == "__main__":
     fig, ax = plt.subplots(1, 2, figsize=(7.5,4), constrained_layout=True)
 
     # plot disk-centre intensity in wings and centre, and continuum
-    ax[0].imshow(intensity_destruction_2e6[center, :, :],
+    ax[0].imshow(intensity_cont_ext_3e6[center, :, :],
                    cmap=CMAP,
                    origin="lower",
                    vmax=CMAX,
                    vmin=CMIN)
     ax[0].axis(False)
-    ax[0].set_title(r"$\varepsilon~\textrm{sampling}$")
+    ax[0].set_title(r"$\alpha^c~\textrm{sampling}$")
 
-    im = ax[1].imshow(intensity_cont_ext_2e6[center, :, :],
+    im = ax[1].imshow(intensity_ionised_3e6[center, :, :],
                    cmap=CMAP,
                    origin="lower",
                    vmax=CMAX,
                    vmin=CMIN)
     ax[1].axis(False)
-    ax[1].set_title(r"$\alpha^c~\textrm{sampling}$")
+    ax[1].set_title(r"$N_{HII}~\textrm{sampling}$")
 
     x = np.load("../data/LTE/x_regular_full.npy")
     pix2Mm = (x.max() - x.min())*1e-6/len(x)
@@ -334,7 +336,7 @@ if __name__ == "__main__":
     fig, ax = plt.subplots(1, 3, figsize=(13,4), constrained_layout=True)
 
     # plot disk-centre intensity in wings and centre, and continuum
-    im = ax[0].imshow(intensity_cont_ext_3e6[blue_wing, :, :],
+    im = ax[0].imshow(intensity_ionised_3e6[blue_wing, :, :],
                    cmap=CMAP,
                    origin="lower",
                    vmax=CMAX_wing,
@@ -346,7 +348,7 @@ if __name__ == "__main__":
     cbar = plt.colorbar(im, ax=ax[0], fraction=0.046, pad=0.04)
     cbar.set_label(iunits, rotation=90, labelpad=0)
 
-    im = ax[1].imshow(intensity_cont_ext_3e6[center, :, :],
+    im = ax[1].imshow(intensity_ionised_3e6[center, :, :],
                    cmap=CMAP,
                    origin="lower",
                    vmax=CMAX,
@@ -358,7 +360,7 @@ if __name__ == "__main__":
     cbar = plt.colorbar(im, ax=ax[1], fraction=0.046, pad=0.04)
     cbar.set_label(iunits, rotation=90, labelpad=0)
 
-    im = ax[2].imshow(intensity_cont_ext_3e6[continuum, :, :],
+    im = ax[2].imshow(intensity_ionised_3e6[continuum, :, :],
                    cmap=CMAP_CONT,
                    origin="lower",
                    vmax=CMAX_continuum,
@@ -490,11 +492,12 @@ if __name__ == "__main__":
 
     ax[1].plot(convergence_third, label=r"$\textrm{regular (1/3 res.)}$", color="k", ls="solid")
     ax[1].plot(convergence_destruction_1e6, label=r"$\varepsilon$", color="cyan", ls="solid")
-    ax[1].plot(convergence_cont_1e6, label=r"$\alpha^\textrm{cont}$", color="blue", ls="dashed")
     ax[1].plot(convergence_ionised_1e6, label=r"$N_\textrm{H\,\small{II}}$", color="red", ls="solid")
-    ax[1].plot(convergence_uniform_1e6, label=r"$U~\textrm{(uniform)}$", color="gold", ls="solid")
+    ax[1].plot(convergence_uniform_1e6, label=r"$U~\textrm{(uniform)}$", color="gold", ls="dashdot")
+    ax[1].plot(convergence_cont_1e6, label=r"$\alpha^\textrm{cont}$", color="blue", ls="dashed")
 
     ax[2].plot(convergence_half, label=r"$\textrm{regular (1/2 res.)}$", color="k", ls="solid")
+    ax[2].plot(convergence_ionised_3e6, label=r"$N_\textrm{H\,\small{II}}$", color="red", ls="solid")
     ax[2].plot(convergence_cont_3e6, label=r"$\alpha^\textrm{cont}$", color="blue", ls="dashed")
 
     # ax.plot(convergence_cont_2e6, label=r"$\alpha^\textrm{cont}~2\cdot 10^6~\textrm{sites}$", color="b", ls="dashdot")
@@ -591,12 +594,12 @@ if __name__ == "__main__":
     ################################################################################
     # plot all lines to highlight differences
 
-    fig, ax = plt.subplots(1, 2, figsize=(10, 5.5), constrained_layout=True, sharey=True)
+    fig, ax = plt.subplots(1, 2, figsize=(10, 5), constrained_layout=True, sharey=True)
 
     I_regular = intensity_half.reshape(len(wavelength), -1)
     I_regular *= units.kW*units.m**(-2)*units.nm**(-1)
 
-    I_irregular = intensity_cont_ext_3e6.reshape(len(wavelength), -1)
+    I_irregular = intensity_ionised_3e6.reshape(len(wavelength), -1)
     I_irregular *= units.kW*units.m**(-2)*units.nm**(-1)
 
 
