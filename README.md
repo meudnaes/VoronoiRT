@@ -14,7 +14,7 @@ The radiative transfer simulation is written in [`julia`](https://julialang.org/
 To run the code, an atmospheric model is needed. The model has to be stored in an `HDF5` format. For my calculations, I used a *Bifrost* model astmosphere, provided by the Institute of Theoretical Astrophysics at the University of Oslo. 
 
 Rasiative transer on irregular grids is performed and tested against regular grids with:
-- **searchlight beam test** with the `compare_searchlight test`
+- **searchlight beam test** with the `compare_searchlight.jl` script
 - **Continuum calculations** in `compare_continuum.jl`
 - **NLTE spectral synthesis** are performed in `compare_line.jl`
 
