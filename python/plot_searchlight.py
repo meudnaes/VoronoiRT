@@ -14,6 +14,7 @@ plt.rcParams['text.usetex'] = True
 
 PATH = "../data/searchlight_data/"
 
+iunits = r"$\textrm{kW}~\textrm{m}^{-2}~\textrm{nm}^{-1}~\textrm{sr}^{-1}$"
 
 def get_intensity(fname, path=PATH):
     """
@@ -36,7 +37,19 @@ def get_coordinates(method, path=PATH):
 
     return x, y
 
+def font_size(SMALL_SIZE=14, MEDIUM_SIZE=16, BIGGER_SIZE=18):
+    # Elin
+    plt.rc('font', size=SMALL_SIZE)          # controls default text sizes
+    plt.rc('axes', titlesize=BIGGER_SIZE)    # fontsize of the axes title
+    plt.rc('axes', labelsize=MEDIUM_SIZE)    # fontsize of the x and y labels
+    plt.rc('xtick', labelsize=SMALL_SIZE)    # fontsize of the tick labels
+    plt.rc('ytick', labelsize=SMALL_SIZE)    # fontsize of the tick labels
+    plt.rc('legend', fontsize=SMALL_SIZE)    # legend fontsize
+    plt.rc('figure', titlesize=BIGGER_SIZE)  # fontsize of the figure title
+
 if __name__ == "__main__":
+    font_size()
+    
     intensity_i = np.roll(get_intensity("I_160_45_voronoi.npy"), 25, (0, 1))
     intensity_i = intensity_i[:305,:305].T
     x_i, y_i = get_coordinates("voronoi")
@@ -61,16 +74,16 @@ if __name__ == "__main__":
                        origin="lower",
                        vmax=vmax,
                        extent=r_extent)
-    ax[0].set_xlabel(r"$x$"); ax[0].set_ylabel(r"$y$")
+    ax[0].set_xlabel(r"$x~\textrm{[m]}$"); ax[0].set_ylabel(r"$y~\textrm{[m]}$")
 
     im2 = ax[1].imshow(intensity_i,
                        cmap="magma",
                        origin="lower",
                        vmax=vmax,
                        extent=i_extent)
-    ax[1].set_xlabel(r"$x$"); ax[1].set_ylabel(r"$y$")
+    ax[1].set_xlabel(r"$x~\textrm{[m]}$"); ax[1].set_ylabel(r"$y~\textrm{[m]}$")
 
-    plt.colorbar(im2, fraction=0.04, pad=0.02)
+    plt.colorbar(im2, fraction=0.046, pad=0.04, label=iunits)
     plt.savefig("../img/searchlight_2D.pdf")
     plt.close()
 
@@ -80,14 +93,17 @@ if __name__ == "__main__":
     """
     X_r, Y_r = np.meshgrid(x_r[0:30], y_r[0:30])
 
+    
+    font_size(SMALL_SIZE=12, MEDIUM_SIZE=14, BIGGER_SIZE=16)
+    
     # set up a figure twice as wide as it is tall
-    fig = plt.figure(figsize=(11, 6), constrained_layout=True)#figsize=plt.figaspect(0.5))
-
+    fig = plt.figure(figsize=(10, 5.1), constrained_layout=True)#figsize=plt.figaspect(0.5))
+    
     # set up the axes for the first plot
     ax = fig.add_subplot(1, 2, 1, projection='3d')
     ax.grid(False)
     ax.set_box_aspect((np.ptp(X_r), np.ptp(Y_r), np.ptp(intensity_i)))
-    ax.set_xlabel(r"$x$"); ax.set_ylabel(r"$y$")
+    ax.set_xlabel(r"$x~\textrm{[m]}$"); ax.set_ylabel(r"$y~\textrm{[m]}$")
     ax.xaxis.set_pane_color((1.0, 1.0, 1.0, 0.0))
     ax.yaxis.set_pane_color((1.0, 1.0, 1.0, 0.0))
     ax.zaxis.set_pane_color((1.0, 1.0, 1.0, 0.0))
@@ -105,7 +121,7 @@ if __name__ == "__main__":
     ax = fig.add_subplot(1, 2, 2, projection='3d')
     ax.grid(False)
     ax.set_box_aspect((np.ptp(X_i), np.ptp(Y_i), np.ptp(intensity_i)))
-    ax.set_xlabel(r"$x$"); ax.set_ylabel(r"$y$")
+    ax.set_xlabel(r"$x~\textrm{[m]}$"); ax.set_ylabel(r"$y~\textrm{[m]}$")
     ax.xaxis.set_pane_color((1.0, 1.0, 1.0, 0.0))
     ax.yaxis.set_pane_color((1.0, 1.0, 1.0, 0.0))
     ax.zaxis.set_pane_color((1.0, 1.0, 1.0, 0.0))
@@ -114,6 +130,6 @@ if __name__ == "__main__":
                     vmax = vmax,
                     rstride=5,
                     cstride=5)
-    fig.colorbar(surf, fraction=0.04, pad=0.02)
+    fig.colorbar(surf, fraction=0.046, pad=0.04, label=iunits)
     plt.savefig("../img/searchlight_3D.pdf")
     plt.close()

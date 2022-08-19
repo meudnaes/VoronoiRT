@@ -3,7 +3,12 @@ import matplotlib as mpl
 import matplotlib.cm as cm
 import matplotlib.pyplot as plt
 
+from copy import copy
+from plot_searchlight import font_size
+
 plt.rcParams['text.usetex'] = True
+
+font_size()
 
 sites = np.load("sites.npy")
 layers_up = np.load("layers_up.npy") - 1
@@ -24,7 +29,7 @@ for i in range(len(perm_up)):
     layer = np.searchsorted(layers_up, i)
     colored_sites[idx,:] = colors[layer]
 
-fig = plt.figure(figsize=(13.25,6), constrained_layout=True)
+fig = plt.figure(figsize=(10.75,4.8), constrained_layout=True)
 ax = fig.add_subplot(1, 2, 1, projection='3d')
 
 ax.grid(False)
@@ -38,13 +43,14 @@ scatter = ax.scatter(sites[1,:],
                      sites[2,:],
                      sites[0,:],
                      c=colored_sites,
-                     s=5)
+                     s=3,
+                     rasterized=True)
 
 
 ax.set_xlabel(r"$x$")
 ax.set_ylabel(r"$y$")
 ax.set_zlabel(r"$z$")
-ax.set_title(r"$\textrm{Upward Layers}$", fontsize=16)
+ax.set_title(r"$\textrm{Upward layers}$")
 
 colors = cm.rainbow(np.linspace(0, 1, c_max))
 
@@ -66,22 +72,27 @@ scatter = ax.scatter(sites[1,:],
                      sites[2,:],
                      sites[0,:],
                      c=colored_sites,
-                     s=5)
+                     s=3,
+                     rasterized=True)
 
 ax.set_xlabel(r"$x$")
 ax.set_ylabel(r"$y$")
 ax.set_zlabel(r"$z$")
-ax.set_title(r"$\textrm{Downward Layers}$", fontsize=16)
+ax.set_title(r"$\textrm{Downward layers}$")
 
-
+layer_tick_locs = np.arange(c_max) + 0.5
+layer_tick_label = np.arange(1, c_max + 1)
 
 cmap = mpl.cm.rainbow
-norm = mpl.colors.Normalize(vmin=1, vmax=c_max)
+bounds = np.linspace(0, c_max, c_max+1)
+norm = mpl.colors.BoundaryNorm(bounds, cmap.N)
 cb = fig.colorbar(cm.ScalarMappable(norm=norm, cmap=cmap),
                   ax=ax,
-                  fraction=0.04,
-                  pad=0.1)
-cb.set_label(r'$\rm{layer}$', fontsize=14)
+                  fraction=0.046,
+                  pad=0.2)
 
-plt.savefig("layers.pdf")
+cb.set_ticks(layer_tick_locs)
+cb.set_ticklabels(layer_tick_label)
+
+plt.savefig("../img/layers.pdf", dpi=200)
 plt.close();
