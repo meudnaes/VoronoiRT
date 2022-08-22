@@ -469,6 +469,63 @@ function sample_from_ionised_hydrogen(atmos::Atmosphere,
     return positions
 end
 
+
+"""
+Integrated extinction over angles in quadrature, use this for sampling sites.
+"""
+function sample_from_avg_ext(DATA::String, n_sites::Int)
+    
+    weights, θ_array, ϕ_array, _ = read_quadrature("../quadratures/ul7n12.dat")
+    
+    atmos, S_λ, populations = read_quantities(DATA; periodic=false)
+    
+    line = HydrogenicLine(test_atom(50, 20)..., atmos.temperature)
+
+    LTE_pops = LTE_populations(line, atmos)
+
+    # Find continuum extinction
+    α_cont = α_absorption.(line.λ0,
+                           atmos.temperature,
+                           atmos.electron_density*1.0,
+                           LTE_pops[:,:,:,1].+LTE_pops[:,:,:,2],
+                           LTE_pops[:,:,:,3]) .+
+             α_scattering.(line.λ0,
+                           atmos.electron_density,
+                           LTE_pops[:,:,:,1])
+
+    γ = γ_constant(line,
+                   atmos.temperature,
+                   (populations[:, :, :, 1].+populations[:, :, :, 2]),
+                   atmos.electron_density)
+    
+    α_int = zeros(size(α_cont))u"m^-1"
+    
+    λ0idx = argmin(abs.(line.λ .- line.λ0))
+    
+    for i in eachindex(weights)
+        θ = θ_array[i]
+        ϕ = ϕ_array[i]
+        damping_λ = Array{Float64, 4}(undef, size(S_λ))
+        Threads.@threads for l in eachindex(line.λ)
+            damping_λ[l, :, :, :] = damping.(γ, line.λ[l], line.ΔD)
+        end
+
+        k = [cos(θ*π/180), cos(ϕ*π/180)*sin(θ*π/180), sin(ϕ*π/180)*sin(θ*π/180)]
+        profile = compute_voigt_profile(line, atmos, damping_λ, k)
+
+        α_tot = αline_λ(line,
+                        profile[λ0idx, :, :, :],
+                        populations[:, :, :, 2],
+                        populations[:, :, :, 1]) .+ α_cont
+                
+        α_int .+= weights[i].*α_tot
+    end
+    positions = rejection_sampling(n_sites, atmos, log10.(ustrip.(α_int)))
+    return positions
+end
+
+
+
 """
     LTE_populations(atmos::Atmosphere)
 

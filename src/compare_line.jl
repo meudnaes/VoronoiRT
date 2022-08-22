@@ -27,14 +27,14 @@ function compare(DATA, quadrature)
     println("--- ! Boosting collisional rates ! ---")
     ϵ = 1e-3
 
-    n_skip = 1
+    n_skip = 3
 
     nλ_bb = 50
     nλ_bf = 20
 
     function regular()
 
-        atmos = Atmosphere(get_atmos(DATA; periodic=true, skip=2)...)
+        atmos = Atmosphere(get_atmos(DATA; periodic=true, skip=n_skip)...)
         line = HydrogenicLine(test_atom(nλ_bb, nλ_bf)..., atmos.temperature)
 
         nx = length(atmos.x[2:end-1])
@@ -43,8 +43,7 @@ function compare(DATA, quadrature)
 
         println("sites: $(nx*ny*nz)")
 
-        REGULAR_DATA = "../data/no.h5"
-        # "regular_ul7n12_half_C_2e9_single.h5"
+        REGULAR_DATA = "../data/timing_regular.h5"
 
         create_output_file(REGULAR_DATA, length(line.λ), size(atmos.temperature[:, 2:end-1, 2:end-1]), maxiter)
         write_to_file(atmos, REGULAR_DATA, ghost_cells=true)
@@ -64,27 +63,11 @@ function compare(DATA, quadrature)
 
     function voronoi()
 
-        atmos = Atmosphere(get_atmos(DATA; periodic=false, skip=n_skip)...)
+        atmos = Atmosphere(get_atmos(DATA; periodic=false, skip=1)...)
 
         nx = length(atmos.x)
         nz = length(atmos.z)
         ny = length(atmos.y)
-
-        n_sites = 1_000_000
-        # 286720# floor(Int, nz*nx*ny)
-
-        positions = sample_from_destruction(atmos, n_sites)
-        # rejection_sampling(n_sites, atmos, log10.(ustrip.(atmos.hydrogen_populations)))
-        # sample_from_destruction(atmos, n_sites)
-        # sample_from_extinction(atmos, 121.562u"nm", n_sites)
-
-        sites_file = "../data/sites_compare.txt"
-        neighbours_file = "../data/neighbours_compare.txt"
-        # write sites to file
-        write_arrays(positions[2, :],
-                     positions[3, :],
-                     positions[1, :],
-                     sites_file)
 
         x_min = ustrip(atmos.x[1])
         x_max = ustrip(atmos.x[end])
@@ -92,6 +75,34 @@ function compare(DATA, quadrature)
         y_max = ustrip(atmos.y[end])
         z_min = ustrip(atmos.z[1])
         z_max = ustrip(atmos.z[end])
+
+        n_sites = 1_050_232
+        println("sites: $(n_sites)")
+        # 286720# floor(Int, nz*nx*ny)
+
+        positions = sample_from_avg_ext("../data/half_res_ul7n12.h5", n_sites)
+
+        # sample_from_ionised_hydrogen(atmos, n_sites)
+        # positions[1, :] = positions[1, :].*(z_max - z_min) .+ z_min
+        # positions[2, :] = positions[2, :].*(x_max - x_min) .+ x_min
+        # positions[3, :] = positions[3, :].*(y_max - y_min) .+ y_min
+        # positions = positions.*1u"m"
+
+        # sample_from_destruction(atmos, n_sites)
+        # sample_from_ionised_hydrogen(atmos, n_sites)
+        # sample_from_destruction(atmos, n_sites)
+        # rejection_sampling(n_sites, atmos, log10.(ustrip.(atmos.hydrogen_populations)))
+        # sample_from_destruction(atmos, n_sites)
+        # sample_from_extinction(atmos, 121.562u"nm", n_sites)
+
+
+        sites_file = "../data/sites_compare_$(n_sites).txt"
+        neighbours_file = "../data/neighbours_compare_$(n_sites).txt"
+        # write sites to file
+        write_arrays(positions[2, :],
+                     positions[3, :],
+                     positions[1, :],
+                     sites_file)
 
         # export sites to voro++, and compute grid information
         println("---Preprocessing grid---")
@@ -104,7 +115,9 @@ function compare(DATA, quadrature)
                        $(z_min) $(z_max)`)
 
         # Voronoi grid
-        sites = VoronoiSites(read_cell(neighbours_file, n_sites, positions)...,
+        sites = VoronoiSites(read_cell(neighbours_file, n_sites, positions,
+                                       x_min*1u"m", x_max*1u"m",
+                                       y_min*1u"m", y_max*1u"m")...,
                              _initialise(positions, atmos)...,
                              z_min*1u"m", z_max*1u"m",
                              x_min*1u"m", x_max*1u"m",
@@ -116,7 +129,7 @@ function compare(DATA, quadrature)
 
         line = HydrogenicLine(test_atom(nλ_bb, nλ_bf)..., sites.temperature)
 
-        VORONOI_DATA = "../data/no.h5"
+        VORONOI_DATA = "../data/avg_ext_1e6_real.h5"
 
         create_output_file(VORONOI_DATA, length(line.λ), n_sites, maxiter)
         write_to_file(nλ_bb, "n_bb", VORONOI_DATA)
@@ -134,7 +147,7 @@ function compare(DATA, quadrature)
     end
 
     # regular();
-    # voronoi();
+    voronoi();
 end
 
 function LTE_line(DATA)

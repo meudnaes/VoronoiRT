@@ -4,8 +4,20 @@ include("functions.jl")
 using Distances
 using LinearAlgebra
 
-const p = 7.0
+const p = 7.0           # Weighting upwind rays
 
+"""
+    Delaunay_upII(k::Vector{Float64},
+                       S::Vector{<:UnitsIntensity_λ},
+                       I_0::Vector{<:UnitsIntensity_λ},
+                       α::Vector{<:PerLength},
+                       sites::VoronoiSites,
+                       n_sweeps::Int)
+
+Computes intensity along rays traveling upwards from the bottom to the top
+through all grid points in the atmosphere, in an irregular grid. Initial
+intensity I_0 at the bottom of the domain, usually B_λ.
+"""
 function Delaunay_upII(k::Vector{Float64},
                        S::Vector{<:UnitsIntensity_λ},
                        I_0::Vector{<:UnitsIntensity_λ},
@@ -41,7 +53,7 @@ function Delaunay_upII(k::Vector{Float64},
                 n_neighbours = sites.neighbours[idx, 1]
                 neighbours = sites.neighbours[idx, 2:n_neighbours+1]
 
-                dot_products, upwind_indices = smallest_angle(position, neighbours, k, sites)
+                dot_products, upwind_indices = smallest_angle(idx, neighbours, k, sites)
                 dot_weights = [dot_products[1]^p, dot_products[2]^p]./sum(dot_products.^p)
 
                 I[idx] = 0u"kW*nm^-1*m^-2"
@@ -75,6 +87,18 @@ function Delaunay_upII(k::Vector{Float64},
     return I
 end
 
+"""
+    Delaunay_downII(k::Vector{Float64},
+                       S::Vector{<:UnitsIntensity_λ},
+                       I_0::Vector{<:UnitsIntensity_λ},
+                       α::Vector{<:PerLength},
+                       sites::VoronoiSites,
+                       n_sweeps::Int)
+
+Computes intensity along rays traveling downwards from the top to the bottom
+through all grid points in the atmosphere, in an irregular grid. Initial
+intensity I_0 at the bottom of the domain, usually 0.
+"""
 function Delaunay_downII(k::Vector{Float64},
                          S::Vector{<:UnitsIntensity_λ},
                          I_0::Vector{<:UnitsIntensity_λ},
@@ -110,7 +134,7 @@ function Delaunay_downII(k::Vector{Float64},
                 n_neighbours = sites.neighbours[idx, 1]
                 neighbours = sites.neighbours[idx, 2:n_neighbours+1]
 
-                dot_products, upwind_indices = smallest_angle(position, neighbours, k, sites)
+                dot_products, upwind_indices = smallest_angle(idx, neighbours, k, sites)
                 dot_weights = [dot_products[1]^p, dot_products[2]^p]./sum(dot_products.^p)
 
                 I[idx] = 0u"kW*nm^-1*m^-2"

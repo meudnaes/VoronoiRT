@@ -16,9 +16,9 @@ function searchlight_irregular()
 
     n_sites = nz*nx*ny
 
-    bounds = [[0 1]
-              [0 1]
-              [0 1]]
+    bounds = [[0.0 1.0]
+              [0.0 1.0]
+              [0.0 1.0]]
 
     temperature = ones(n_sites)*1u"K"
     electron_density = zeros(n_sites)*1u"m^-3"
@@ -52,8 +52,12 @@ function searchlight_irregular()
             $(bounds[3,1]) $(bounds[3,2])
             $(bounds[1,1]) $(bounds[1,2])`)
 
+    # println("$(bounds[2,1]u"m"), $(bounds[2,2]u"m"), $(bounds[3,1]u"m"), $(bounds[3,2]u"m")")
+
     # Voronoi grid
-    sites = VoronoiSites(read_cell(neighbours_file, n_sites, positions)...,
+    sites = VoronoiSites(read_cell(neighbours_file, n_sites, positions,
+                                   bounds[2,1]u"m", bounds[2,2]u"m",
+                                   bounds[3,1]u"m", bounds[3,2]u"m")...,
                          temperature, electron_density, hydrogen_density,
                          velocity_z, velocity_x, velocity_y,
                          bounds[1,1]*1u"m", bounds[1,2]*1u"m",
@@ -112,7 +116,7 @@ function searchlight_irregular()
         if θ > 90
             I, time = @timed Delaunay_upII(k, S, I_bottom, α, sites, n_sweeps)
 
-            #=
+
             top_I = zeros(length(x), length(y))u"kW*nm^-1*m^-2"
 
             for i in 1:length(x)
@@ -124,11 +128,11 @@ function searchlight_irregular()
             end
 
             plot_searchlight(k, x, y, top_I, R0, "irregular_$(floor(Int,θ))_$(floor(Int,ϕ))")
-            =#
+
         elseif θ < 90
             I, time = @timed Delaunay_downII(k, S, I_top, α, sites, n_sweeps)
 
-            #=
+
             bottom_z = 0
             bottom_I = zeros(length(x), length(y))u"kW*nm^-1*m^-2"
 
@@ -141,14 +145,14 @@ function searchlight_irregular()
             end
 
             # npzwrite("../data/searchlight_data/I_$(θ)_$(ϕ)_voronoi.npy", ustrip.(bottom_I))
-            # plot_searchlight(k, x, y, bottom_I, R0, "irregular_$(floor(Int,θ))_$(floor(Int,ϕ))")
-            =#
+            plot_searchlight(k, x, y, bottom_I, R0, "irregular_$(floor(Int,θ))_$(floor(Int,ϕ))")
+
         end
         tot_time += time
         # npzwrite("../data/searchlight_data/x_voronoi.npy", x)
         # npzwrite("../data/searchlight_data/y_voronoi.npy", y)
     end
-    println("Total time $tot_time -- avg. time: $(tot_time/12)")
+    println("Total time $tot_time s -- avg. time: $(tot_time/12) s")
 end
 
 function searchlight_regular()
@@ -225,4 +229,4 @@ function searchlight_regular()
 end
 
 searchlight_irregular()
-searchlight_regular()
+# searchlight_regular()

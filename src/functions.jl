@@ -336,6 +336,36 @@ function bilinear(x_mrk::Float64, y_mrk::Float64,
     return f
 end
 
+function bilinear(x_mrk::Unitful.Length, y_mrk::Unitful.Length,
+                  x::Vector{<:Unitful.Length}, y::Vector{<:Unitful.Length},
+                  vals::AbstractMatrix)
+
+    idx = searchsortedfirst(x, x_mrk) - 1
+    idy = searchsortedfirst(y, y_mrk) - 1
+    # corner coordinates
+    x1 = x[idx]; x2 = x[idx+1]
+    y1 = y[idy]; y2 = y[idy+1]
+
+    # function value for each corner. 11 is lower left corner, 22 is upper right
+    Q11 = vals[idx,idy]       # (x1, y1)
+    Q12 = vals[idx,idy+1]     # (x1, y2)
+    Q21 = vals[idx+1,idy]     # (x2, y1)
+    Q22 = vals[idx+1,idy+1]   # (x2, y2)
+
+    # Rectangle side length
+    dx = x2 - x1
+    dy = y2 - y1
+
+    # Interpolate in x-direction
+    f1 = ((x2 - x_mrk)*Q11 + (x_mrk - x1)*Q21)/dx
+    f2 = ((x2 - x_mrk)*Q12 + (x_mrk - x1)*Q22)/dx
+
+    # Interpolate in y-direction
+    f = ((y2 - y_mrk)*f1 + (y_mrk - y1)*f2)/dy
+    return f
+end
+
+
 """
     trapezoidal(Δx::AbstractFloat, a::AbstractFloat, b::AbstractFloat)
 
@@ -449,4 +479,23 @@ function linear_weights(Δτ::AbstractFloat)
         β = 1 - α - expΔτ
     end
     return α, β, expΔτ
+end
+
+"""
+    cumtrapz(X::T, Y::T) where {T <: AbstractVector}
+
+Cumulative integration of Y on the coordinates X
+"""
+function cumtrapz(X::T, Y::T) where {T <: AbstractVector}
+  # Check matching vector length
+  @assert length(X) == length(Y)
+  # Initialize Output
+  out = similar(X)
+  out[1] = 0
+  # Iterate over arrays
+  for i in 2:length(X)
+    out[i] = out[i-1] + 0.5*abs(X[i] - X[i-1])*(Y[i] + Y[i-1])
+  end
+  # Return output
+  out
 end

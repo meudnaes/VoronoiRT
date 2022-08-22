@@ -169,6 +169,7 @@ function Λ_regular(ϵ::AbstractFloat,
     local J_new
     # check where ε < 5e-3, cut above heights
     while criterion(S_new, S_old, ϵ, i, maxiter, DATA)
+        @time begin
         #############################
         # Calculate radiation field #
         #############################
@@ -189,7 +190,9 @@ function Λ_regular(ϵ::AbstractFloat,
         #    Update populations     #
         #############################
         populations = get_revised_populations(R, C, atmos.hydrogen_populations*1.0)
-
+        
+        end
+        
         ############################
         #Write current data to file#
         ############################
@@ -256,9 +259,10 @@ function Λ_voronoi(ϵ::AbstractFloat,
 
     i=0
 
-    local J_new
+    local J_new 
     # check where ε < 1e-2, cut above heights
     while criterion(S_new, S_old, ϵ, i, maxiter, DATA)
+        @time begin
         #############################
         # Calculate radiation field #
         #############################
@@ -279,7 +283,8 @@ function Λ_voronoi(ϵ::AbstractFloat,
         #    Update populations     #
         #############################
         populations = get_revised_populations(R, C, sites.hydrogen_populations)
-
+        end
+                
         ############################
         #Write current data to file#
         ############################

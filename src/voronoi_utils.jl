@@ -13,6 +13,7 @@ for ray-tracing.
 struct VoronoiSites
     positions::Matrix{typeof(1.0u"m")}
     neighbours::Matrix{Int}
+    Delaunay_lines::Array{Float64, 3}
     layers_up::Vector{Int}
     layers_down::Vector{Int}
     perm_up::Vector{Int}
@@ -33,12 +34,15 @@ struct VoronoiSites
 end
 
 """
-    read_neighbours(fname::String, n_sites::Int, positions::Matrix{<:Unitful.Length})
+    read_cell(fname::String, n_sites::Int, positions::Matrix{<:Unitful.Length})
 
 Reads a file containing neighbouring cells for each grid point in the voronoi
 tesselation.
 """
-function read_cell(fname::String, n_sites::Int, positions::Matrix{<:Unitful.Length})
+function read_cell(fname::String, n_sites::Int, positions::Matrix{<:Unitful.Length},
+                   x_min::typeof(1.0u"m"), x_max::typeof(1.0u"m"),
+                   y_min::typeof(1.0u"m"), y_max::typeof(1.0u"m"))
+
     println("---Reading neighbour information---")
     # Guess (overshoot), maybe do exact later?
     max_guess = 70
@@ -80,7 +84,10 @@ function read_cell(fname::String, n_sites::Int, positions::Matrix{<:Unitful.Leng
     layers_down = layers_down[perm_down]
     layers_down = reduce_layers(layers_down)
 
-    return positions, NeighbourMatrix, layers_up, layers_down, perm_up, perm_down
+    Delaunay_lines = calc_Delaunay_lines(positions, NeighbourMatrix,
+                                         x_min, x_max, y_min, y_max)
+
+    return positions, NeighbourMatrix, Delaunay_lines, layers_up, layers_down, perm_up, perm_down
 end
 
 """
@@ -173,6 +180,77 @@ function _sort_by_layer_down(neighbours::Matrix{Int}, n_sites::Int)
 end
 
 """
+    calc_Delaunay_lines(positions::Matrix{<:Unitful.Length},
+                        NeighbourMatrix::Matrix{Int},
+                        z_min::::typeof(1.0u"m"), z_max::::typeof(1.0u"m"),
+                        x_min::::typeof(1.0u"m"), x_max::::typeof(1.0u"m"),
+                        y_min::::typeof(1.0u"m"), y_max::::typeof(1.0u"m"))
+
+Calculate distance vectors to all neighbours. Returns matrix of these vectors
+after normalising the distance. These are the normalised delaunay lines.
+"""
+function calc_Delaunay_lines(positions::Matrix{<:Unitful.Length},
+                             NeighbourMatrix::Matrix{Int},
+                             x_min::typeof(1.0u"m"), x_max::typeof(1.0u"m"),
+                             y_min::typeof(1.0u"m"), y_max::typeof(1.0u"m"))
+
+    n_sites = length(positions[1, :])
+
+    max_neighbours = maximum(NeighbourMatrix[:,1])
+
+    Delaunay_lines = Array{Float64, 3}(undef, (3, max_neighbours, n_sites))
+
+    for i in 1:n_sites
+        position = positions[:,i]
+
+        x_r_r = x_max - position[2]
+        x_r_l = position[2] - x_min
+
+        y_r_r = y_max - position[3]
+        y_r_l = position[3] - y_min
+
+        n_neighbours = NeighbourMatrix[i,1]
+        neighbours = NeighbourMatrix[i,2:n_neighbours+1]
+
+        for j in 1:n_neighbours
+            neighbour = neighbours[j]
+
+            if neighbour > 0
+                p_n = positions[:, neighbour]
+
+                x_i_r = abs(x_max - p_n[2])
+                x_i_l = abs(p_n[2] - x_min)
+
+                # Test for periodic
+                if x_r_r + x_i_l < position[2] - p_n[2]
+                    p_n[2] = x_max + p_n[2] - x_min
+                elseif x_r_l + x_i_r < p_n[2] - position[2]
+                    p_n[2] = x_min + x_max - p_n[2]
+                end
+
+                y_i_r = abs(y_max - p_n[3])
+                y_i_l = abs(p_n[3] - y_min)
+
+                # Test for periodic
+                if y_r_r + y_i_l < position[3] - p_n[3]
+                    p_n[3] = y_max + p_n[3] - y_min
+                elseif y_r_l + y_i_r < p_n[3] - position[3]
+                    p_n[3] = y_min + y_max - p_n[3]
+                end
+
+                p_d = p_n .- position
+
+                n_d = p_d/norm(p_d)
+
+                Delaunay_lines[:, j, i] = n_d
+            end
+        end
+    end
+
+    return Delaunay_lines
+end
+
+"""
     reduce_layers(layers::Vector{Int})
 
 Reduce vector containg layers. Returns a compressed vector where the element of
@@ -250,6 +328,56 @@ function smallest_angle(position::Vector{<:Unitful.Length},
 
             direction = p_n .- position
             norm_dir = direction/(norm(direction))
+            # Two normalized direction vectors, denominator is 1
+            # Save the dot product, don't bother calculating the angle
+            dot_product = dot(k, norm_dir)
+
+            if dot_product > dots[2]
+                if dot_product > dots[1]
+                    dots[1] = dot_product
+                    indices[1] = neighbour
+                else
+                    dots[2] = dot_product
+                    indices[2] = neighbour
+                end
+            end
+        end
+    end
+
+    if dots[2] <= 0
+        dots[2] = 0
+        indices[2] = indices[1]
+    end
+
+    return dots, indices
+end
+
+"""
+    smallest_angle(position::Vector{<:Unitful.Length},
+                   neighbours::Vector{Int},
+                   k::Vector{Float64},
+                   sites::VoronoiSites)
+
+Calculates the dot product between the Delaunay lines connecting a site and
+every neighbour, and the ray travelling in direction k. Keep in mind that k
+is not toward the ray, but with the direction of the ray. Returns the two
+Delaunay lines with the largest dot products, and the indices of their sites.
+"""
+function smallest_angle(n::Int,
+                        neighbours::Vector{Int},
+                        k::Vector{Float64},
+                        sites::VoronoiSites)
+
+    dots = Vector{Float64}(undef, 2)
+    fill!(dots, -1)
+
+    indices = Vector{Int}(undef, 2)
+
+    for i in eachindex(neighbours)
+        neighbour = neighbours[i]
+        if neighbour > 0
+            norm_dir = sites.Delaunay_lines[:, i, n]
+
             # Two normalized direction vectors, denominator is 1
             # Save the dot product, don't bother calculating the angle
             dot_product = dot(k, norm_dir)
@@ -490,6 +618,52 @@ function Voronoi_to_Raster(sites::VoronoiSites,
 end
 
 function Voronoi_to_Raster(sites::VoronoiSites,
+                           S_λ::Matrix{<:UnitsIntensity_λ},
+                           populations::Matrix{<:NumberDensity},
+                           x::Vector{<:Unitful.Length},
+                           y::Vector{<:Unitful.Length},
+                           z::Vector{<:Unitful.Length})
+
+    nλ = size(S_λ)[1]
+    nz = length(z)
+    nx = length(x)
+    ny = length(y)
+
+    temperature = Array{Float64, 3}(undef, (nz, ny, nx))u"K"
+    electron_density = Array{Float64, 3}(undef, (nz, ny, nx))u"m^-3"
+    hydrogen_populations = Array{Float64, 3}(undef, (nz, ny, nx))u"m^-3"
+    velocity_z = Array{Float64, 3}(undef, (nz, ny, nx))u"m*s^-1"
+    velocity_x = copy(velocity_z)
+    velocity_y = copy(velocity_z)
+    S_λ_grid = Array{Float64, 4}(undef, (nλ, nz, nx, ny))u"kW*nm^-1*m^-2"
+    populations_grid = Array{Float64, 4}(undef, (nz, nx, ny, 3))u"m^-3"
+
+    tree = KDTree(ustrip.(sites.positions))
+    Threads.@threads for j in 1:length(y)
+        for i in 1:length(x)
+            for k in 1:length(z)
+                grid_point = [z[k], x[i], y[j]]
+                idx, _ = nn(tree, ustrip.(grid_point))
+                temperature[k, i, j] = sites.temperature[idx]
+                electron_density[k, i, j] = sites.electron_density[idx]
+                hydrogen_populations[k, i, j] = sites.hydrogen_populations[idx]
+                velocity_z[k, i, j] = sites.velocity_z[idx]
+                velocity_x[k, i, j] = sites.velocity_x[idx]
+                velocity_y[k, i, j] = sites.velocity_y[idx]
+                S_λ_grid[:, k, i, j] = S_λ[:, idx]
+                populations_grid[k, i, j, :] = populations[idx, :]
+            end
+        end
+    end
+
+    voronoi_atmos = Atmosphere(z, x, y, temperature,
+                               electron_density, hydrogen_populations,
+                               velocity_z, velocity_x, velocity_y)
+
+    return voronoi_atmos, S_λ_grid, populations_grid
+end
+
+function Voronoi_to_Raster(sites::VoronoiSites,
                            atmos::Atmosphere,
                            r_factor;
                            periodic=false)
@@ -649,7 +823,7 @@ function Voronoi_to_Raster_inv_dist(sites::VoronoiSites,
 
 
     p = 3.0
-    # n_neighbours = 15
+    n_k = 5
 
     z = collect(LinRange(sites.z_min, sites.z_max,
                          floor(Int, atmos_size[1])))
@@ -677,7 +851,7 @@ function Voronoi_to_Raster_inv_dist(sites::VoronoiSites,
         for i in 1:length(x)
             for k in 1:length(z)
                 grid_point = [z[k], x[i], y[j]]
-                idxs, dists = knn(tree, ustrip.(grid_point), 5)
+                idxs, dists = knn(tree, ustrip.(grid_point), n_k)
 
                 dists = dists.*1u"m"
 
@@ -706,6 +880,8 @@ function Voronoi_to_Raster_inv_dist(sites::VoronoiSites,
             end
         end
     end
+
+    println("---converted---")
 
     if periodic
         voronoi_atmos = Atmosphere(z,
