@@ -265,7 +265,9 @@ function read_sites(DATA::String)
     n_sites = length(positions[1,:])
 
     # Voronoi grid
-    sites = VoronoiSites(read_cell(neighbours_file, n_sites, positions)...,
+    sites = VoronoiSites(read_cell(neighbours_file, n_sites, positions,
+                                   x_min*1u"m", x_max*1u"m",
+                                   y_min*1u"m", y_max*1u"m")...,
                          temperature,
                          electron_density,
                          hydrogen_populations,

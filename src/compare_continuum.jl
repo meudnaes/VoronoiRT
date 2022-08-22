@@ -111,7 +111,9 @@ function compare(DATA, quadrature)
                        # $(z_min) $(z_max)`)
 
         # Voronoi grid
-        sites = VoronoiSites(read_cell(neighbours_file, n_sites, positions)...,
+        sites = VoronoiSites(read_cell(neighbours_file, n_sites, positions,
+                                       x_min*1u"m", x_max*1u"m",
+                                       y_min*1u"m", y_max*1u"m")...,
                              _initialise(positions, atmos)...,
                              z_min*1u"m", z_max*1u"m",
                              x_min*1u"m", x_max*1u"m",
@@ -235,7 +237,9 @@ function LTE_compare(DATA::String, n_sites::Int)
                    $(z_min) $(z_max)`)
 
     # Voronoi grid
-    sites = VoronoiSites(read_cell(neighbours_file, n_sites, positions)...,
+    sites = VoronoiSites(read_cell(neighbours_file, n_sites, positions,
+                                   x_min*1u"m", x_max*1u"m",
+                                   y_min*1u"m", y_max*1u"m")...,
                          _initialise(positions, atmos)...,
                          z_min*1u"m", z_max*1u"m",
                          x_min*1u"m", x_max*1u"m",
@@ -385,7 +389,9 @@ function test_interpolation(DATA)
                    $(z_min - 0.1) $(z_max + 0.1)`)
 
     # Voronoi grid
-    sites = VoronoiSites(read_cell(neighbours_file, n_sites, positions)...,
+    sites = VoronoiSites(read_cell(neighbours_file, n_sites, positions,
+                                   x_min*1u"m", x_max*1u"m",
+                                   y_min*1u"m", y_max*1u"m")...,
                          _initialise(positions, atmos)...,
                          z_min*1u"m", z_max*1u"m",
                          x_min*1u"m", x_max*1u"m",
@@ -547,7 +553,9 @@ function test_with_regular_grid(DATA, quadrature)
                    $(z_min-0.1) $(z_max+0.1)`)
 
     # Voronoi grid
-    sites = VoronoiSites(read_cell(neighbours_file, n_sites, positions)...,
+    sites = VoronoiSites(read_cell(neighbours_file, n_sites, positions,
+                                   x_min*1u"m", x_max*1u"m",
+                                   y_min*1u"m", y_max*1u"m")...,
                          temperature, electron_density, hydrogen_populations,
                          velocity_z, velocity_x, velocity_y,
                          z_min*1u"m", z_max*1u"m",
@@ -650,7 +658,9 @@ function compare_interpolations(DATA::String, n_sites::Int)
                    $(z_min) $(z_max)`)
 
     # Voronoi grid
-    sites = VoronoiSites(read_cell(neighbours_file, n_sites, positions)...,
+    sites = VoronoiSites(read_cell(neighbours_file, n_sites, positions,
+                                   x_min*1u"m", x_max*1u"m",
+                                   y_min*1u"m", y_max*1u"m")...,
                          _initialise(positions, atmos)...,
                          z_min*1u"m", z_max*1u"m",
                          x_min*1u"m", x_max*1u"m",
