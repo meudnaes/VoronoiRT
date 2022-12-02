@@ -1,5 +1,3 @@
-include("rates.jl")
-
 """
     zero_radiation_populations(line::HydrogenicLine,
                                atmos::Atmosphere)

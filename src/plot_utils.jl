@@ -1,15 +1,3 @@
-using NPZ
-using Plots
-using UnitfulRecipes
-
-include("line.jl")
-include("functions.jl")
-include("radiation.jl")
-include("atmosphere.jl")
-include("broadening.jl")
-include("populations.jl")
-include("characteristics.jl")
-
 pyplot()
 
 """

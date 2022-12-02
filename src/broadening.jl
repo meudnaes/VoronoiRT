@@ -1,5 +1,3 @@
-include("functions.jl")
-
 """
     c4_traving(line::AtomicLine)
 Calculate the \$C_4\$ interaction constant (quadratic Stark effect) using the

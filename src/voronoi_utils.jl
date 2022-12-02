@@ -1,9 +1,3 @@
-# using Unitful
-using NearestNeighbors
-
-# include("atmosphere.jl")
-# include("functions.jl")
-
 """
     VoronoiSites
 
@@ -726,12 +720,12 @@ function Voronoi_to_Raster(sites::VoronoiSites,
 end
 
 """
-    _initialise(p_vec::Matrix{<:Unitful.Length}, atmos::Atmosphere)
+    initialise(p_vec::Matrix{<:Unitful.Length}, atmos::Atmosphere)
 
 Initialise the irregular grid with atmospheric quantities at every site. Uses
 trilinear interpolation.
 """
-function _initialise(p_vec::Matrix{<:Unitful.Length}, atmos::Atmosphere)
+function initialise(p_vec::Matrix{<:Unitful.Length}, atmos::Atmosphere)
     println("---Interpolating quantities to new grid---")
     n_sites = length(p_vec[1,:])
 
@@ -755,12 +749,12 @@ function _initialise(p_vec::Matrix{<:Unitful.Length}, atmos::Atmosphere)
 end
 
 """
-    _initialise(p_vec::Matrix{<:Unitful.Length}, atmos::Atmosphere)
+    initialiseII(p_vec::Matrix{<:Unitful.Length}, atmos::Atmosphere)
 
 Initialise the irregular grid with atmospheric quantities at every site. Uses
 nearest neighbour interpolation.
 """
-function _initialiseII(p_vec::Matrix{<:Unitful.Length}, atmos::Atmosphere)
+function initialiseII(p_vec::Matrix{<:Unitful.Length}, atmos::Atmosphere)
     println("---Interpolating quantities to new grid---")
     n_sites = length(p_vec[1,:])
 

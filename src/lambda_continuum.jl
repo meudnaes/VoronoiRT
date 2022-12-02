@@ -1,11 +1,3 @@
-include("io.jl")
-include("functions.jl")
-include("radiation.jl")
-include("voronoi_utils.jl")
-include("characteristics.jl")
-include("irregular_ray_tracing.jl")
-
-
 function J_λ_regular(S_λ::AbstractArray,
                      α_cont::AbstractArray,
                      atmos::Atmosphere,
@@ -75,8 +67,7 @@ function Λ_regular(ϵ::AbstractFloat,
     LTE_pops = LTE_populations(atmos)
 
     # Find continuum extinction (only with Thomson and Rayleigh)
-    α_s = α_scattering(λ, atmos.temperature, atmos.electron_density*1.0,
-                       LTE_pops[:,:,:,1])
+    α_s = α_scattering.(λ, atmos.electron_density*1.0, LTE_pops[:,:,:,1])
 
     α_a = α_absorption.(λ, atmos.temperature, atmos.electron_density*1.0,
                         LTE_pops[:,:,:,1].+LTE_pops[:,:,:,2],
@@ -128,8 +119,7 @@ function Λ_voronoi(ϵ::AbstractFloat,
     LTE_pops = LTE_populations(sites)
 
     # Find continuum extinction (only with Thomson and Rayleigh)
-    α_s = α_scattering(λ, sites.temperature, sites.electron_density*1.0,
-                       LTE_pops[:,1])
+    α_s = α_.(λ, sites.electron_density*1.0, LTE_pops[:,1])
 
     α_a = α_absorption.(λ, sites.temperature, sites.electron_density*1.0,
                         LTE_pops[:,1].+LTE_pops[:,2],

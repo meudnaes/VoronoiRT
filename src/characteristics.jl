@@ -3,8 +3,6 @@ Short characteristic method to solve intensity along rays going through all grid
 points.
 =#
 
-include("functions.jl")
-
 """
     function short_characteristics_up(k::Vector{Float64},
                                       S_0::Array{<:UnitsIntensity_λ, 3},

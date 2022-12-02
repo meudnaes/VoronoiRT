@@ -1,8 +1,20 @@
-using HDF5
-using Random
-using Unitful
+"""
+    function voro(voro_executable::String, sites_file::String, neighbours_file::String, 
+                  x_min::Float64, x_max::Float64, 
+                  y_min::Float64, y_max::Float64, 
+                  z_min::Float64, z_max::Float64)
+"""
+function voro(voro_executable::String, sites_file::String, neighbours_file::String, 
+              x_min::Float64, x_max::Float64, 
+              y_min::Float64, y_max::Float64, 
+              z_min::Float64, z_max::Float64)
 
-include("atmosphere.jl")
+    run(`$voro_executable $sites_file $neighbours_file 
+         $x_min $x_max 
+         $y_min $y_max 
+         $z_min $z_max`)
+
+end
 
 """
     function read_quadrature(fname::String)

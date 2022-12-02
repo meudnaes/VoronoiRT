@@ -1,5 +1,3 @@
-using Transparency
-
 """
     function B_ν(ν, T)
 
@@ -46,7 +44,7 @@ end
                  electron_density::NumberDensity,
                  h_ground_density::NumberDensity)
 
-Extinction from scattering processes.
+Extinction from Thomson and Rayleigh scattering processes.
 """
 function α_scattering(λ::Unitful.Length,
                       electron_density::NumberDensity,

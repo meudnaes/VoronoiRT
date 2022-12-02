@@ -1,25 +1,10 @@
-using Plots
-
-include("io.jl")
-# include("line.jl")
-include("plot_utils.jl")
-include("functions.jl")
-include("atmosphere.jl")
-include("lambda_iteration.jl")
+using .VoronoiRT
+using HDF5
+using Random
+using Unitful
 
 global my_seed = 2022
 Random.seed!(my_seed)
-
-function sample_from_destruction(atmos::Atmosphere)
-
-    nλ_bb = 0
-    nλ_bf = 0
-    line = HydrogenicLine(test_atom(nλ_bb, nλ_bf)..., atmos.temperature)
-    LTE_pops = LTE_populations(line, atmos)
-    ελ = destruction(LTE_pops, atmos.electron_density, atmos.temperature, line)
-
-    return ustrip.(ελ)
-end
 
 function compare(DATA, quadrature)
     maxiter = 100
@@ -76,13 +61,13 @@ function compare(DATA, quadrature)
         z_min = ustrip(atmos.z[1])
         z_max = ustrip(atmos.z[end])
 
-        n_sites = 1_050_232
+        n_sites = 50_000
         println("sites: $(n_sites)")
         # 286720# floor(Int, nz*nx*ny)
 
-        positions = sample_from_avg_ext("../data/half_res_ul7n12.h5", n_sites)
+        # positions = sample_from_avg_ext("../data/half_res_ul7n12.h5", n_sites)
 
-        # sample_from_ionised_hydrogen(atmos, n_sites)
+        positions = sample_from_ionised_hydrogen(atmos, n_sites)
         # positions[1, :] = positions[1, :].*(z_max - z_min) .+ z_min
         # positions[2, :] = positions[2, :].*(x_max - x_min) .+ x_min
         # positions[3, :] = positions[3, :].*(y_max - y_min) .+ y_min
@@ -107,18 +92,17 @@ function compare(DATA, quadrature)
         # export sites to voro++, and compute grid information
         println("---Preprocessing grid---")
 
+        # use Path to rt preprocessing folder in voro++ library
+        voro_exec = "../rt_preprocessing/output_sites"
 
         # compute neigbours
-        run(`./voro.sh $sites_file $neighbours_file
-                       $(x_min) $(x_max)
-                       $(y_min) $(y_max)
-                       $(z_min) $(z_max)`)
+        voro(voro_exec, sites_file, neighbours_file, x_min, x_max, y_min, y_max, z_min, z_max)
 
         # Voronoi grid
         sites = VoronoiSites(read_cell(neighbours_file, n_sites, positions,
                                        x_min*1u"m", x_max*1u"m",
                                        y_min*1u"m", y_max*1u"m")...,
-                             _initialise(positions, atmos)...,
+                             initialise(positions, atmos)...,
                              z_min*1u"m", z_max*1u"m",
                              x_min*1u"m", x_max*1u"m",
                              y_min*1u"m", y_max*1u"m",
@@ -161,7 +145,7 @@ function LTE_line(DATA)
     line = HydrogenicLine(test_atom(nλ_bb, nλ_bf)..., atmos.temperature)
 
     # LTE populations
-    LTE_pops = LTE_populations(line, atmos)
+    LTE_pops = VoronoiRT.LTE_populations(line, atmos)
     populations = copy(LTE_pops)
 
     # LTE_data = "../data/LTE_data.h5"
@@ -187,34 +171,34 @@ function LTE_line(DATA)
                           LTE_pops[:, :, :, 3]*1.0)
     =#
 
-    γ = γ_constant(line,
+    γ = VoronoiRT.γ_constant(line,
                    atmos.temperature,
                    (LTE_pops[:, :, :, 1] .+ LTE_pops[:, :, :, 2]),
                    atmos.electron_density)
 
     damping_λ = Array{Float64, 4}(undef, size(S_λ))
     for l in eachindex(line.λ)
-        damping_λ[l, :, :, :] = damping.(γ, line.λ[l], line.ΔD)
+        damping_λ[l, :, :, :] = VoronoiRT.damping.(γ, line.λ[l], line.ΔD)
     end
 
     k = [cos(θ*π/180), cos(ϕ*π/180)*sin(θ*π/180), sin(ϕ*π/180)*sin(θ*π/180)]
-    profile = compute_voigt_profile(line, atmos, damping_λ, k)
+    profile = VoronoiRT.compute_voigt_profile(line, atmos, damping_λ, k)
     # profile = compute_doppler_profile(line, atmos, k)
 
     α_line = Array{Float64, 4}(undef, size(profile))u"m^-1"
     α_cont = copy(α_line)
     for l in eachindex(line.λ)
-        α_line[l,:,:,:] = αline_λ(line,
+        α_line[l,:,:,:] = VoronoiRT.αline_λ(line,
                                   profile[l, :, :, :],
                                   populations[:, :, :, 2],
                                   populations[:, :, :, 1])
 
-        α_cont[l,:,:,:] = α_absorption.(line.λ[l],
+        α_cont[l,:,:,:] = VoronoiRT.α_absorption.(line.λ[l],
                                         atmos.temperature,
                                         atmos.electron_density*1.0,
                                         LTE_pops[:,:,:,1].+LTE_pops[:,:,:,2],
                                         LTE_pops[:,:,:,3]) .+
-                          α_scattering.(line.λ[l],
+                          VoronoiRT.α_scattering.(line.λ[l],
                                         atmos.electron_density,
                                         LTE_pops[:,:,:,1])
     end

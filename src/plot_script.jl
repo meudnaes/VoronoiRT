@@ -1,5 +1,3 @@
-include("plot_utils.jl")
-
 θ = 180.0
 ϕ = 0.0
 

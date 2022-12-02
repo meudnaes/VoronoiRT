@@ -1,13 +1,8 @@
-using NPZ
-using Plots
+using .VoronoiRT
 using NearestNeighbors
-
-include("io.jl")
-include("functions.jl")
-include("plot_utils.jl")
-include("voronoi_utils.jl")
-include("characteristics.jl")
-include("irregular_ray_tracing.jl")
+using Plots
+using Random
+using Unitful
 
 pyplot()
 
@@ -47,10 +42,10 @@ function searchlight_irregular()
                  sites_file)
 
     # compute neigbours
-    run(`./voro.sh $sites_file $neighbours_file
-            $(bounds[2,1]) $(bounds[2,2])
-            $(bounds[3,1]) $(bounds[3,2])
-            $(bounds[1,1]) $(bounds[1,2])`)
+    voro(voro_exec, sites_file, neighbours_file,
+         bounds[2,1], bounds[2,2],
+         bounds[3,1], bounds[3,2],
+         bounds[1,1], bounds[1,2])
 
     # println("$(bounds[2,1]u"m"), $(bounds[2,2]u"m"), $(bounds[3,1]u"m"), $(bounds[3,2]u"m")")
 
@@ -105,7 +100,7 @@ function searchlight_irregular()
 
     tot_time = 0.0
 
-    weights, θ_array, ϕ_array, n_angles = read_quadrature("../quadratures/ul7n12.dat")
+    weights, θ_array, ϕ_array, n_angles = VoronoiRT.read_quadrature("../quadratures/ul7n12.dat")
 
     for i in eachindex(θ_array)
         θ = θ_array[i]
@@ -114,7 +109,7 @@ function searchlight_irregular()
         # Unit vector pointing in the direction of the ray
         k = [cos(θ*π/180), cos(ϕ*π/180)*sin(θ*π/180), sin(ϕ*π/180)*sin(θ*π/180)]
         if θ > 90
-            I, time = @timed Delaunay_upII(k, S, I_bottom, α, sites, n_sweeps)
+            I, time = @timed VoronoiRT.Delaunay_upII(k, S, I_bottom, α, sites, n_sweeps)
 
 
             top_I = zeros(length(x), length(y))u"kW*nm^-1*m^-2"
@@ -130,7 +125,7 @@ function searchlight_irregular()
             plot_searchlight(k, x, y, top_I, R0, "irregular_$(floor(Int,θ))_$(floor(Int,ϕ))")
 
         elseif θ < 90
-            I, time = @timed Delaunay_downII(k, S, I_top, α, sites, n_sweeps)
+            I, time = @timed VoronoiRT.Delaunay_downII(k, S, I_top, α, sites, n_sweeps)
 
 
             bottom_z = 0
@@ -193,7 +188,7 @@ function searchlight_regular()
         end
     end
 
-    weights, θ_array, ϕ_array, n_angles = read_quadrature("../quadratures/ul7n12.dat")
+    _, θ_array, ϕ_array, _ = VoronoiRT.read_quadrature("../quadratures/ul7n12.dat")
 
     tot_time = 0.0
 
@@ -204,7 +199,7 @@ function searchlight_regular()
         # Unit vector pointing in the direction of the ray
         k = [cos(θ*π/180), cos(ϕ*π/180)*sin(θ*π/180), sin(ϕ*π/180)*sin(θ*π/180)]
         if θ > 90
-            I, time = @timed short_characteristics_up(k, S_0, I_0, α, atmos;
+            I, time = @timed VoronoiRT.short_characteristics_up(k, S_0, I_0, α, atmos;
                                          pt=true, n_sweeps=3)[:, 2:end-1, 2:end-1]
 
             I = I[end, :, :]
@@ -212,7 +207,7 @@ function searchlight_regular()
             plot_searchlight(k, x[2:end-1], y[2:end-1], I, R0, "regular_$(floor(Int,θ))_$(floor(Int,ϕ))")
             println("Bottom: $(I_light*80), Top: $(sum(I))")
         elseif θ < 90
-            I, time = @timed short_characteristics_down(k, S_0, I_0, α, atmos;
+            I, time = @timed VoronoiRT.short_characteristics_down(k, S_0, I_0, α, atmos;
                                            pt=true, n_sweeps=3)[:, 2:end-1, 2:end-1]
 
             I = I[1, :, :]
@@ -229,4 +224,4 @@ function searchlight_regular()
 end
 
 searchlight_irregular()
-# searchlight_regular()
+searchlight_regular()

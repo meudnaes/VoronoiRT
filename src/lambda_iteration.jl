@@ -1,11 +1,3 @@
-include("rates.jl")
-include("radiation.jl")
-include("broadening.jl")
-include("populations.jl")
-include("voronoi_utils.jl")
-include("characteristics.jl")
-include("irregular_ray_tracing.jl")
-
 function J_λ_regular(S_λ::Array{<:UnitsIntensity_λ, 4},
                      α_cont::Array{<:PerLength, 3},
                      populations::Array{<:NumberDensity, 4},

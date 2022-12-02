@@ -1,9 +1,7 @@
-using NPZ
+using .VoronoiRT
 using Plots
-include("plot_utils.jl")
-include("voronoi_utils.jl")
-include("lambda_continuum.jl")
-include("irregular_ray_tracing.jl")
+using Random
+using Unitful
 
 global my_seed = 1998
 Random.seed!(my_seed)
@@ -79,7 +77,7 @@ function compare(DATA, quadrature)
         z_min = ustrip(atmos.z[1])
         z_max = ustrip(atmos.z[end])
 
-        n_sites = floor(Int, nz*nx*ny)
+        n_sites = 100_000 # floor(Int, nz*nx*ny)
         positions = rejection_sampling(n_sites, atmos, log10.(ustrip.(atmos.hydrogen_populations)))
 
         # rand(3, n_sites)
@@ -105,16 +103,14 @@ function compare(DATA, quadrature)
         println("---Preprocessing grid---")
 
         # compute neigbours
-        # run(`./voro.sh $sites_file $neighbours_file
-                       # $(x_min) $(x_max)
-                       # $(y_min) $(y_max)
-                       # $(z_min) $(z_max)`)
+        voro(voro_exec, sites_file, neighbours_file, 
+             x_min, x_max, y_min, y_max, z_min, z_max)
 
         # Voronoi grid
         sites = VoronoiSites(read_cell(neighbours_file, n_sites, positions,
                                        x_min*1u"m", x_max*1u"m",
                                        y_min*1u"m", y_max*1u"m")...,
-                             _initialise(positions, atmos)...,
+                             initialise(positions, atmos)...,
                              z_min*1u"m", z_max*1u"m",
                              x_min*1u"m", x_max*1u"m",
                              y_min*1u"m", y_max*1u"m",
@@ -124,7 +120,7 @@ function compare(DATA, quadrature)
 
         @time J_mean, S_λ, α_tot = Λ_voronoi(ϵ, maxiter, sites, quadrature)
 
-        atmos_from_voronoi, S_λ_grid, α_grid = Voronoi_to_Raster(sites, atmos,
+        atmos_from_voronoi, S_λ_grid, α_grid = VoronoiRT.Voronoi_to_Raster(sites, atmos,
                                                                  S_λ, α_tot, 2;
                                                                  periodic=true)
 
@@ -152,7 +148,7 @@ function compare(DATA, quadrature)
     end
 
     regular();
-    # voronoi();
+    voronoi();
 
 end
 
@@ -165,20 +161,20 @@ function LTE_compare(DATA::String, n_sites::Int)
 
     """
     # Lte populations
-    LTE_pops = LTE_populations(atmos)
+    LTE_pops = VoronoiRT.LTE_populations(atmos)
 
     # Find continuum extinction (only with Thomson and Rayleigh)
-    α_cont = α_absorption.(λ,
+    α_cont = VoronoiRT.α_absorption.(λ,
                            atmos.temperature,
                            atmos.electron_density*1.0,
                            LTE_pops[:,:,:,1].+LTE_pops[:,:,:,2],
                            LTE_pops[:,:,:,3]) .+
-             α_scattering.(λ,
+             VoronoiRT.α_scattering.(λ,
                            atmos.electron_density,
                            LTE_pops[:,:,:,1])
 
     # Planck function
-    S_λ = blackbody_λ.(λ, atmos.temperature)
+    S_λ = B_λ.(λ, atmos.temperature)
 
     θ = 180.0
     ϕ = 0.0
@@ -231,16 +227,14 @@ function LTE_compare(DATA::String, n_sites::Int)
     println("---Preprocessing grid---")
 
     # compute neigbours
-    run(`./voro.sh $sites_file $neighbours_file
-                   $(x_min) $(x_max)
-                   $(y_min) $(y_max)
-                   $(z_min) $(z_max)`)
+    voro(voro_exec, sites_file, neighbours_file, 
+         x_min, x_max, y_min, y_max, z_min, z_max)
 
     # Voronoi grid
     sites = VoronoiSites(read_cell(neighbours_file, n_sites, positions,
                                    x_min*1u"m", x_max*1u"m",
                                    y_min*1u"m", y_max*1u"m")...,
-                         _initialise(positions, atmos)...,
+                         initialise(positions, atmos)...,
                          z_min*1u"m", z_max*1u"m",
                          x_min*1u"m", x_max*1u"m",
                          y_min*1u"m", y_max*1u"m",
@@ -249,10 +243,10 @@ function LTE_compare(DATA::String, n_sites::Int)
     run(`rm ../data/$sites_file ../data/$neighbours_file`)
 
     # Lte populations
-    LTE_pops = LTE_populations(sites)
+    LTE_pops = VoronoiRT.LTE_populations(sites)
 
     S_λ = Matrix{Float64}(undef, (1, n_sites))u"kW*m^-2*nm^-1"
-    S_λ[1,:] = blackbody_λ.(λ, sites.temperature)
+    S_λ[1,:] = B_λ.(λ, sites.temperature)
 
     # println(typeof(S_λ))
     # println(typeof(LTE_pops))
@@ -260,17 +254,17 @@ function LTE_compare(DATA::String, n_sites::Int)
     atmos_size = (nz, nx, ny).*2
     atmos_size = floor.(Int, atmos_size)
 
-    atmos, S_λ_grid, populations_grid = Voronoi_to_Raster(sites, atmos_size,
+    atmos, S_λ_grid, populations_grid = VoronoiRT.Voronoi_to_Raster(sites, atmos_size,
                                                           S_λ, LTE_pops;
                                                           periodic=true)
 
     # Find continuum extinction (only with Thomson and Rayleigh)
-    α_cont = α_absorption.(λ,
+    α_cont = VoronoiRT.α_absorption.(λ,
                            atmos.temperature,
                            atmos.electron_density*1.0,
                            populations_grid[:,:,:,1].+populations_grid[:,:,:,2],
                            populations_grid[:,:,:,3]) .+
-             α_scattering.(λ,
+             VoronoiRT.α_scattering.(λ,
                            atmos.electron_density,
                            populations_grid[:,:,:,1])
 
@@ -313,20 +307,20 @@ function LTE_regular(DATA::String, n_skip::Integer)
     λ = 500u"nm"  # nm
 
     # Lte populations
-    LTE_pops = LTE_populations(atmos)
+    LTE_pops = VoronoiRT.LTE_populations(atmos)
 
     # Find continuum extinction (only with Thomson and Rayleigh)
-    α_cont = α_absorption.(λ,
+    α_cont = VoronoiRT.α_absorption.(λ,
                            atmos.temperature,
                            atmos.electron_density*1.0,
                            LTE_pops[:,:,:,1].+LTE_pops[:,:,:,2],
                            LTE_pops[:,:,:,3]) .+
-             α_scattering.(λ,
+             VoronoiRT.α_scattering.(λ,
                            atmos.electron_density,
                            LTE_pops[:,:,:,1])
 
     # Planck function
-    S_λ = blackbody_λ.(λ, atmos.temperature)
+    S_λ = B_λ.(λ, atmos.temperature)
 
     θ = 180.0
     ϕ = 0.0
@@ -383,35 +377,35 @@ function test_interpolation(DATA)
     println("---Preprocessing grid---")
 
     # compute neigbours
-    run(`./voro.sh $sites_file $neighbours_file
-                   $(x_min - 0.1) $(x_max + 0.1)
-                   $(y_min - 0.1) $(y_max + 0.1)
-                   $(z_min - 0.1) $(z_max + 0.1)`)
+    voro(voro_exec, sites_file, neighbours_file, 
+         x_min-0.1, x_max+0.1, 
+         y_min-0.1, y_max+0.1, 
+         z_min-0.1, z_max+0.1)
 
     # Voronoi grid
     sites = VoronoiSites(read_cell(neighbours_file, n_sites, positions,
                                    x_min*1u"m", x_max*1u"m",
                                    y_min*1u"m", y_max*1u"m")...,
-                         _initialise(positions, atmos)...,
+                         initialise(positions, atmos)...,
                          z_min*1u"m", z_max*1u"m",
                          x_min*1u"m", x_max*1u"m",
                          y_min*1u"m", y_max*1u"m",
                          n_sites)
 
     # Lte populations
-    LTE_pops = LTE_populations(sites)
+    LTE_pops = VoronoiRT.LTE_populations(sites)
     λ = 500u"nm"
     # Find continuum extinction
-    α_cont = α_absorption.(λ,
+    α_cont = VoronoiRT.α_absorption.(λ,
                            sites.temperature,
                            sites.electron_density*1.0,
                            LTE_pops[:,1].+LTE_pops[:,2],
                            LTE_pops[:,3]) .+
-             α_scattering.(λ,
+             VoronoiRT.α_scattering.(λ,
                            sites.electron_density,
                            LTE_pops[:,1])
 
-    S_λ = blackbody_λ.(λ, sites.temperature)
+    S_λ = B_λ.(λ, sites.temperature)
 
     θ = 175.0
     ϕ = 0.1
@@ -420,7 +414,7 @@ function test_interpolation(DATA)
     bottom_layer = sites.layers_up[2] - 1
     bottom_layer_idx = sites.perm_up[1:bottom_layer]
     println("---Ray tracing---")
-    I_0 = blackbody_λ.(500u"nm", sites.temperature[bottom_layer_idx])
+    I_0 = B_λ.(500u"nm", sites.temperature[bottom_layer_idx])
     intensity = Delaunay_upII(k, S_λ, α_cont, sites, I_0, 3)
 
     x = collect(LinRange(sites.x_min, sites.x_max, 10*nx))
@@ -450,7 +444,7 @@ function test_interpolation(DATA)
 
     savefig("../img/compare_continuum/irregular_top_I")
 
-    atmos_from_voronoi = Voronoi_to_Raster(sites, atmos, 1; periodic=false)
+    atmos_from_voronoi = VoronoiRT.Voronoi_to_Raster(sites, atmos, 1; periodic=false)
 
     T_diff = abs.(1 .- atmos_from_voronoi.temperature ./ atmos.temperature)
     N_e_diff = abs.(1 .- atmos_from_voronoi.electron_density ./ atmos.electron_density)
@@ -547,10 +541,10 @@ function test_with_regular_grid(DATA, quadrature)
     println("---Preprocessing grid---")
 
     # compute neigbours
-    run(`./voro.sh $sites_file $neighbours_file
-                   $(x_min-0.1) $(x_max+0.1)
-                   $(y_min-0.1) $(y_max+0.1)
-                   $(z_min-0.1) $(z_max+0.1)`)
+    voro(voro_exec, sites_file, neighbours_file, 
+         x_min-0.1, x_max+0.1, 
+         y_min-0.1, y_max+0.1, 
+         z_min-0.1, z_max+0.1)
 
     # Voronoi grid
     sites = VoronoiSites(read_cell(neighbours_file, n_sites, positions,
@@ -564,25 +558,25 @@ function test_with_regular_grid(DATA, quadrature)
                          n_sites)
 
     # Lte populations
-    LTE_pops = LTE_populations(sites)
+    LTE_pops = VoronoiRT.LTE_populations(sites)
     λ = 500u"nm"
     # Find continuum extinction (only with Thomson and Rayleigh)
-    α_cont = α_absorption.(λ,
+    α_cont = VoronoiRT.α_absorption.(λ,
                            atmos.temperature,
                            atmos.electron_density*1.0,
                            LTE_pops[:,:,:,1].+LTE_pops[:,:,:,2],
                            LTE_pops[:,:,:,3]) .+
-             α_scattering.(λ,
+             VoronoiRT.α_scattering.(λ,
                            atmos.electron_density,
                            LTE_pops[:,:,:,1])
-    S_λ = blackbody_λ.(λ, sites.temperature)
+    S_λ = B_λ.(λ, sites.temperature)
 
     θ = 170.0
     ϕ = 30.0
     k = [cos(θ*π/180), cos(ϕ*π/180)*sin(θ*π/180), sin(ϕ*π/180)*sin(θ*π/180)]
     bottom_layer = sites.layers_up[2] - 1
     bottom_layer_idx = sites.perm_up[1:bottom_layer]
-    I_0 = blackbody_λ.(500u"nm", sites.temperature[bottom_layer_idx])
+    I_0 = B_λ.(500u"nm", sites.temperature[bottom_layer_idx])
     intensity = Delaunay_upII(k, S_λ, α_cont, sites, I_0, 3)
 
     x = collect(LinRange(sites.x_min, sites.x_max, 5*nx))
@@ -652,16 +646,14 @@ function compare_interpolations(DATA::String, n_sites::Int)
     println("---Preprocessing grid---")
 
     # compute neigbours
-    run(`./voro.sh $sites_file $neighbours_file
-                   $(x_min) $(x_max)
-                   $(y_min) $(y_max)
-                   $(z_min) $(z_max)`)
+    voro(voro_exec, sites_file, neighbours_file, 
+         x_min, x_max, y_min, y_max, z_min, z_max)
 
     # Voronoi grid
     sites = VoronoiSites(read_cell(neighbours_file, n_sites, positions,
                                    x_min*1u"m", x_max*1u"m",
                                    y_min*1u"m", y_max*1u"m")...,
-                         _initialise(positions, atmos)...,
+                         initialise(positions, atmos)...,
                          z_min*1u"m", z_max*1u"m",
                          x_min*1u"m", x_max*1u"m",
                          y_min*1u"m", y_max*1u"m",
@@ -670,11 +662,11 @@ function compare_interpolations(DATA::String, n_sites::Int)
     run(`rm ../data/$sites_file ../data/$neighbours_file`)
 
     # Lte populations
-    populations = LTE_populations(sites)
+    populations = VoronoiRT.LTE_populations(sites)
 
     # LTE source function --> Planck function
     S_λ = Matrix{Float64}(undef, (1, n_sites))u"kW*m^-2*nm^-1"
-    S_λ[1,:] = blackbody_λ.(λ, sites.temperature)
+    S_λ[1,:] = B_λ.(λ, sites.temperature)
 
     CMAX = 60.52755753644262
     CMIN = 20.169713390042126
@@ -687,15 +679,15 @@ function compare_interpolations(DATA::String, n_sites::Int)
     k = [cos(θ*π/180), cos(ϕ*π/180)*sin(θ*π/180), sin(ϕ*π/180)*sin(θ*π/180)]
 
     # Inverse distance interpolation
-    atmos, S_λ_grid, populations_grid = Voronoi_to_Raster_inv_dist(sites, atmos_size, S_λ, populations)
+    atmos, S_λ_grid, populations_grid = VoronoiRT.Voronoi_to_Raster_inv_dist(sites, atmos_size, S_λ, populations)
 
     # Find continuum extinction (only with Thomson and Rayleigh)
-    α_cont = α_absorption.(λ,
+    α_cont = VoronoiRT.α_absorption.(λ,
                            atmos.temperature,
                            atmos.electron_density*1.0,
                            populations_grid[:,:,:,1].+populations_grid[:,:,:,2],
                            populations_grid[:,:,:,3]) .+
-             α_scattering.(λ,
+             VoronoiRT.α_scattering.(λ,
                            atmos.electron_density,
                            populations_grid[:,:,:,1])
 
@@ -720,15 +712,15 @@ function compare_interpolations(DATA::String, n_sites::Int)
     savefig("../img/compare_continuum/inv_dist")
 
     # Nearest neighbour interpolation
-    atmos, S_λ_grid, populations_grid = Voronoi_to_Raster(sites, atmos_size, S_λ, populations)
+    atmos, S_λ_grid, populations_grid = VoronoiRT.Voronoi_to_Raster(sites, atmos_size, S_λ, populations)
 
     # Find continuum extinction (only with Thomson and Rayleigh)
-    α_cont = α_absorption.(λ,
+    α_cont = VoronoiRT.α_absorption.(λ,
                            atmos.temperature,
                            atmos.electron_density*1.0,
                            populations_grid[:,:,:,1].+populations_grid[:,:,:,2],
                            populations_grid[:,:,:,3]) .+
-             α_scattering.(λ,
+             VoronoiRT.α_scattering.(λ,
                            atmos.electron_density,
                            populations_grid[:,:,:,1])
 
@@ -755,7 +747,7 @@ function compare_interpolations(DATA::String, n_sites::Int)
 end
 
 # compare("../data/bifrost_qs006023_s525_half.hdf5", "../quadratures/ul2n3.dat");
-n_list = [100_000, 250_000, 500_000, 1_000_000, 2_500_000, 5_000_000, 10_000_000, 15_000_000]
+n_list = [100_000] #, 250_000, 500_000, 1_000_000, 2_500_000, 5_000_000, 10_000_000, 15_000_000]
 
 for num_sites in n_list
     LTE_compare("../data/bifrost_qs006023_s525.hdf5", num_sites)

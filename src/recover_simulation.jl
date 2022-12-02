@@ -1,10 +1,3 @@
-include("io.jl")
-include("line.jl")
-include("plot_utils.jl")
-include("functions.jl")
-include("atmosphere.jl")
-include("lambda_iteration.jl")
-
 global nλ_bb = 50
 global nλ_bf = 20
 

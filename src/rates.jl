@@ -1,7 +1,3 @@
-include("line.jl")
-include("functions.jl")
-include("voronoi_utils.jl")
-
 # Push system closer to LTE, makes convergence easier.
 # This is instead of developing operator splitting...
 const BOOST = 2.0e9

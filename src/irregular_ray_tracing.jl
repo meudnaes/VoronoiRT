@@ -1,9 +1,3 @@
-include("voronoi_utils.jl")
-include("functions.jl")
-
-using Distances
-using LinearAlgebra
-
 const p = 7.0           # Weighting upwind rays
 
 """

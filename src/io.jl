@@ -1,10 +1,3 @@
-using HDF5
-using Unitful
-
-include("line.jl")
-include("atmosphere.jl")
-include("voronoi_utils.jl")
-
 """
     function write_arrays(x::AbstractArray, y::AbstractArray, z::AbstractArray,
                           fname::String)
