@@ -5,7 +5,8 @@ export HydrogenicLine, test_atom
 export write_arrays, create_output_file, write_to_file
 export sample_from_avg_ext, sample_from_destruction,  sample_from_extinction,
     sample_from_ionised_hydrogen, sample_from_temp_gradient,
-    sample_from_total_extinction, sample_λ_boundfree, sample_λ_line
+    sample_from_total_extinction, sample_λ_boundfree, sample_λ_line,
+    sample_from_logNH_invT, sample_from_logNH_invT_rootv
 export VoronoiSites, initialise, read_cell
 export voro
 export Λ_voronoi, Λ_regular

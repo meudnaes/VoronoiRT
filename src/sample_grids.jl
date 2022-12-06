@@ -292,3 +292,28 @@ function sample_from_destruction(atmos::Atmosphere)
 
     return ustrip.(ελ)
 end
+
+function sample_from_logNH_invT(atmos::Atmosphere, n_sites::Int)
+
+    temperature = atmos.temperature
+    N_H = atmos.hydrogen_populations
+
+    quantity = log10.(ustrip.(N_H)) .* ustrip.(temperature).^(-2/5)
+
+    positions = rejection_sampling(n_sites, atmos, quantity)
+end
+
+function sample_from_logNH_invT_rootv(atmos::Atmosphere, n_sites::Int)
+
+    temperature = atmos.temperature
+    N_H = atmos.hydrogen_populations
+    v_x = atmos.velocity_x
+    v_y = atmos.velocity_y
+    v_z = atmos.velocity_z
+
+    v_sqrd = ustrip.(v_x).^2 .+ ustrip.(v_y).^2 .+ ustrip.(v_z).^2
+
+    quantity = log10.(ustrip.(N_H)) .* ustrip.(temperature).^(-2/5) .* v_sqrd.^(1/3)
+
+    positions = rejection_sampling(n_sites, atmos, quantity)
+end
