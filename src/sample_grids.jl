@@ -232,11 +232,11 @@ end
 Integrated extinction over angles in quadrature, use this for sampling sites.
 """
 function sample_from_avg_ext(DATA::String, n_sites::Int)
-    
+
     weights, θ_array, ϕ_array, _ = read_quadrature("../quadratures/ul7n12.dat")
-    
+
     atmos, S_λ, populations = read_quantities(DATA; periodic=false)
-    
+
     line = HydrogenicLine(test_atom(50, 20)..., atmos.temperature)
 
     LTE_pops = LTE_populations(line, atmos)
@@ -255,11 +255,11 @@ function sample_from_avg_ext(DATA::String, n_sites::Int)
                    atmos.temperature,
                    (populations[:, :, :, 1].+populations[:, :, :, 2]),
                    atmos.electron_density)
-    
+
     α_int = zeros(size(α_cont))u"m^-1"
-    
+
     λ0idx = argmin(abs.(line.λ .- line.λ0))
-    
+
     for i in eachindex(weights)
         θ = θ_array[i]
         ϕ = ϕ_array[i]
@@ -275,7 +275,7 @@ function sample_from_avg_ext(DATA::String, n_sites::Int)
                         profile[λ0idx, :, :, :],
                         populations[:, :, :, 2],
                         populations[:, :, :, 1]) .+ α_cont
-                
+
         α_int .+= weights[i].*α_tot
     end
     positions = rejection_sampling(n_sites, atmos, log10.(ustrip.(α_int)))
@@ -314,6 +314,15 @@ function sample_from_logNH_invT_rootv(atmos::Atmosphere, n_sites::Int)
     v_sqrd = ustrip.(v_x).^2 .+ ustrip.(v_y).^2 .+ ustrip.(v_z).^2
 
     quantity = log10.(ustrip.(N_H)) .* ustrip.(temperature).^(-2/5) .* v_sqrd.^(1/3)
+
+    positions = rejection_sampling(n_sites, atmos, quantity)
+end
+
+function sample_from_invNH_invT(atmos::Atmosphere, n_sites::Int)
+    temperature = atmos.temperature
+    N_H = atmos.hydrogen_populations
+
+    @. quantity = log10(ustrip(N_H))^(-2) * ustrip(temperature)^(-2/5)
 
     positions = rejection_sampling(n_sites, atmos, quantity)
 end
