@@ -322,7 +322,7 @@ function sample_from_invNH_invT(atmos::Atmosphere, n_sites::Int)
     temperature = atmos.temperature
     N_H = atmos.hydrogen_populations
 
-    @. quantity = log10(ustrip(N_H))^(-2) * ustrip(temperature)^(-2/5)
+    quantity = @. log10(ustrip(N_H))^(-2) * ustrip(temperature)^(-2/5)
 
     positions = rejection_sampling(n_sites, atmos, quantity)
 end

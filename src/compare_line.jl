@@ -61,13 +61,13 @@ function compare(DATA, quadrature)
         z_min = ustrip(atmos.z[1])
         z_max = ustrip(atmos.z[end])
 
-        n_sites = 50_000
+        n_sites = 1_050_232
         println("sites: $(n_sites)")
         # 286720# floor(Int, nz*nx*ny)
 
         # positions = sample_from_avg_ext("../data/half_res_ul7n12.h5", n_sites)
 
-        positions = sample_from_ionised_hydrogen(atmos, n_sites)
+        positions = sample_from_invNH_invT(atmos, n_sites)
         # positions[1, :] = positions[1, :].*(z_max - z_min) .+ z_min
         # positions[2, :] = positions[2, :].*(x_max - x_min) .+ x_min
         # positions[3, :] = positions[3, :].*(y_max - y_min) .+ y_min
@@ -113,7 +113,7 @@ function compare(DATA, quadrature)
 
         line = HydrogenicLine(test_atom(nλ_bb, nλ_bf)..., sites.temperature)
 
-        VORONOI_DATA = "../data/avg_ext_1e6_real.h5"
+        VORONOI_DATA = "../data/invNH_invT_1e6.h5"
 
         create_output_file(VORONOI_DATA, length(line.λ), n_sites, maxiter)
         write_to_file(nλ_bb, "n_bb", VORONOI_DATA)
