@@ -23,6 +23,18 @@ f = h5py.File("../data/destruction_3e6.h5", "r")
 p_des = np.array(f["positions"])
 f.close()
 
+f = h5py.File("../data/NH_invT_rootv.h5", "r")
+p_rhoT = np.array(f["positions"])
+f.close()
+
+f = h5py.File("../data/NH_invT.h5", "r")
+p_rhoTv = np.array(f["positions"])
+f.close()
+
+f = h5py.File("../data/new_dist.h5", "r")
+p_unknown = np.array(f["positions"])
+f.close()
+
 z_regular = np.load("./sourcedata/half_res_ul7n12_z.npy")
 
 tau_unity = np.load("./sourcedata/tau_unity.npy")
@@ -45,18 +57,22 @@ ax.set_ylabel(r"$\textrm{Line Formation Height}$")
 plt.savefig("../img/compare_line/tau_unity.pdf")
 """
 
-z_cont = p_cont[:,0]
-z_ion = p_ion[:,0]
-z_des = p_des[:,0]
-
 fig, ax = plt.subplots(figsize=(6,5), constrained_layout=True)
 
-sns.histplot(data=z_cont/1e6, element="step", fill=False, stat="frequency",
-             ax=ax, label=r"$\alpha^c$", color="blue", ls="solid")
-sns.histplot(data=z_ion/1e6, element="step", fill=False, stat="frequency",
-             ax=ax, label=r"$\textrm{N}_\textrm{H\,\small{II}}$", color="dodgerblue", ls="solid")
-sns.histplot(data=z_des/1e6, element="step", fill=False, stat="frequency",
-             ax=ax, label=r"$\varepsilon$", color="cyan", ls="solid")
+
+sns.histplot(data=p_rhoT[:,0]/1e6, element="step", fill=False, stat="frequency",
+             ax=ax, label=r"$\rho T$", color="blue", ls="solid")
+sns.histplot(data=p_rhoTv[:,0]/1e6, element="step", fill=False, stat="frequency",
+             ax=ax, label=r"$\rho T v$", color="dodgerblue", ls="solid")
+sns.histplot(data=p_unknown[:,0]/1e6, element="step", fill=False, stat="frequency",
+             ax=ax, label=r"$unknown$", color="cyan", ls="solid")
+
+# For the regular grid...
+bins = np.concatenate([np.array([z_regular[0]-(z_regular[0]-z_regular[1])/2]), 
+                       (z_regular[:-1]+z_regular[1:])/2, 
+                       np.array([z_regular[-1]+(z_regular[-1]-z_regular[-2])/2])])/1e6
+sns.histplot(x=z_regular/1e6, bins=bins, weights=np.ones(len(bins)-1)*128**2, element="step", fill=False, stat="frequency",
+             ax=ax, label=r"$\textrm{regular}$", color="k", ls="solid")       
 
 y_vals = ax.get_yticks()
 ax.set_yticklabels([r"$%.1f$" %(x*1e-6) for x in y_vals])

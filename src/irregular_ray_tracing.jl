@@ -121,7 +121,7 @@ function Delaunay_downII(k::Vector{Float64},
         for sweep in 1:n_sweeps
             for i in upper_idx-1:-1:lower_idx
                 # coordinate
-                idx=perm[i]
+                idx = perm[i]
                 position = sites.positions[:,idx]
 
                 # number of neighbours

@@ -20,9 +20,6 @@ function J_λ_regular(S_λ::Array{<:UnitsIntensity_λ, 4},
         damping_λ[l, :, :, :] = damping.(γ, line.λ[l], line.ΔD)
     end
 
-    # total extinction
-    # α_tot = Array{Float64, 4}(undef, size(damping_λ))u"m^-1"
-
     for i in 1:n_angles
         θ = θ_array[i]
         ϕ = ϕ_array[i]
@@ -162,26 +159,26 @@ function Λ_regular(ϵ::AbstractFloat,
     # check where ε < 5e-3, cut above heights
     while criterion(S_new, S_old, ϵ, i, maxiter, DATA)
         @time begin
-        #############################
-        # Calculate radiation field #
-        #############################
-        S_old = copy(S_new)
-        J_new, damping_λ = J_λ_regular(S_old, α_cont, populations,
-                                       atmos, line, quadrature)
+            #############################
+            # Calculate radiation field #
+            #############################
+            S_old = copy(S_new)
+            J_new, damping_λ = J_λ_regular(S_old, α_cont, populations,
+                                        atmos, line, quadrature)
 
-        for l in eachindex(line.λ)
-            S_new[l,:,:,:] = (1 .- ελ).*J_new[l,:,:,:] .+ ελ.*B_0[l,:,:,:]
-        end
+            for l in eachindex(line.λ)
+                S_new[l,:,:,:] = (1 .- ελ).*J_new[l,:,:,:] .+ ελ.*B_0[l,:,:,:]
+            end
 
-        #############################
-        #      Calculate rates      #
-        #############################
-        R = calculate_R(atmos, line, J_new, damping_λ, LTE_pops)
+            #############################
+            #      Calculate rates      #
+            #############################
+            R = calculate_R(atmos, line, J_new, damping_λ, LTE_pops)
 
-        #############################
-        #    Update populations     #
-        #############################
-        populations = get_revised_populations(R, C, atmos.hydrogen_populations*1.0)
+            #############################
+            #    Update populations     #
+            #############################
+            populations = get_revised_populations(R, C, atmos.hydrogen_populations*1.0)
         
         end
         
@@ -255,26 +252,26 @@ function Λ_voronoi(ϵ::AbstractFloat,
     # check where ε < 1e-2, cut above heights
     while criterion(S_new, S_old, ϵ, i, maxiter, DATA)
         @time begin
-        #############################
-        # Calculate radiation field #
-        #############################
-        S_old = copy(S_new)
-        J_new, damping_λ = J_λ_voronoi(S_old, α_cont, populations,
-                                       sites, line, quadrature)
+            #############################
+            # Calculate radiation field #
+            #############################
+            S_old = copy(S_new)
+            J_new, damping_λ = J_λ_voronoi(S_old, α_cont, populations,
+                                        sites, line, quadrature)
 
-        for l in eachindex(line.λ)
-            S_new[l,:] = (1 .- ελ).*J_new[l,:] .+ ελ.*B_0[l,:]
-        end
+            for l in eachindex(line.λ)
+                S_new[l,:] = (1 .- ελ).*J_new[l,:] .+ ελ.*B_0[l,:]
+            end
 
-        #############################
-        #      Calculate rates      #
-        #############################
-        R = calculate_R(sites, line, J_new, damping_λ, LTE_pops)
+            #############################
+            #      Calculate rates      #
+            #############################
+            R = calculate_R(sites, line, J_new, damping_λ, LTE_pops)
 
-        #############################
-        #    Update populations     #
-        #############################
-        populations = get_revised_populations(R, C, sites.hydrogen_populations)
+            #############################
+            #    Update populations     #
+            #############################
+            populations = get_revised_populations(R, C, sites.hydrogen_populations)
         end
                 
         ############################

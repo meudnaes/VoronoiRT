@@ -251,7 +251,7 @@ function LTE_compare(DATA::String, n_sites::Int)
     # println(typeof(S_λ))
     # println(typeof(LTE_pops))
 
-    atmos_size = (nz, nx, ny).*2
+    atmos_size = (nz, nx, ny).*0.5
     atmos_size = floor.(Int, atmos_size)
 
     atmos, S_λ_grid, populations_grid = VoronoiRT.Voronoi_to_Raster(sites, atmos_size,

@@ -92,9 +92,6 @@ function compare(DATA, quadrature)
         # export sites to voro++, and compute grid information
         println("---Preprocessing grid---")
 
-        # use Path to rt preprocessing folder in voro++ library
-        voro_exec = "../rt_preprocessing/output_sites"
-
         # compute neigbours
         voro(voro_exec, sites_file, neighbours_file, x_min, x_max, y_min, y_max, z_min, z_max)
 

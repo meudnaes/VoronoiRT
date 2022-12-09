@@ -367,8 +367,7 @@ function smallest_angle(n::Int,
 
     indices = Vector{Int}(undef, 2)
 
-    for i in eachindex(neighbours)
-        neighbour = neighbours[i]
+    for (i, neighbour) in enumerate(neighbours)
         if neighbour > 0
             norm_dir = sites.Delaunay_lines[:, i, n]
 
