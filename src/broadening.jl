@@ -13,7 +13,7 @@ function c4_traving(line::HydrogenicLine)
 end
 
 """
-    function const_unsold(line::HydrogenicLine; H_scaling::Real=1, He_scaling::Real=1)
+    const_unsold(line::HydrogenicLine; H_scaling::Real=1, He_scaling::Real=1)
 Compute atmosphere-independent constant for γ_unsold, to be used in function `γ_unsold`.
 Based on expressions from RH broad.c, which uses formula in Mihalas (1978),
 pp 282, 286-287, eq. (9-50) for v_rel, table 9-1 and eq. (9-76) for the interaction

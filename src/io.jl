@@ -1,5 +1,5 @@
 """
-    function write_arrays(x::AbstractArray, y::AbstractArray, z::AbstractArray,
+    write_arrays(x::AbstractArray, y::AbstractArray, z::AbstractArray,
                           fname::String)
 
 Writes the arrays z, x, and y to a file with filename fname.

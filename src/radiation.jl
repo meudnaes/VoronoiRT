@@ -1,5 +1,5 @@
 """
-    function B_ν(ν, T)
+    B_ν(ν, T)
 
 Planck's law! Radiation in LTE. Takes frequency and temperature, returns
 specific intensity
@@ -9,7 +9,7 @@ function B_ν(ν, T)::AbstractFloat
 end
 
 """
-    function B_ν(λ, T)
+    B_ν(λ, T)
 
 Planck's law! Radiation in LTE. Takes wavelength and temperature, returns
 specific intensity
@@ -19,7 +19,7 @@ function B_λ(λ::Unitful.Length, T::Unitful.Temperature)
 end
 
 """
-    function α_absorption(λ::Unitful.Length, temperature::Unitful.Temperature,
+    α_absorption(λ::Unitful.Length, temperature::Unitful.Temperature,
                electron_density::NumberDensity, h_ground_density::NumberDensity,
                proton_density::NumberDensity)
 

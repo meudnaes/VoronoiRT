@@ -1,7 +1,19 @@
+using NPZ
+using Plots
+using UnitfulRecipes
+
+include("line.jl")
+include("functions.jl")
+include("radiation.jl")
+include("atmosphere.jl")
+include("broadening.jl")
+include("populations.jl")
+include("characteristics.jl")
+
 pyplot()
 
 """
-    function circle_shape(x, y, r)
+    circle_shape(x, y, r)
 
 Function for a circle with centre coordinates (x, y) and radius r.
 """
@@ -103,7 +115,7 @@ function write_top_intensity(atmos::Atmosphere,
     println("--Calculating intensity---")
     Threads.@threads for idλ in l1:l2
         intensity = short_characteristics_up(k, S_λ[idλ, :, :, :], S_λ[idλ, 1, :, :],
-                                         α_tot[idλ, :, :, :], atmos)
+                                             α_tot[idλ, :, :, :], atmos)
 
         intensity = transpose(intensity[end, 2:end-1, 2:end-1])
         I_top[idλ,:,:] = ustrip(uconvert.(u"kW*nm^-1*m^-2", intensity))
@@ -242,10 +254,11 @@ function read_irregular(DATA::String)
         populations = read(file, "populations")[:, :]*u"m^-3"
     end
 
+    dl = Array{Float64}(undef, (1, 1, 1))
     nn = Matrix{Int}(undef, (1, 1))
     ll = Vector{Int}(undef, 1)
 
-    sites = VoronoiSites(positions, nn, ll, ll, ll, ll, temperature,
+    sites = VoronoiSites(positions, nn, dl, ll, ll, ll, ll, temperature,
                          electron_density, hydrogen_populations, velocity_z,
                          velocity_x, velocity_y, boundaries...,
                          size(positions)[1])
@@ -323,7 +336,7 @@ function plot_convergence(DATA::String, title::String)
 
 
     converged = argmin(convergence)
-    # println(convergence[1:converged-1])
+
     plot(convergence[1:converged-1],
          xlabel="iteration",
          ylabel="max rel. diff.",
@@ -331,7 +344,7 @@ function plot_convergence(DATA::String, title::String)
          dpi=300,
          yscale=:log10)
     savefig("../img/$title")
-    # println(title)
+
 end
 
 function write_convergence(DATA::String, title::String)

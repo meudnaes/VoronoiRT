@@ -7,7 +7,7 @@ global my_seed = 2022
 Random.seed!(my_seed)
 
 function compare(DATA, quadrature)
-    maxiter = 100
+    maxiter = 150
     println("---Iterating maximum $maxiter iterations---")
     println("--- ! Boosting collisional rates ! ---")
     ϵ = 1e-3
@@ -61,7 +61,8 @@ function compare(DATA, quadrature)
         z_min = ustrip(atmos.z[1])
         z_max = ustrip(atmos.z[end])
 
-        n_sites = 1_050_232
+        n_sites = 3_000_000
+        # 1_050_232
         println("sites: $(n_sites)")
         # 286720# floor(Int, nz*nx*ny)
 
@@ -113,7 +114,7 @@ function compare(DATA, quadrature)
 
         line = HydrogenicLine(test_atom(nλ_bb, nλ_bf)..., sites.temperature)
 
-        VORONOI_DATA = "../data/invNH_invT_1e6.h5"
+        VORONOI_DATA = "../data/invNH_invT_3e6.h5"
 
         create_output_file(VORONOI_DATA, length(line.λ), n_sites, maxiter)
         write_to_file(nλ_bb, "n_bb", VORONOI_DATA)

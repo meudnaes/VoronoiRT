@@ -1,23 +1,29 @@
+using HDF5
+using Random
+using Unitful
+
+include("atmosphere.jl")
+
 """
-    function voro(voro_executable::String, sites_file::String, neighbours_file::String, 
-                  x_min::Float64, x_max::Float64, 
-                  y_min::Float64, y_max::Float64, 
+    function voro(voro_executable::String, sites_file::String, neighbours_file::String,
+                  x_min::Float64, x_max::Float64,
+                  y_min::Float64, y_max::Float64,
                   z_min::Float64, z_max::Float64)
 """
-function voro(voro_executable::String, sites_file::String, neighbours_file::String, 
-              x_min::Float64, x_max::Float64, 
-              y_min::Float64, y_max::Float64, 
+function voro(voro_executable::String, sites_file::String, neighbours_file::String,
+              x_min::Float64, x_max::Float64,
+              y_min::Float64, y_max::Float64,
               z_min::Float64, z_max::Float64)
 
-    run(`$voro_executable $sites_file $neighbours_file 
-         $x_min $x_max 
-         $y_min $y_max 
+    run(`$voro_executable $sites_file $neighbours_file
+         $x_min $x_max
+         $y_min $y_max
          $z_min $z_max`)
 
 end
 
 """
-    function read_quadrature(fname::String)
+    read_quadrature(fname::String)
 
 Read quarature weights and angles from file. Returns weights, horizontal angle,
 azimuthal angle, and number of quadrature points. Quadratures found in
@@ -452,7 +458,7 @@ end
 
 
 """
-    function range_bounds(sign::Int, bound::Int)
+    range_bounds(sign::Int, bound::Int)
 
 Given a quadrant from sign_x and sign_x from xy_intersect(), this function
 determines the loop start and stop point for the short characteristics rays.
