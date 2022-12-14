@@ -15,7 +15,9 @@ const abund_He = 10^10.99 / 10^12  # From RH
 @derived_dimension UnitsIntensity_λ Unitful.𝐋^-1 * Unitful.𝐌 * Unitful.𝐓^-3
 
 """
-    Structure containing atmospheric grid and physical values at grid point
+    Atmosphere
+    
+Structure containing atmospheric grid and physical values at grid point
 """
 struct Atmosphere
     z::Vector{typeof(1.0u"m")}

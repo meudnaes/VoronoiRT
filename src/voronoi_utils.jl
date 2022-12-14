@@ -548,7 +548,7 @@ function Voronoi_to_Raster(sites::VoronoiSites,
                            S_λ::Matrix{<:UnitsIntensity_λ},
                            populations::Matrix{<:NumberDensity};
                            periodic=false)
-
+    
     z = collect(LinRange(sites.z_min, sites.z_max,
                          floor(Int, atmos_size[1])))
     x = collect(LinRange(sites.x_min, sites.x_max,
