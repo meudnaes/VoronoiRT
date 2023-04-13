@@ -1,3 +1,5 @@
+import sys
+
 import numpy as np
 import matplotlib as mpl
 # import matplotlib.cm as cm
@@ -29,13 +31,14 @@ wavelength = np.array([120.85647513019845, 121.04863120292787, 121.1886140715510
                        121.5932331373771,  121.6015246283896,  121.6128174235225,
                        121.62823217189276, 121.64930795886815, 121.67815854488727,
                        121.71768694188553, 121.77188010985269, 121.84621368936962,
-                       121.94820785617118, 122.0881907247944,  122.2803467975238]) # nm
+                       121.94820785617118, 122.0881907247944,  122.2803467975238,
+                       500.0]) # nm
 
 
 center = np.argmin(np.abs(wavelength - lambda0))
 blue_wing = center - 11
 red_wing = center + 11
-continuum = np.argmax(wavelength)
+continuum = np.argmin(np.abs(wavelength - 500.0))
 
 plt.rcParams['text.usetex'] = True
 
@@ -48,13 +51,13 @@ CMAX_wing = 80
 CMIN_wing = 0
 
 CMAP = "gist_gray_r"
-CMAP_CONT = "gist_gray_r"
+CMAP_CONT = "magma"
 
 lpad = 8
 
 if __name__ == "__main__":
 
-    intensity_half = get_intensity("half_res_ul7n12_disk_centre_1.npy", PATH)
+    intensity_half = get_intensity("half_res_ul7n12_disk_centre.npy", PATH)
     intensity_third = get_intensity("regular_third_disk_centre.npy", PATH)
     intensity_quarter = get_intensity("regular_quarter_disk_centre.npy", PATH)
 
@@ -83,6 +86,20 @@ if __name__ == "__main__":
 
     intensity_uniform_1e6 = get_intensity("uniform_1e6_disk_centre_1.npy", PATH)
 
+    intensity_invNH_invT_1e6 = get_intensity("invNH_invT_1e6_disk_centre_1.npy", PATH)
+    intensity_invNH_invT_3e6 = get_intensity("invNH_invT_3e6_disk_centre_inv_dist_c.npy", PATH)
+    intensity_invNH_invT_3e6_inv_dist_2_2 = get_intensity("invNH_invT_3e6_disk_centre_inv_dist_2_2.npy", PATH)
+    intensity_invNH_invT_3e6_inv_dist_2_3 = get_intensity("invNH_invT_3e6_disk_centre_inv_dist_2_3.npy", PATH)
+    intensity_invNH_invT_3e6_inv_dist_2_4 = get_intensity("invNH_invT_3e6_disk_centre_inv_dist_2_4_2.npy", PATH)
+    intensity_invNH_invT_3e6_inv_dist_2_5 = get_intensity("invNH_invT_3e6_disk_centre_inv_dist_2_5.npy", PATH)
+    intensity_invNH_invT_3e6_inv_dist_3_2 = get_intensity("invNH_invT_3e6_disk_centre_inv_dist_3_2_2.npy", PATH)
+    intensity_invNH_invT_3e6_inv_dist_3_3 = get_intensity("invNH_invT_3e6_disk_centre_inv_dist_3_3_2.npy", PATH)
+    intensity_invNH_invT_3e6_inv_dist_3_4 = get_intensity("invNH_invT_3e6_disk_centre_inv_dist_3_4_2.npy", PATH)
+    intensity_invNH_invT_3e6_inv_dist_3_5 = get_intensity("invNH_invT_3e6_disk_centre_inv_dist_3_5.npy", PATH)
+    intensity_invNH_invT_3e6_inv_dist_4_5 = get_intensity("invNH_invT_3e6_disk_centre_inv_dist_4_5.npy", PATH)
+    intensity_invNH_invT_3e6_inv_dist_4_2 = get_intensity("invNH_invT_3e6_disk_centre_inv_dist_4_2_2.npy", PATH)
+    intensity_invNH_invT_3e6_inv_dist_5_2 = get_intensity("invNH_invT_3e6_disk_centre_inv_dist_5_2.npy", PATH)
+
     convergence_quarter = np.load(PATH+"regular_ul7n12_quarter.npy")
     convergence_half = np.load(PATH+"regular_ul7n12_half.npy")
     convergence_third = np.load(PATH+"regular_ul7n12_third.npy")
@@ -110,6 +127,8 @@ if __name__ == "__main__":
 
     convergence_uniform_1e6 = np.load("./convergence/uniform_1e6_convergence.npy")
 
+    convergence_invNH_invT_3e6 = np.load("./convergence/invNH_invT_3e6_convergence.npy")
+
     velocity = ((wavelength - lambda0)/lambda0*constants.c).to("km s-1")
     print("Velocity at blue wing: %.3f" %(velocity[blue_wing].value))
     print("Velocity at continuum: %.3f" %(velocity[continuum].value))
@@ -123,21 +142,21 @@ if __name__ == "__main__":
     fig, ax = plt.subplots(1, 2, figsize=(7.5,4), constrained_layout=True)
 
     # plot disk-centre intensity in wings and centre, and continuum
-    ax[0].imshow(intensity_cont_ext_3e6[center, :, :],
+    ax[0].imshow(intensity_invNH_invT_3e6_inv_dist_3_3[center, :, :],
                    cmap=CMAP,
                    origin="lower",
                    vmax=CMAX,
                    vmin=CMIN)
     ax[0].axis(False)
-    ax[0].set_title(r"$\alpha^c~\textrm{sampling}$")
+    ax[0].set_title(r"$\textrm{Inv dist itp 3 2}$")
 
-    im = ax[1].imshow(intensity_ionised_3e6[center, :, :],
+    im = ax[1].imshow(intensity_invNH_invT_3e6_inv_dist_3_4[center, :, :],
                    cmap=CMAP,
                    origin="lower",
                    vmax=CMAX,
                    vmin=CMIN)
     ax[1].axis(False)
-    ax[1].set_title(r"$N_{HII}~\textrm{sampling}$")
+    ax[1].set_title(r"$\textrm{Inv dist itp 4 2}$")
 
     x = np.load("../data/LTE/x_regular_full.npy")
     pix2Mm = (x.max() - x.min())*1e-6/len(x)
@@ -163,48 +182,41 @@ if __name__ == "__main__":
     fig.colorbar(im, fraction=0.043, pad=0.04, label=iunits)
 
     fig.suptitle(r"$\textbf{Disk-centre intensity at line centre, irregular grid}$")
-    # plt.savefig("../img/compare_line/quick_compare.pdf")
-    plt.close()
+    plt.savefig("../img/compare_line/quick_compare.pdf")
+    # plt.close()
     # plt.show()
+
+    # sys.exit(0)
 
     ################################################################################
     ################################################################################
     ################################################################################
     # compare sampling methods
-    fig, ax = plt.subplots(1, 4, figsize=(14.5,4), constrained_layout=True)
+    fig, ax = plt.subplots(1, 3, figsize=(13,4.5), constrained_layout=True)
 
-    # plot disk-centre intensity in wings and centre, and continuum
-    ax[0].imshow(intensity_cont_ext_1e6[center, :, :],
+    ax[0].imshow(intensity_ionised_3e6[center, :, :],
                    cmap=CMAP,
                    origin="lower",
                    vmax=CMAX,
                    vmin=CMIN)
     ax[0].axis(False)
-    ax[0].set_title(r"$\alpha^c~\textrm{sampling}$")
+    ax[0].set_title(r"$N_\textrm{\small{H\,II}}^\textrm{\small{LTE}}~\textrm{sampling}$")
 
-    ax[1].imshow(intensity_ionised_1e6[center, :, :],
+    ax[1].imshow(intensity_invNH_invT_3e6[center, :, :],
                    cmap=CMAP,
                    origin="lower",
                    vmax=CMAX,
                    vmin=CMIN)
     ax[1].axis(False)
-    ax[1].set_title(r"$N_\textrm{\small{H\,II}}^\textrm{\small{LTE}}~\textrm{sampling}$")
+    ax[1].set_title(r"$\textrm{inv(NH)~inv(T)~sampling}$")
 
-    ax[2].imshow(intensity_tot_ext_1e6[center, :, :],
+    im = ax[2].imshow(intensity_half[center, :, :],
                    cmap=CMAP,
                    origin="lower",
                    vmax=CMAX,
                    vmin=CMIN)
     ax[2].axis(False)
-    ax[2].set_title(r"$\alpha^\textrm{tot}~\textrm{sampling}$")
-
-    im = ax[3].imshow(intensity_destruction_1e6[center, :, :],
-                   cmap=CMAP,
-                   origin="lower",
-                   vmax=CMAX,
-                   vmin=CMIN)
-    ax[3].axis(False)
-    ax[3].set_title(r"$\varepsilon~\textrm{sampling}$")
+    ax[2].set_title(r"$\textrm{Regular Grid}$")
 
     x = np.load("../data/LTE/x_regular_full.npy")
     pix2Mm = (x.max() - x.min())*1e-6/len(x)
@@ -223,27 +235,21 @@ if __name__ == "__main__":
                              path_effects=[pe.Stroke(linewidth=3, foreground="black"),pe.Normal()])
     ax[1].add_patch(rect)
 
+
     # Text:
     ax[1].text(18, 20, r"\textbf{1 Mm}", color='w', fontsize=14,
                path_effects=[pe.Stroke(linewidth=2, foreground="black"),pe.Normal()])
 
+    x = np.load("../data/LTE/x_regular_half.npy")
+    pix2Mm = (x.max() - x.min())*1e-6/len(x)
+
     # Scale:
-    rect = patches.Rectangle(xy=[20, 14], width=1/pix2Mm, height=3, color='w',
+    rect = patches.Rectangle(xy=[10, 7], width=1/pix2Mm, height=3/2, color='w',
                              path_effects=[pe.Stroke(linewidth=3, foreground="black"),pe.Normal()])
     ax[2].add_patch(rect)
 
-
     # Text:
-    ax[2].text(18, 20, r"\textbf{1 Mm}", color='w', fontsize=14,
-               path_effects=[pe.Stroke(linewidth=2, foreground="black"),pe.Normal()])
-
-    # Scale:
-    rect = patches.Rectangle(xy=[20, 14], width=1/pix2Mm, height=3, color='w',
-                             path_effects=[pe.Stroke(linewidth=3, foreground="black"),pe.Normal()])
-    ax[3].add_patch(rect)
-
-    # Text:
-    ax[3].text(18, 20, r"\textbf{1 Mm}", color='w', fontsize=14,
+    ax[2].text(10, 10, r"\textbf{1 Mm}", color='w', fontsize=14,
                path_effects=[pe.Stroke(linewidth=2, foreground="black"),pe.Normal()])
 
     fig.colorbar(im, fraction=0.043, pad=0.04, label=iunits)
@@ -256,44 +262,50 @@ if __name__ == "__main__":
     ################################################################################
     ################################################################################
     # Plot images over line wing, centre, and continuum, regular grid
-    fig, ax = plt.subplots(1, 3, figsize=(13,4), constrained_layout=True)
+    fig, ax = plt.subplots(2, 3, figsize=(13,7), constrained_layout=True)
+
+    scale = 1.0
 
     # plot disk-centre intensity in wings and centre, and continuum
-    im = ax[0].imshow(intensity_half[blue_wing, :, :],
+    im = ax[0,0].imshow(intensity_half[blue_wing, :, :].T,
                    cmap=CMAP,
                    origin="lower",
                    vmax=CMAX_wing,
                    vmin=CMIN_wing)
-    ax[0].axis(False)
+    ax[0,0].axis(False)
     wl = wavelength[blue_wing]
-    ax[0].set_title(r"$\textrm{Blue wing}~%.3f\,\textrm{nm}$" %wl)
+    ax[0,0].set_title(r"$\textrm{Blue wing}~%.3f\,\textrm{nm}$" %wl)
+    ax[0,0].text(-35, 35, r"\textrm{Regular grid}", rotation=70, fontsize=18)
+    ax[1,0].text(-70*scale, 70*scale, r"\textrm{Irregular grid}", rotation=70, fontsize=18)
 
-    cbar = plt.colorbar(im, ax=ax[0], fraction=0.046, pad=0.04)
-    cbar.set_label(iunits, rotation=90, labelpad=0)
+    ax[0,0].text(-43, 35, r"\textrm{ }", rotation=70, fontsize=18)
 
-    im = ax[1].imshow(intensity_half[center, :, :],
+    cbar = plt.colorbar(im, ax=ax[:,0].ravel().tolist(), fraction=0.046, pad=0.04)
+    cbar.set_label(iunits, rotation=90, labelpad=1)
+
+    im = ax[0,1].imshow(intensity_half[center, :, :].T,
                    cmap=CMAP,
                    origin="lower",
                    vmax=CMAX,
                    vmin=CMIN)
-    ax[1].axis(False)
+    ax[0,1].axis(False)
     wl = wavelength[center]
-    ax[1].set_title(r"$\textrm{Line centre}~%.3f\,\textrm{nm}$" %wl)
+    ax[0,1].set_title(r"$\textrm{Line centre}~%.3f\,\textrm{nm}$" %wl)
 
-    cbar = plt.colorbar(im, ax=ax[1], fraction=0.046, pad=0.04)
+    cbar = plt.colorbar(im, ax=ax[:,1].ravel().tolist(), fraction=0.046, pad=0.04)
     cbar.set_label(iunits, rotation=90, labelpad=0)
 
-    im = ax[2].imshow(intensity_half[continuum, :, :],
+    im = ax[0,2].imshow(intensity_half[continuum, :, :].T,
                      cmap=CMAP_CONT,
                      origin="lower",
                      vmax=CMAX_continuum,
                      vmin=CMIN_continuum)
-    ax[2].axis(False)
+    ax[0,2].axis(False)
     wl = wavelength[continuum]
-    ax[2].set_title(r"$\textrm{Continuum}~%.3f\,\textrm{nm}$" %wl)
+    ax[0,2].set_title(r"$\textrm{Continuum}~%.0f\,\textrm{nm}$" %wl)
 
-    cbar = plt.colorbar(im, ax=ax[2], fraction=0.046, pad=0.04)
-    cbar.set_label(iunits, rotation=90, labelpad=lpad)
+    cbar = plt.colorbar(im, ax=ax[:,2].ravel().tolist(), fraction=0.046, pad=0.04)
+    cbar.set_label(iunits, rotation=90, labelpad=0)
 
     x = np.load("../data/LTE/x_regular_half.npy")
     pix2Mm = (x.max() - x.min())*1e-6/len(x)
@@ -301,109 +313,85 @@ if __name__ == "__main__":
     # Scale:
     rect = patches.Rectangle(xy=[10, 7], width=1/pix2Mm, height=3/2, color='w',
                              path_effects=[pe.Stroke(linewidth=3, foreground="black"),pe.Normal()])
-    ax[0].add_patch(rect)
+    ax[0,0].add_patch(rect)
 
     # Text:
-    ax[0].text(10, 10, r"\textbf{1 Mm}", color='w', fontsize=14,
+    ax[0,0].text(9.5, 11.25, r"\textbf{1 Mm}", color='w', fontsize=14,
                path_effects=[pe.Stroke(linewidth=2, foreground="black"),pe.Normal()])
 
     # Scale:
     rect = patches.Rectangle(xy=[10, 7], width=1/pix2Mm, height=3/2, color='w',
                              path_effects=[pe.Stroke(linewidth=3, foreground="black"),pe.Normal()])
-    ax[1].add_patch(rect)
+    ax[0,1].add_patch(rect)
 
     # Text:
-    ax[1].text(10, 10, r"\textbf{1 Mm}", color='w', fontsize=14,
+    ax[0,1].text(9.5, 11.25, r"\textbf{1 Mm}", color='w', fontsize=14,
                path_effects=[pe.Stroke(linewidth=2, foreground="black"),pe.Normal()])
 
     # Scale:
     rect = patches.Rectangle(xy=[10, 7], width=1/pix2Mm, height=3/2, color='w',
                              path_effects=[pe.Stroke(linewidth=3, foreground="black"),pe.Normal()])
-    ax[2].add_patch(rect)
+    ax[0,2].add_patch(rect)
 
     # Text:
-    ax[2].text(10, 10, r"\textbf{1 Mm}", color='w', fontsize=14,
+    ax[0,2].text(9.5, 11.25, r"\textbf{1 Mm}", color='w', fontsize=14,
                path_effects=[pe.Stroke(linewidth=2, foreground="black"),pe.Normal()])
 
-    fig.suptitle(r"$\textbf{Disk-centre intensity, regular Grid}$")
-    plt.savefig("../img/compare_line/regular_disk_centre.pdf")
+    #fig.suptitle(r"$\textbf{Disk-centre intensity}$")
 
-
-    ################################################################################
-    ################################################################################
-    ################################################################################
     # Plot images over line wing, centre, and continuum, irregular grid
-    fig, ax = plt.subplots(1, 3, figsize=(13,4), constrained_layout=True)
-
-    # plot disk-centre intensity in wings and centre, and continuum
-    im = ax[0].imshow(intensity_ionised_3e6[blue_wing, :, :],
+    im = ax[1,0].imshow(intensity_invNH_invT_3e6[blue_wing, :, :].T,
                    cmap=CMAP,
                    origin="lower",
                    vmax=CMAX_wing,
                    vmin=CMIN_wing)
-    ax[0].axis(False)
-    wl = wavelength[blue_wing]
-    ax[0].set_title(r"$\textrm{Blue wing}~%.3f\,\textrm{nm}$" %wl)
+    ax[1,0].axis(False)
 
-    cbar = plt.colorbar(im, ax=ax[0], fraction=0.046, pad=0.04)
-    cbar.set_label(iunits, rotation=90, labelpad=0)
-
-    im = ax[1].imshow(intensity_ionised_3e6[center, :, :],
+    im = ax[1,1].imshow(intensity_invNH_invT_3e6[center, :, :].T,
                    cmap=CMAP,
                    origin="lower",
                    vmax=CMAX,
                    vmin=CMIN)
-    ax[1].axis(False)
-    wl = wavelength[center]
-    ax[1].set_title(r"$\textrm{Line centre}~%.3f\,\textrm{nm}$" %wl)
+    ax[1,1].axis(False)
 
-    cbar = plt.colorbar(im, ax=ax[1], fraction=0.046, pad=0.04)
-    cbar.set_label(iunits, rotation=90, labelpad=0)
-
-    im = ax[2].imshow(intensity_ionised_3e6[continuum, :, :],
+    im = ax[1,2].imshow(intensity_invNH_invT_3e6[continuum, :, :].T,
                    cmap=CMAP_CONT,
                    origin="lower",
                    vmax=CMAX_continuum,
                    vmin=CMIN_continuum)
-    ax[2].axis(False)
-    wl = wavelength[continuum]
-    ax[2].set_title(r"$\textrm{Continuum}~%.3f\,\textrm{nm}$" %wl)
-
-    cbar = plt.colorbar(im, ax=ax[2], fraction=0.046, pad=0.04)
-    cbar.set_label(iunits, rotation=90, labelpad=lpad)
+    ax[1,2].axis(False)
 
     x = np.load("../data/LTE/x_regular_full.npy")
-    pix2Mm = (x.max() - x.min())*1e-6/len(x)
+    pix2Mm = (x.max() - x.min())*1e-6/len(x)/scale
 
     # Scale:
-    rect = patches.Rectangle(xy=[20, 14], width=1/pix2Mm, height=3, color='w',
+    rect = patches.Rectangle(xy=[20*scale, 14*scale], width=1/pix2Mm, height=3*scale, color='w',
                              path_effects=[pe.Stroke(linewidth=3, foreground="black"),pe.Normal()])
-    ax[0].add_patch(rect)
+    ax[1,0].add_patch(rect)
 
     # Text:
-    ax[0].text(20, 20, r"\textbf{1 Mm}", color='w', fontsize=14,
+    ax[1,0].text(19*scale, 22.5*scale, r"\textbf{1 Mm}", color='w', fontsize=14,
                path_effects=[pe.Stroke(linewidth=2, foreground="black"),pe.Normal()])
 
     # Scale:
-    rect = patches.Rectangle(xy=[20, 14], width=1/pix2Mm, height=3, color='w',
+    rect = patches.Rectangle(xy=[20*scale, 14*scale], width=1/pix2Mm, height=3*scale, color='w',
                              path_effects=[pe.Stroke(linewidth=3, foreground="black"),pe.Normal()])
-    ax[1].add_patch(rect)
+    ax[1,1].add_patch(rect)
 
     # Text:
-    ax[1].text(20, 20, r"\textbf{1 Mm}", color='w', fontsize=14,
+    ax[1,1].text(19*scale, 22.5*scale, r"\textbf{1 Mm}", color='w', fontsize=14,
                path_effects=[pe.Stroke(linewidth=2, foreground="black"),pe.Normal()])
 
     # Scale:
-    rect = patches.Rectangle(xy=[20, 14], width=1/pix2Mm, height=3, color='w',
+    rect = patches.Rectangle(xy=[20*scale, 14*scale], width=1/pix2Mm, height=3*scale, color='w',
                              path_effects=[pe.Stroke(linewidth=3, foreground="black"),pe.Normal()])
-    ax[2].add_patch(rect)
+    ax[1,2].add_patch(rect)
 
     # Text:
-    ax[2].text(20, 20, r"\textbf{1 Mm}", color='w', fontsize=14,
+    ax[1,2].text(19*scale, 22.5*scale, r"\textbf{1 Mm}", color='w', fontsize=14,
                path_effects=[pe.Stroke(linewidth=2, foreground="black"),pe.Normal()])
 
-    fig.suptitle(r"$\textbf{Disk-centre intensity, irregular grid}$")
-    plt.savefig("../img/compare_line/irregular_disk_centre.pdf")
+    plt.savefig("../img/compare_line/disk_centre_comparison.pdf")
 
     ################################################################################
     ################################################################################
@@ -523,6 +511,30 @@ if __name__ == "__main__":
     fig.tight_layout()
     plt.savefig("../img/compare_line/convergence.pdf")
 
+    # plot convergence
+    fig, ax = plt.subplots(figsize=(6, 5))
+
+    ax.plot(convergence_half[2:], label=r"$\textrm{regular (1/2 res.)}$", color="k", ls="solid")
+    ax.plot(convergence_cont_3e6[2:], label=r"$\log \alpha_\textrm{cont.}$", color="blue", ls="dashed")
+    ax.plot(convergence_ionised_3e6[2:], label=r"$\log N_\textrm{\small{H\,II}}^\textrm{\small{LTE}}$", color="cyan", ls="solid")
+    ax.plot(convergence_invNH_invT_3e6[2:], label=r"$\log(N_\textrm{\small{H}})^{-2} T^{-2/5}$", color="gold", ls="dashdot")
+
+    ax.set_ylabel(r"$\textrm{Max rel. change,}~\max\left(1 - S_\textrm{new}/S_\textrm{old}\right)$")
+    ax.set_yscale("log")
+
+    ax.set_xlim([0,92])
+    ax.set_ylim([1e-3,1e1])
+
+    ax.legend()
+
+    ax.set_xlabel(r"$\textrm{Iterations}$")
+
+    # ax.set_title(r"$\textrm{Convergence}$")
+
+    #ax.set_title(r"$\textrm{Convergence}$")
+    fig.tight_layout()
+    plt.savefig("../img/compare_line/convergence2.pdf")
+
     ################################################################################
     ################################################################################
     ################################################################################
@@ -594,12 +606,12 @@ if __name__ == "__main__":
     ################################################################################
     # plot all lines to highlight differences
 
-    fig, ax = plt.subplots(1, 2, figsize=(10, 5), constrained_layout=True, sharey=True)
+    fig, ax = plt.subplots(2, 1, figsize=(6.75, 11), constrained_layout=True, sharey=True)
 
     I_regular = intensity_half.reshape(len(wavelength), -1)
     I_regular *= units.kW*units.m**(-2)*units.nm**(-1)
 
-    I_irregular = intensity_ionised_3e6.reshape(len(wavelength), -1)
+    I_irregular = intensity_invNH_invT_3e6.reshape(len(wavelength), -1)
     I_irregular *= units.kW*units.m**(-2)*units.nm**(-1)
 
 
@@ -609,7 +621,7 @@ if __name__ == "__main__":
     ax[0].plot(wavelength[center-17:center+18],
                Tb_regular[center-17:center+18, ::4].value,
                color='k',
-               lw=0.03,
+               lw=0.035,
                alpha=0.5,
                rasterized=True)
     ax[0].plot(wavelength[center-17:center+18],
@@ -630,7 +642,7 @@ if __name__ == "__main__":
     ax[1].plot(wavelength[center-17:center+18],
                Tb_irregular[center-17:center+18, ::16].value,
                color='k',
-               lw=0.03,
+               lw=0.035,
                alpha=0.5,
                rasterized=True)
     ax[1].plot(wavelength[center-17:center+18],
@@ -639,7 +651,8 @@ if __name__ == "__main__":
     ax[1].axvline(lambda0, ls="dashed", color="royalblue", lw=0.75)
     ax[1].axvline(wavelength[blue_wing], ls="dashed", color="deepskyblue", lw=0.75)
     ax[1].set_xlabel(r"$\textrm{Wavelength [nm]}$")
-    ax[1].set_ylim(6000,12000)
+    ax[1].set_ylabel(r"$\textrm{Brightness temperature [K]}$")
+    ax[1].set_ylim(6000,11000)
     ax[1].set_title(r"$\textrm{Irregular grid}$")
     ax[1].legend(loc="upper right")
     ax[1].text(x=lambda0+0.001, y=6150, s=r"$\lambda_0$", color="royalblue")

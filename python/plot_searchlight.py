@@ -100,15 +100,14 @@ if __name__ == "__main__":
     fig = plt.figure(figsize=(10, 5.1), constrained_layout=True)#figsize=plt.figaspect(0.5))
 
     # set up the axes for the first plot
-    ax1 = fig.add_subplot(1, 2, 1, projection='3d')
-    ax1.grid(False)
-    ax1.set_box_aspect((np.ptp(X_r), np.ptp(Y_r), np.ptp(intensity_i)))
-    ax1.set_xlabel(r"$x~\textrm{[m]}$")
-    ax1.set_ylabel(r"$y~\textrm{[m]}$")
-    ax1.xaxis.set_pane_color((1.0, 1.0, 1.0, 0.0))
-    ax1.yaxis.set_pane_color((1.0, 1.0, 1.0, 0.0))
-    ax1.zaxis.set_pane_color((1.0, 1.0, 1.0, 0.0))
-    ax1.plot_surface(X_r, Y_r, intensity_r,
+    ax = fig.add_subplot(1, 2, 1, projection='3d')
+    ax.grid(False)
+    ax.set_box_aspect((np.ptp(X_r), np.ptp(Y_r), np.ptp(intensity_i)))
+    ax.set_xlabel(r"$x~\textrm{[m]}$"); ax.set_ylabel(r"$y~\textrm{[m]}$")
+    ax.xaxis.set_pane_color((1.0, 1.0, 1.0, 0.0))
+    ax.yaxis.set_pane_color((1.0, 1.0, 1.0, 0.0))
+    ax.zaxis.set_pane_color((1.0, 1.0, 1.0, 0.0))
+    ax.plot_surface(X_r, Y_r, intensity_r,
                            cmap="magma",
                            vmax = vmax,
                            rstride=1,
@@ -119,22 +118,18 @@ if __name__ == "__main__":
     X_i, Y_i = np.meshgrid(x_i[0:305], y_i[0:305])
 
     # set up the axes for the second plot
-    ax2 = fig.add_subplot(1, 2, 2, projection='3d')
-    ax2.grid(False)
-    ax2.set_box_aspect((np.ptp(X_i), np.ptp(Y_i), np.ptp(intensity_i)))
-    ax2.set_xlabel(r"$x~\textrm{[m]}$")
-    ax2.set_ylabel(r"$y~\textrm{[m]}$")
-    ax2.xaxis.set_pane_color((1.0, 1.0, 1.0, 0.0))
-    ax2.yaxis.set_pane_color((1.0, 1.0, 1.0, 0.0))
-    ax2.zaxis.set_pane_color((1.0, 1.0, 1.0, 0.0))
-    surf = ax2.plot_surface(X_i, Y_i, intensity_i,
+    ax = fig.add_subplot(1, 2, 2, projection='3d')
+    ax.grid(False)
+    ax.set_box_aspect((np.ptp(X_i), np.ptp(Y_i), np.ptp(intensity_i)))
+    ax.set_xlabel(r"$x~\textrm{[m]}$"); ax.set_ylabel(r"$y~\textrm{[m]}$")
+    ax.xaxis.set_pane_color((1.0, 1.0, 1.0, 0.0))
+    ax.yaxis.set_pane_color((1.0, 1.0, 1.0, 0.0))
+    ax.zaxis.set_pane_color((1.0, 1.0, 1.0, 0.0))
+    surf = ax.plot_surface(X_i, Y_i, intensity_i,
                     cmap="magma",
                     vmax = vmax,
                     rstride=5,
                     cstride=5)
-    #axdist = 10
-    #ax1.dist = axdist
-    #ax2.dist = axdist
     fig.colorbar(surf, fraction=0.046, pad=0.04, label=iunits)
-    plt.savefig("../img/compare_searchlight/searchlight_3D.pdf", bbox_inches='tight', pad_inches=0.0)
+    plt.savefig("../img/searchlight_3D.pdf")
     plt.close()

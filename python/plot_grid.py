@@ -23,16 +23,8 @@ f = h5py.File("../data/destruction_3e6.h5", "r")
 p_des = np.array(f["positions"])
 f.close()
 
-f = h5py.File("../data/NH_invT_rootv.h5", "r")
-p_rhoT = np.array(f["positions"])
-f.close()
-
-f = h5py.File("../data/NH_invT.h5", "r")
-p_rhoTv = np.array(f["positions"])
-f.close()
-
-f = h5py.File("../data/new_dist.h5", "r")
-p_unknown = np.array(f["positions"])
+f = h5py.File("../data/invNH_invT_3e6.h5", "r")
+p_invNH_invT = np.array(f["positions"])
 f.close()
 
 z_regular = np.load("./sourcedata/half_res_ul7n12_z.npy")
@@ -58,34 +50,31 @@ plt.savefig("../img/compare_line/tau_unity.pdf")
 """
 
 fig, ax = plt.subplots(figsize=(6,5), constrained_layout=True)
-
-
-sns.histplot(data=p_rhoT[:,0]/1e6, element="step", fill=False, stat="frequency",
-             ax=ax, label=r"$\rho T$", color="blue", ls="solid")
-sns.histplot(data=p_rhoTv[:,0]/1e6, element="step", fill=False, stat="frequency",
-             ax=ax, label=r"$\rho T v$", color="dodgerblue", ls="solid")
-sns.histplot(data=p_unknown[:,0]/1e6, element="step", fill=False, stat="frequency",
-             ax=ax, label=r"$unknown$", color="cyan", ls="solid")
+ax2 = ax.twinx()  # instantiate a second axes that shares the same x-axis
 
 # For the regular grid...
-bins = np.concatenate([np.array([z_regular[0]-(z_regular[0]-z_regular[1])/2]), 
-                       (z_regular[:-1]+z_regular[1:])/2, 
+bins = np.concatenate([np.array([z_regular[0]-(z_regular[0]-z_regular[1])/2]),
+                       (z_regular[:-1]+z_regular[1:])/2,
                        np.array([z_regular[-1]+(z_regular[-1]-z_regular[-2])/2])])/1e6
 sns.histplot(x=z_regular/1e6, bins=bins, weights=np.ones(len(bins)-1)*128**2, element="step", fill=False, stat="frequency",
-             ax=ax, label=r"$\textrm{regular}$", color="k", ls="solid")       
+             ax=ax, label=r"$\textrm{regular (1/2 res.)}$", color="k", ls="solid")
+
+sns.histplot(data=p_cont[:,0]/1e6, element="step", fill=False, stat="frequency",
+             ax=ax, label=r"$\log \alpha_{\textrm{cont.}}$", color="blue", ls="solid")
+sns.histplot(data=p_ion[:,0]/1e6, element="step", fill=False, stat="frequency",
+             ax=ax, label=r"$\log N_\textrm{\small{H\,II}}^\textrm{\small{LTE}}$", color="cyan", ls="solid")
+sns.histplot(data=p_invNH_invT[:,0]/1e6, element="step", fill=False, stat="frequency",
+             ax=ax, label=r"$\log(N_\textrm{\small{H}})^{-2} T^{-2/5}$", color="gold", ls="solid")
 
 y_vals = ax.get_yticks()
 ax.set_yticklabels([r"$%.1f$" %(x*1e-6) for x in y_vals])
+ax.tick_params(axis="y")
+ax2.set_yticks([])
 
-ax.legend(loc="upper left")
-ax.tick_params(axis="y", colors="blue")
 
 #ax.hist(z/1e6, bins=500, histtype="step")
 ax.set_xlabel(r"$\textrm{Height [Mm]}$")
-ax.set_ylabel(r"$\textrm{Density of sites per height [}10^6\textrm{/Mm]}$", color="blue")
-
-ax2 = ax.twinx()  # instantiate a second axes that shares the same x-axis
-# ax2.set_zorder(-1)
+ax.set_ylabel(r"$\textrm{Density of sites per height [}10^6\textrm{/Mm]}$")
 
 sns.histplot(data=tau_unity[center, :]/1e6, element="step", fill=True, stat="density",
                  ax=ax2, color="maroon", label=r"$\textrm{line core}$", alpha=0.2, bins=31)
@@ -103,9 +92,9 @@ sns.histplot(data=tau_unity[blue_wing, :]/1e6, element="step", fill=True, stat="
 # sns.histplot(data=tau_unity_07[blue_wing, :]/1e6, element="step", fill=True, stat="density",
 #                  ax=ax2, color="yellow", label=r"$\textrm{line wing}$", alpha=0.2)
 
-ax2.set_ylabel(r"$\textrm{Line formation per height [arbitrary units]}$", color = "#980002")
+# ax2.set_ylabel(r"$\textrm{Line formation per height [arbitrary units]}$", color = "#980002")
 #ax2.tick_params(axis="y", which='both', bottom=False, top=False, labelbottom=False)
-ax2.set_yticks([])
-ax2.legend(loc="upper right")
+ax.legend(loc="upper right")
+ax2.legend(loc="center right")
 
 plt.savefig("../img/sites_histogram.pdf")

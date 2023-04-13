@@ -78,7 +78,7 @@ if __name__ == "__main__":
 
     temperature, Ne, NH = get_quantities(PATH+full)
 
-    fig, ax = plt.subplots(1, 2, figsize=(9.25, 3.75), constrained_layout=True)
+    fig, ax = plt.subplots(2, 1, figsize=(6.75, 11), constrained_layout=True)
 
     im = ax[0].imshow(np.flip(temperature[:, :, surf].T, 1),
                       origin="lower",
@@ -113,7 +113,7 @@ if __name__ == "__main__":
     ax[0].add_patch(rect)
 
     # Text:
-    ax[0].text(20, 20, r"\textbf{1 Mm}", color='w', fontsize=14,
+    ax[0].text(27, 22, r"\textbf{1 Mm}", color='w', fontsize=14,
                path_effects=[pe.Stroke(linewidth=2, foreground="black"),pe.Normal()])
 
     # Scale:
@@ -123,7 +123,7 @@ if __name__ == "__main__":
 
 
     # Text:
-    ax[1].text(20, 20, r"\textbf{1 Mm}", color='w', fontsize=14,
+    ax[1].text(27, 22, r"\textbf{1 Mm}", color='w', fontsize=14,
                path_effects=[pe.Stroke(linewidth=2, foreground="black"),pe.Normal()])
 
     plt.savefig("../img/atmos.pdf")

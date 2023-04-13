@@ -20,9 +20,10 @@ CMIN = 20.169713390042126
 
 intensity_100_000 = get_intensity("I_irregular_100000.npy", PATH)
 intensity_250_000 = get_intensity("I_irregular_250000.npy", PATH)
-intensity_500_000 = get_intensity("I_irregular_500000.npy", PATH)
+intensity_500_000 = get_intensity("I_irregular_500000_extinction.npy", PATH)
 intensity_1_000_000 = get_intensity("I_irregular_1000000.npy", PATH)
 intensity_2_500_000 = get_intensity("I_irregular_2500000.npy", PATH)
+intensity_3_000_000 = get_intensity("I_irregular_3000000_extinction.npy", PATH)
 intensity_5_000_000 = get_intensity("I_irregular_5000000.npy", PATH)
 intensity_10_000_000 = get_intensity("I_irregular_10000000.npy", PATH)
 intensity_15_000_000 = get_intensity("I_irregular_15000000.npy", PATH)
@@ -33,7 +34,7 @@ intensity_half = get_intensity("I_regular_half.npy", PATH)
 intensity_full = get_intensity("I_regular_full.npy", PATH)
 
 intensity_250_000_temp = get_intensity("I_irregular_250000_temp.npy", PATH)
-intensity_500_000_temp = get_intensity("I_irregular_500000_temp.npy", PATH)
+intensity_500_000_temp = get_intensity("I_irregular_500000_dTdz.npy", PATH)
 intensity_1_000_000_temp = get_intensity("I_irregular_1000000_temp.npy", PATH)
 
 intensity_250_000_uniform = get_intensity("I_irregular_250000_uniform.npy", PATH)
@@ -59,7 +60,7 @@ ax[0].imshow(intensity_250_000_ionised_hydrogen,
                vmax=CMAX,
                vmin=CMIN)
 ax[0].axis(False)
-ax[0].set_title(r"$2.5\cdot 10^5~\rm{sites}$")
+ax[0].set_title(r"$2.5\cdot 10^5~\textrm{sites}$")
 
 # Line:
 x = np.load(PATH+"x_irregular_100000.npy")
@@ -77,7 +78,7 @@ ax[1].imshow(intensity_2_500_000_ionised_hydrogen,
                vmax=CMAX,
                vmin=CMIN)
 ax[1].axis(False)
-ax[1].set_title(r"$2.5\cdot 10^6~\rm{sites}$")
+ax[1].set_title(r"$2.5\cdot 10^6~\textrm{sites}$")
 
 im = ax[2].imshow(intensity_10_000_000_ionised_hydrogen,
                cmap="magma",
@@ -85,7 +86,7 @@ im = ax[2].imshow(intensity_10_000_000_ionised_hydrogen,
                vmax=CMAX,
                vmin=CMIN)
 ax[2].axis(False)
-ax[2].set_title(r"$10^7~\rm{sites}$")
+ax[2].set_title(r"$10^7~\textrm{sites}$")
 
 
 plt.colorbar(im, fraction=0.046, pad=0.04, label=iunits)
@@ -102,7 +103,7 @@ ax[0].imshow(intensity_250_000,
                vmax=CMAX,
                vmin=CMIN)
 ax[0].axis(False)
-ax[0].set_title(r"$2.5\cdot 10^5~\rm{sites}$")
+ax[0].set_title(r"$2.5\cdot 10^5~\textrm{sites}$")
 
 ax[1].imshow(intensity_2_500_000,
                cmap="magma",
@@ -110,7 +111,7 @@ ax[1].imshow(intensity_2_500_000,
                vmax=CMAX,
                vmin=CMIN)
 ax[1].axis(False)
-ax[1].set_title(r"$2.5\cdot 10^6~\rm{sites}$")
+ax[1].set_title(r"$2.5\cdot 10^6~\textrm{sites}$")
 
 im = ax[2].imshow(intensity_10_000_000,
                cmap="magma",
@@ -118,7 +119,7 @@ im = ax[2].imshow(intensity_10_000_000,
                vmax=CMAX,
                vmin=CMIN)
 ax[2].axis(False)
-ax[2].set_title(r"$10^7~\rm{sites}$")
+ax[2].set_title(r"$10^7~\textrm{sites}$")
 
 x = np.load(PATH+"x_irregular_100000.npy")
 pix2Mm = (x.max() - x.min())*1e-6/len(x)
@@ -173,7 +174,7 @@ ax[1].imshow(intensity_half,
                vmax=CMAX,
                vmin=CMIN)
 ax[1].axis(False)
-ax[1].set_title(r"$\rm{Half~resolution}$")
+ax[1].set_title(r"$\textrm{Half~resolution}$")
 
 im = ax[2].imshow(intensity_full,
                   cmap="magma",
@@ -181,7 +182,7 @@ im = ax[2].imshow(intensity_full,
                   vmax=CMAX,
                   vmin=CMIN)
 ax[2].axis(False)
-ax[2].set_title(r"$\rm{Full~resolution}$")
+ax[2].set_title(r"$\textrm{Full~resolution}$")
 
 # Line:
 x = np.load(PATH+"x_regular_third.npy")
@@ -233,7 +234,7 @@ im = ax[2].imshow(intensity_1_000_000,
                vmax=CMAX,
                vmin=CMIN)
 ax[2].axis(False)
-ax[2].set_title(r"$\rm{Sites~from~extinction}~\alpha_{500}$")
+ax[2].set_title(r"$\textrm{Sites~from~extinction}~\alpha_{500}$")
 
 ax[1].imshow(intensity_1_000_000_temp,
                cmap="magma",
@@ -241,7 +242,7 @@ ax[1].imshow(intensity_1_000_000_temp,
                vmax=CMAX,
                vmin=CMIN)
 ax[1].axis(False)
-ax[1].set_title(r"$\rm{Sites~from}~\rm{d} T/\rm{d} z$")
+ax[1].set_title(r"$\textrm{Sites~from}~\textrm{d} T/\textrm{d} z$")
 
 ax[0].imshow(intensity_1_000_000_uniform,
                cmap="magma",
@@ -249,7 +250,7 @@ ax[0].imshow(intensity_1_000_000_uniform,
                vmax=CMAX,
                vmin=CMIN)
 ax[0].axis(False)
-ax[0].set_title(r"$\rm{Sites~from}~U$")
+ax[0].set_title(r"$\textrm{Sites~from}~U$")
 
 x = np.load(PATH+"x_irregular_100000.npy")
 pix2Mm = (x.max() - x.min())*1e-6/len(x)
@@ -320,3 +321,94 @@ ax[1].set_title("$15\,000\,000$ Sites")
 plt.colorbar(im, fraction=0.05, pad=0.06)
 plt.show()
 """
+
+fig, ax = plt.subplots(2, 2, figsize=(7,7), constrained_layout=True)
+
+ax[0,0].imshow(intensity_500_000_temp,
+               cmap="magma",
+               origin="lower",
+               vmax=CMAX,
+               vmin=CMIN)
+ax[0,0].axis(False)
+ax[0,0].set_title(r"$5\cdot 10^5 \textrm{~sites} \sim \textrm{d} T/\textrm{d} z$")
+
+ax[0,1].imshow(intensity_500_000,
+               cmap="magma",
+               origin="lower",
+               vmax=CMAX,
+               vmin=CMIN)
+ax[0,1].axis(False)
+ax[0,1].set_title(r"$5\cdot 10^5\textrm{~sites} \sim \alpha_{500}$")
+
+
+# Line:
+x = np.load(PATH+"x_regular_full.npy")
+pix2Mm = (x.max() - x.min())*1e-6/len(x)
+# Scale:
+rect = patches.Rectangle(xy=[20, 14], width=1/pix2Mm, height=3, color='w',
+                             path_effects=[pe.Stroke(linewidth=3, foreground="black"),pe.Normal()])
+ax[0,0].add_patch(rect)
+# Text:
+ax[0,0].text(17.5, 22.5, r"\textbf{1 Mm}", color='w', fontsize=14,
+           path_effects=[pe.Stroke(linewidth=2, foreground="black"),pe.Normal()])
+
+
+
+# Line:
+x = np.load(PATH+"x_regular_full.npy")
+pix2Mm = (x.max() - x.min())*1e-6/len(x)
+# Scale:
+rect = patches.Rectangle(xy=[20, 14], width=1/pix2Mm, height=3, color='w',
+                             path_effects=[pe.Stroke(linewidth=3, foreground="black"),pe.Normal()])
+ax[0,1].add_patch(rect)
+
+# Text:
+ax[0,1].text(17.5, 22.5, r"\textbf{1 Mm}", color='w', fontsize=14,
+           path_effects=[pe.Stroke(linewidth=2, foreground="black"),pe.Normal()])
+
+ax[1,0].imshow(intensity_3_000_000,
+               cmap="magma",
+               origin="lower",
+               vmax=CMAX,
+               vmin=CMIN)
+ax[1,0].axis(False)
+ax[1,0].set_title(r"$3\cdot 10^6\textrm{~sites} \sim \alpha_{500}$")
+
+im = ax[1,1].imshow(intensity_full,
+               cmap="magma",
+               origin="lower",
+               vmax=CMAX,
+               vmin=CMIN)
+ax[1,1].axis(False)
+ax[1,1].set_title(r"$\textrm{Full~resolution~regular~grid}$")
+
+
+# Line:
+x = np.load(PATH+"x_regular_full.npy")
+pix2Mm = (x.max() - x.min())*1e-6/len(x)
+# Scale:
+rect = patches.Rectangle(xy=[20, 14], width=1/pix2Mm, height=3, color='w',
+                             path_effects=[pe.Stroke(linewidth=3, foreground="black"),pe.Normal()])
+ax[1,0].add_patch(rect)
+# Text:
+ax[1,0].text(17.5, 22.5, r"\textbf{1 Mm}", color='w', fontsize=14,
+           path_effects=[pe.Stroke(linewidth=2, foreground="black"),pe.Normal()])
+
+
+
+# Line:
+x = np.load(PATH+"x_regular_full.npy")
+pix2Mm = (x.max() - x.min())*1e-6/len(x)
+# Scale:
+rect = patches.Rectangle(xy=[20, 14], width=1/pix2Mm, height=3, color='w',
+                             path_effects=[pe.Stroke(linewidth=3, foreground="black"),pe.Normal()])
+ax[1,1].add_patch(rect)
+# Text:
+ax[1,1].text(17.5, 22.5, r"\textbf{1 Mm}", color='w', fontsize=14,
+           path_effects=[pe.Stroke(linewidth=2, foreground="black"),pe.Normal()])
+
+fig.colorbar(im, ax=ax.ravel().tolist(), fraction=0.046, pad=0.04, label=iunits)
+
+# fig.suptitle(r"$\textbf{Disk-centre intensity 500\,nm}$")
+plt.savefig("../img/compare_continuum/LTEmosaic.pdf")
+plt.close()

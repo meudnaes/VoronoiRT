@@ -16,7 +16,7 @@ PATH = "./sourcedata/"
 font_size()
 
 source_half_res = np.load("./sourcedata/half_res_ul7n12_source.npy")[:,:,:,:]
-source_irregular = np.load("./sourcedata/ionised_hydrogen_3e6_new_2_source.npy")[:,:,:,:]
+source_irregular = np.load("./sourcedata/invNH_invT_3e6_2_source.npy")[:,:,:,:]
 
 print(source_half_res.shape)
 print(source_irregular.shape)
@@ -25,7 +25,7 @@ S_diff = np.abs(1 - source_irregular/source_half_res)
 S_diff = np.max(S_diff, axis=0)
 
 regular_z = np.load("./sourcedata/half_res_ul7n12_z.npy")
-irregular_z = np.load("./sourcedata/ionised_hydrogen_3e6_new_2_z.npy")
+irregular_z = np.load("./sourcedata/invNH_invT_3e6_2_z.npy")
 
 print(np.sum(regular_z - irregular_z))
 
