@@ -544,70 +544,30 @@ function Voronoi_to_Raster(sites::VoronoiSites,
 end
 
 function Voronoi_to_Raster(sites::VoronoiSites,
-                           atmos_size::Tuple,
-                           S_λ::Matrix{<:UnitsIntensity_λ},
-                           populations::Matrix{<:NumberDensity};
-                           periodic=false)
-    
-    z = collect(LinRange(sites.z_min, sites.z_max,
-                         floor(Int, atmos_size[1])))
-    x = collect(LinRange(sites.x_min, sites.x_max,
-                         floor(Int, atmos_size[2])))
-    y = collect(LinRange(sites.y_min, sites.y_max,
-                         floor(Int, atmos_size[3])))
+                                    atmos_file::String,
+                                    populations::Matrix{<:NumberDensity})
 
-    nλ = size(S_λ)[1]
-    nz = length(z)
-    nx = length(x)
-    ny = length(y)
+    atmos = Atmosphere(get_atmos(atmos_file; periodic=true, skip=1)...)
 
-    temperature = Array{Float64, 3}(undef, (nz, ny, nx))u"K"
-    electron_density = Array{Float64, 3}(undef, (nz, ny, nx))u"m^-3"
-    hydrogen_populations = Array{Float64, 3}(undef, (nz, ny, nx))u"m^-3"
-    velocity_z = Array{Float64, 3}(undef, (nz, ny, nx))u"m*s^-1"
-    velocity_x = copy(velocity_z)
-    velocity_y = copy(velocity_z)
-    S_λ_grid = Array{Float64, 4}(undef, (nλ, nz, nx, ny))u"kW*nm^-1*m^-2"
-    populations_grid = Array{Float64, 4}(undef, (nz, nx, ny, 3))u"m^-3"
+    populations_grid = Array{Float64, 4}(undef, (size(atmos.temperature)..., 3))u"m^-3"
 
     tree = KDTree(ustrip.(sites.positions))
-    Threads.@threads for j in 1:length(y)
-        for i in 1:length(x)
-            for k in 1:length(z)
-                grid_point = [z[k], x[i], y[j]]
-                idx, _ = nn(tree, ustrip.(grid_point))
-                temperature[k, i, j] = sites.temperature[idx]
-                electron_density[k, i, j] = sites.electron_density[idx]
-                hydrogen_populations[k, i, j] = sites.hydrogen_populations[idx]
-                velocity_z[k, i, j] = sites.velocity_z[idx]
-                velocity_x[k, i, j] = sites.velocity_x[idx]
-                velocity_y[k, i, j] = sites.velocity_y[idx]
-                S_λ_grid[:, k, i, j] = S_λ[:, idx]
-                populations_grid[k, i, j, :] = populations[idx, :]
+
+    Threads.@threads for j in 1:length(atmos.y)
+        for i in 1:length(atmos.x)
+            for k in 1:length(atmos.z)
+                grid_point = [atmos.z[k], atmos.x[i], atmos.y[j]]
+                idxs, dists = nn(tree, ustrip.(grid_point))
+
+                populations_grid[k,i,j,:] = populations[idxs,:]
             end
         end
     end
 
-    if periodic
-        voronoi_atmos = Atmosphere(z,
-                                   periodic_borders(x),
-                                   periodic_borders(y),
-                                   periodic_borders(temperature),
-                                   periodic_borders(electron_density),
-                                   periodic_borders(hydrogen_populations),
-                                   periodic_borders(velocity_z),
-                                   periodic_borders(velocity_x),
-                                   periodic_borders(velocity_y))
+    println("Interpolation done")
 
-        S_λ_grid = periodic_borders(S_λ_grid)
-        populations_grid = periodic_pops(populations_grid)
-    else
-        voronoi_atmos = Atmosphere(z, x, y, temperature,
-                                   electron_density, hydrogen_populations,
-                                   velocity_z, velocity_x, velocity_y)
-    end
+    return atmos, populations_grid
 
-    return voronoi_atmos, S_λ_grid, populations_grid
 end
 
 function Voronoi_to_Raster(sites::VoronoiSites,
@@ -808,94 +768,51 @@ function initialiseII(p_vec::Matrix{<:Unitful.Length}, atmos::Atmosphere)
     return temperature_new, N_e_new, N_H_new, velocity_z_new, velocity_x_new, velocity_y_new
 end
 
+
+
 function Voronoi_to_Raster_inv_dist(sites::VoronoiSites,
-                                    atmos_size::Tuple,
-                                    S_λ::Matrix{<:UnitsIntensity_λ},
+                                    atmos_file::String,
                                     populations::Matrix{<:NumberDensity};
-                                    periodic=false)
+                                    ncont=0,
+                                    line=true)
 
 
-    p = 3.0
-    n_k = 5
+    atmos = Atmosphere(get_atmos(atmos_file; periodic=true, skip=1)...)
 
-    z = collect(LinRange(sites.z_min, sites.z_max,
-                         floor(Int, atmos_size[1])))
-    x = collect(LinRange(sites.x_min, sites.x_max,
-                         floor(Int, atmos_size[2])))
-    y = collect(LinRange(sites.y_min, sites.y_max,
-                         floor(Int, atmos_size[3])))
+    if line
+        line = HydrogenicLine(test_atom(50, ncont)..., atmos.temperature)
+    else
+        line = nothing
+    end
 
-    nλ = size(S_λ)[1]
-    nz = length(z)
-    nx = length(x)
-    ny = length(y)
+    nz, nx, ny = size(atmos.temperature)
 
-    temperature = Array{Float64, 3}(undef, (nz, ny, nx))u"K"
-    electron_density = Array{Float64, 3}(undef, (nz, ny, nx))u"m^-3"
-    hydrogen_populations = Array{Float64, 3}(undef, (nz, ny, nx))u"m^-3"
-    velocity_z = Array{Float64, 3}(undef, (nz, ny, nx))u"m*s^-1"
-    velocity_x = copy(velocity_z)
-    velocity_y = copy(velocity_z)
-    S_λ_grid = Array{Float64, 4}(undef, (nλ, nz, nx, ny))u"kW*nm^-1*m^-2"
+    p = 1.0
+    n_k = 2
+
     populations_grid = Array{Float64, 4}(undef, (nz, nx, ny, 3))u"m^-3"
+    # S_λ_grid = Array{Float64, 4}(undef, (nλ, nz, nx, ny))u"kW*nm^-1*m^-2"
 
     tree = KDTree(ustrip.(sites.positions))
-    Threads.@threads for j in 1:length(y)
-        for i in 1:length(x)
-            for k in 1:length(z)
-                grid_point = [z[k], x[i], y[j]]
+
+    Threads.@threads for j in 1:ny
+        for i in 1:nx
+            for k in 1:nz
+                grid_point = [atmos.z[k], atmos.x[i], atmos.y[j]]
                 idxs, dists = knn(tree, ustrip.(grid_point), n_k)
 
-                dists = dists.*1u"m"
-
-                # n_neighbours = sites.neighbours[idx,1]
-                # idxs = sites.neighbours[idx, 2:n_neighbours+1]
-                # idxs = idxs[idxs.>0]
-
-                # idxs = vcat(idxs, idx)
-
-                # dists = vcat(distances(sites.positions[:, idxs], grid_point))
-
-
-                temperature[k,i,j] = inv_dist_itp(idxs, dists, p, sites.temperature)
-                electron_density[k,i,j] = inv_dist_itp(idxs, dists, p, sites.electron_density)
-                hydrogen_populations[k,i,j] = inv_dist_itp(idxs, dists, p, sites.hydrogen_populations)
-                velocity_z[k,i,j] = inv_dist_itp(idxs, dists, p, sites.velocity_z)
-                velocity_x[k,i,j] = inv_dist_itp(idxs, dists, p, sites.velocity_x)
-                velocity_y[k,i,j] = inv_dist_itp(idxs, dists, p, sites.velocity_y)
-                for l in 1:nλ
-                    S_λ_grid[l,k,i,j] = inv_dist_itp(idxs, dists, p, S_λ[l,:])
-                end
-                for u in 1:size(populations)[end]
-                    populations_grid[k,i,j,u] = inv_dist_itp(idxs, dists, p, populations[:,u])
+                for u in 1:3
+                    populations_grid[k,i,j,u] = inv_dist_itp(dists, ustrip.(populations[idxs, u]), p)u"m^-3"
                 end
 
             end
         end
     end
 
-    println("---converted---")
+    println("Interpolation done")
 
-    if periodic
-        voronoi_atmos = Atmosphere(z,
-                                   periodic_borders(x),
-                                   periodic_borders(y),
-                                   periodic_borders(temperature),
-                                   periodic_borders(electron_density),
-                                   periodic_borders(hydrogen_populations),
-                                   periodic_borders(velocity_z),
-                                   periodic_borders(velocity_x),
-                                   periodic_borders(velocity_y))
+    return atmos, populations_grid, line
 
-        S_λ_grid = periodic_borders(S_λ_grid)
-        populations_grid = periodic_pops(populations_grid)
-    else
-        voronoi_atmos = Atmosphere(z, x, y, temperature,
-                                   electron_density, hydrogen_populations,
-                                   velocity_z, velocity_x, velocity_y)
-    end
-
-    return voronoi_atmos, S_λ_grid, populations_grid
 end
 
 function read_sites(DATA::String)
@@ -928,20 +845,15 @@ function read_sites(DATA::String)
     return sites, S_λ
 end
 
-function inv_dist_itp(idxs::AbstractVector,
-                      dists::AbstractVector,
-                      p::AbstractFloat,
-                      values::AbstractVector)
-    # Fix units
-    avg_inv_dist = 0/(dists[1]^p)
-    f = values[1]*avg_inv_dist
-    for i in eachindex(dists)
-        idx = idxs[i]
-        if idx > 0
-            inv_dist = 1/dists[i]^p
-            avg_inv_dist += inv_dist
-            f += values[idx]*inv_dist
-        end
+function inv_dist_itp(dists::Vector{Float64},
+                      values::Vector{Float64},
+                      p::Float64)
+    avg_inv_dist = 0.0
+    f = 0.0
+    for (idx, dist) in enumerate(dists)
+        inv_dist = 1/dist^p
+        avg_inv_dist += inv_dist
+        f += values[idx]*inv_dist
     end
     f = f/avg_inv_dist
     return f

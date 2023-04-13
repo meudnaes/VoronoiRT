@@ -107,13 +107,26 @@ function write_top_intensity(atmos::Atmosphere,
     l1 = line.λidx[1]+1
     l2 = line.λidx[2]
 
-    I_top = Array{Float64, 3}(undef, (l2-l1+1,
+    I_top = Array{Float64, 3}(undef, (length(line.λ),
                                       length(atmos.x[2:end-1]),
                                       length(atmos.y[2:end-1])))
 
     k = [cos(θ*π/180), cos(ϕ*π/180)*sin(θ*π/180), sin(ϕ*π/180)*sin(θ*π/180)]
     println("--Calculating intensity---")
+
+    # Bound-bound wavelengths
     Threads.@threads for idλ in l1:l2
+        println(idλ)
+        intensity = short_characteristics_up(k, S_λ[idλ, :, :, :], S_λ[idλ, 1, :, :],
+                                             α_tot[idλ, :, :, :], atmos)
+
+        intensity = transpose(intensity[end, 2:end-1, 2:end-1])
+        I_top[idλ,:,:] = ustrip(uconvert.(u"kW*nm^-1*m^-2", intensity))
+    end
+
+    # Continuum wavelengths
+    Threads.@threads for idλ in l2+1:length(line.λ)
+        println(idλ)
         intensity = short_characteristics_up(k, S_λ[idλ, :, :, :], S_λ[idλ, 1, :, :],
                                              α_tot[idλ, :, :, :], atmos)
 
@@ -123,6 +136,7 @@ function write_top_intensity(atmos::Atmosphere,
 
     println("---Writing to file---")
     npzwrite("../python/linedata/$(fname).npy", I_top)
+    npzwrite("../python/linedata/$(fname)_wavelength.npy", ustrip.(line.λ))
 end
 
 function write_source_function(S_λ::Array{<:UnitsIntensity_λ, 4},
@@ -213,28 +227,30 @@ end
 
 read quantities from simulation from a hdf5 file
 """
-function read_quantities(DATA::String; periodic=true)
+function read_quantities(DATA::String; periodic=true, ncont=0)
     atmos = Atmosphere(get_atmos(DATA; periodic=periodic)...)
     global S_λ, populations
     h5open(DATA, "r") do file
-        S_λ = read(file, "source_function")[:, :, :, :]*u"kW*m^-2*nm^-1"
         populations = read(file, "populations")[:, :, :, :]*u"m^-3"
     end
 
     if periodic
-        S_λ = periodic_borders(S_λ)
         populations = periodic_pops(populations)
     end
-    return atmos, S_λ, populations
+
+    line = HydrogenicLine(test_atom(50, ncont)..., atmos.temperature)
+
+    return atmos, populations, line
 end
 
 """
     read_irregular(DATA::String)
 
-read quantities from irregular grid simulation from a hdf5 file
+read quantities from irregular grid simulation from a hdf5 file, and convert them
+to a regular grid.
 """
-function read_irregular(DATA::String)
-    local positions, temperature, electron_density, hydrogen_populations, S_λ, populations
+function read_irregular(DATA::String; ncont=0)
+    local positions, temperature, electron_density, hydrogen_populations, populations
     local velocity_z, velocity_x, velocity_y, boundaries
     println("--Extracting simulation results---")
     h5open(DATA, "r") do file
@@ -250,7 +266,6 @@ function read_irregular(DATA::String)
         velocity_x = read(file, "velocity_x")[:]u"m*s^-1"
         velocity_y = read(file, "velocity_y")[:]u"m*s^-1"
 
-        S_λ = read(file, "source_function")[:, :]*u"kW*m^-2*nm^-1"
         populations = read(file, "populations")[:, :]*u"m^-3"
     end
 
@@ -263,20 +278,16 @@ function read_irregular(DATA::String)
                          velocity_x, velocity_y, boundaries...,
                          size(positions)[1])
 
-    atmos_size = (430, 256, 256)
-    atmos_size = floor.(Int, atmos_size.*1.0)
-
     println("--Converting grid---")
-    atmos, S_λ_grid, populations_grid = Voronoi_to_Raster(sites, atmos_size,
-                                                          S_λ, populations;
-                                                          periodic=true)
+    atmos, populations_grid, line = Voronoi_to_Raster_inv_dist(sites,
+                        "../data/bifrost_qs006023_s525.hdf5", populations;
+                        ncont=ncont)
 
-    return atmos, S_λ_grid, populations_grid
+    return atmos, populations_grid, line
 end
 
 """
     plotter(atmos::Atmosphere,
-            S_λ::Array{<:UnitsIntensity_λ, 4},
             populations::Array{<:NumberDensity, 4},
             θ::Float64,
             ϕ::Float64)
@@ -284,46 +295,61 @@ end
 Compute simulations results for beam angle
 """
 function plotter(atmos::Atmosphere,
-                 S_λ::Array{<:UnitsIntensity_λ, 4},
                  populations::Array{<:NumberDensity, 4},
+                 line::HydrogenicLine,
                  θ::Float64,
                  ϕ::Float64,
                  title::String)
 
-    line = HydrogenicLine(test_atom(50, 20)..., atmos.temperature)
+    println("---Calculating extinction---")
+
+    S_l = VoronoiRT.source_line(atmos, line, populations)
+    S_c = Array{Float64, 4}(undef, (length(line.λ), size(atmos.temperature)...))u"kW*m^-2*nm^-1"
+    for l in eachindex(line.λ)
+        S_c[l, :, :, :] = B_λ.(line.λ[l], atmos.temperature)
+    end
 
     LTE_pops = LTE_populations(line, atmos)
 
     # Find continuum extinction
-    α_cont = α_absorption.(line.λ0,
-                           atmos.temperature,
-                           atmos.electron_density*1.0,
-                           LTE_pops[:,:,:,1].+LTE_pops[:,:,:,2],
-                           LTE_pops[:,:,:,3]) .+
-             α_scattering.(line.λ0,
-                           atmos.electron_density,
-                           LTE_pops[:,:,:,1])
+    α_c = α_absorption.(line.λ0,
+                        atmos.temperature,
+                        atmos.electron_density*1.0,
+                        LTE_pops[:,:,:,1].+LTE_pops[:,:,:,2],
+                        LTE_pops[:,:,:,3]) .+
+          α_scattering.(line.λ0,
+                        atmos.electron_density,
+                        LTE_pops[:,:,:,1])
 
     γ = γ_constant(line,
                    atmos.temperature,
                    (populations[:, :, :, 1].+populations[:, :, :, 2]),
                    atmos.electron_density)
 
-    damping_λ = Array{Float64, 4}(undef, size(S_λ))
-    Threads.@threads for l in eachindex(line.λ)
-        damping_λ[l, :, :, :] = damping.(γ, line.λ[l], line.ΔD)
-    end
-
     k = [cos(θ*π/180), cos(ϕ*π/180)*sin(θ*π/180), sin(ϕ*π/180)*sin(θ*π/180)]
-    profile = compute_voigt_profile(line, atmos, damping_λ, k)
 
-    α_tot = Array{Float64, 4}(undef, size(profile))u"m^-1"
-    Threads.@threads for l in eachindex(line.λ)
-        α_tot[l, :, :, :] = αline_λ(line,
-                                    profile[l, :, :, :],
-                                    populations[:, :, :, 2],
-                                    populations[:, :, :, 1]) .+ α_cont
+    S_λ = Array{Float64, 4}(undef, (length(line.λ), size(α_c)...))u"kW*m^-2*nm^-1"
+    α_tot = Array{Float64, 4}(undef, size(S_λ))u"m^-1"
+
+    Threads.@threads for l in 1:length(line.λ)
+
+        damping_λ = damping.(γ, line.λ[l], line.ΔD)
+
+        profile = compute_voigt_profile(line, atmos, damping_λ, k, l)
+
+        α_l = αline_λ(line,
+                      profile,
+                      populations[:, :, :, 2],
+                      populations[:, :, :, 1])
+
+        S_λ[l,:,:,:] = @. (α_l*S_l + α_c*S_c[l,:,:,:])/(α_l + α_c)
+
+        α_tot[l, :, :, :] = α_l + α_c
     end
+
+    # println("Writing alpha")
+    # npzwrite("./alpha_c_1.npy", ustrip.(α_c))
+    # npzwrite("./alpha_tot_1.npy", ustrip.(α_tot))
 
     return atmos, line, S_λ, α_tot
 end
@@ -336,6 +362,7 @@ function plot_convergence(DATA::String, title::String)
 
 
     converged = argmin(convergence)
+    println("converged in $converged iterations")
 
     plot(convergence[1:converged-1],
          xlabel="iteration",
@@ -388,10 +415,11 @@ function write_to_original(DATA::String, DATA_original::String, title::String)
 
     atmos, _, _ = read_quantities(DATA_original; periodic=false)
 
+    dl = Array{Float64}(undef, (1, 1, 1))
     nn = Matrix{Int}(undef, (1, 1))
     ll = Vector{Int}(undef, 1)
 
-    sites = VoronoiSites(positions, nn, ll, ll, ll, ll, temperature,
+    sites = VoronoiSites(positions, nn, dl, ll, ll, ll, ll, temperature,
                          electron_density, hydrogen_populations, velocity_z,
                          velocity_x, velocity_y, boundaries...,
                          size(positions)[1])

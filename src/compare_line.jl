@@ -12,7 +12,7 @@ function compare(DATA, quadrature)
     println("--- ! Boosting collisional rates ! ---")
     ϵ = 1e-3
 
-    n_skip = 3
+    n_skip = 4
 
     nλ_bb = 50
     nλ_bf = 20
@@ -24,11 +24,11 @@ function compare(DATA, quadrature)
 
         nx = length(atmos.x[2:end-1])
         ny = length(atmos.y[2:end-1])
-        nz = length(atmos.z[2:end-1])
+        nz = length(atmos.z)
 
         println("sites: $(nx*ny*nz)")
 
-        REGULAR_DATA = "../data/timing_regular.h5"
+        REGULAR_DATA = "../data/timing2.h5"
 
         create_output_file(REGULAR_DATA, length(line.λ), size(atmos.temperature[:, 2:end-1, 2:end-1]), maxiter)
         write_to_file(atmos, REGULAR_DATA, ghost_cells=true)
@@ -61,8 +61,11 @@ function compare(DATA, quadrature)
         z_min = ustrip(atmos.z[1])
         z_max = ustrip(atmos.z[end])
 
-        n_sites = 3_000_000
-        # 1_050_232
+        n_sites = 3_522_560
+        # 442_368   # every fourth point
+        # 1_050_232 # every third point
+        # 3_522_560 # half resolution
+        # 3_000_000
         println("sites: $(n_sites)")
         # 286720# floor(Int, nz*nx*ny)
 
@@ -111,7 +114,7 @@ function compare(DATA, quadrature)
 
         line = HydrogenicLine(test_atom(nλ_bb, nλ_bf)..., sites.temperature)
 
-        VORONOI_DATA = "../data/invNH_invT_3e6.h5"
+        VORONOI_DATA = "../data/timing.h5"
 
         create_output_file(VORONOI_DATA, length(line.λ), n_sites, maxiter)
         write_to_file(nλ_bb, "n_bb", VORONOI_DATA)

@@ -65,7 +65,7 @@ function J_λ_voronoi(S_λ::Matrix{<:UnitsIntensity_λ},
                      quadrature::String)
 
     # Ω = (θ, φ), space angle
-    weights, θ_array, ϕ_array, n_points = read_quadrature(quadrature)
+    weights, θ_array, ϕ_array, n_angles = read_quadrature(quadrature)
 
     J_λ = zero(S_λ)
 
@@ -81,7 +81,7 @@ function J_λ_voronoi(S_λ::Matrix{<:UnitsIntensity_λ},
 
     n_sweeps = 3
 
-    for i in 1:n_points
+    for i in 1:n_angles
         θ = θ_array[i]
         ϕ = ϕ_array[i]
         k = [cos(θ*π/180), cos(ϕ*π/180)*sin(θ*π/180), sin(ϕ*π/180)*sin(θ*π/180)]
@@ -179,9 +179,9 @@ function Λ_regular(ϵ::AbstractFloat,
             #    Update populations     #
             #############################
             populations = get_revised_populations(R, C, atmos.hydrogen_populations*1.0)
-        
+
         end
-        
+
         ############################
         #Write current data to file#
         ############################
@@ -248,7 +248,7 @@ function Λ_voronoi(ϵ::AbstractFloat,
 
     i=0
 
-    local J_new 
+    local J_new
     # check where ε < 1e-2, cut above heights
     while criterion(S_new, S_old, ϵ, i, maxiter, DATA)
         @time begin
@@ -273,7 +273,7 @@ function Λ_voronoi(ϵ::AbstractFloat,
             #############################
             populations = get_revised_populations(R, C, sites.hydrogen_populations)
         end
-                
+
         ############################
         #Write current data to file#
         ############################

@@ -1,4 +1,10 @@
-using .VoronoiRT
+using Test
+using Plots
+using Transparency
+using LinearAlgebra
+
+include("functions.jl")
+include("voronoi_utils.jl")
 
 """
     HydrogenicLine{T <: AbstractFloat}
@@ -51,6 +57,7 @@ struct HydrogenicLine{T <: AbstractFloat}
         λbf_l = sample_λ_boundfree(nλ_bf, λ1_min, χl, χ∞)
         λbf_u = sample_λ_boundfree(nλ_bf, λ2_min, χu, χ∞)
         λ = vcat(λbb, λbf_l, λbf_u)#, 500.0u"nm")
+        # Account for 500 nm
         λi = [0, nλ_bb, nλ_bb+nλ_bf, nλ_bb+2*nλ_bf]#+1]
         # Einstein coefficients
         Aul = convert(Quantity{T, Unitful.𝐓^-1}, calc_Aji(λ0, gl / gu, f_value))
@@ -85,7 +92,23 @@ function compute_voigt_profile(line::HydrogenicLine, atmos::Atmosphere,
         profile[l, :, :, :] = voigt_profile.(damping_λ[l, :, :, :], v, line.ΔD)
     end
 
-    # println(trapz(V_v, profile[:, 4, 4, 4].*line.ΔD[4, 4, 4]) |> Unitful.NoUnits) # 1.0002645422865621
+    return profile
+end
+
+function compute_voigt_profile(line::HydrogenicLine, atmos::Atmosphere,
+                               damping_λ::Array{Float64, 3}, k::Vector{Float64},
+                               l::Int)
+
+    # calculate line of sight velocity
+    # Remember to use -k!, since k is moving towards the ray
+    v_los = line_of_sight_velocity(atmos, -k)
+
+    # calculate line profile.
+    profile = Array{Float64, 3}(undef, size(v_los))u"m^-1"
+
+    v = (line.λ[l] .- line.λ0 .+ line.λ0.*v_los./c_0)./line.ΔD .|> Unitful.NoUnits
+    profile = voigt_profile.(damping_λ, v, line.ΔD)
+
     return profile
 end
 
@@ -334,181 +357,6 @@ end
 
 
 """
-    sample_λ_line(nλ::Int64, χl::Unitful.Energy, χu::Unitful.Energy,
-                            qwing::Float64, qcore::Float64)
-
-
-Get sampling wavelengths. Bound free wavelengths are
-linearly sampled, while the bound-bound follow the
-log-sampling from github.com/ITA-Solar/rh.
-Taken from https://github.com/f0rmIdabel/SolarMCRT
-"""
-function sample_λ_line(nλ::Int64,
-                       λ0::Unitful.Length,
-                       qwing::Float64,
-                       qcore::Float64)
-
-    # Make sure odd # of bb wavelengths
-    if nλ > 0 && nλ%2 == 0
-        nλ += 1
-    end
-
-    # Either 1 or five or more wavelengths
-    if 1 < nλ < 5
-        nλ = 5
-    end
-
-    # Initialise wavelength array
-    λ = Array{Float64,1}(undef, nλ)u"nm"
-
-    # =================================================
-    # Bound-bound transition
-    # Follows github.com/ITA-Solar/rh/blob/master/getlambda.c
-    # =================================================
-    if nλ == 1
-        λ[1] = λ0
-
-    elseif nλ >= 5
-        vmicro_char = 2.5u"km/s"
-
-        n = nλ/2 # Questionable
-        β = qwing/(2*qcore)
-        y = β + sqrt(β*β + (β - 1.0)*n + 2.0 - 3.0*β)
-        b = 2.0*log(y) / (n - 1)
-        a = qwing / (n - 2.0 + y*y)
-
-        center = (nλ÷2) + 1
-        λ[center] = λ0
-        q_to_λ = λ[center] * vmicro_char / c_0
-
-        for w=1:(nλ÷2)
-            Δλ = a*(w + (exp(b*w) - 1.0)) * q_to_λ
-            λ[center-w] = λ[center] - Δλ
-            λ[center+w] = λ[center] + Δλ
-        end
-    end
-
-    return λ
-end
-
-"""
-    sample_λ(nλ_bb::Int64, nλ_bf::Int64,
-             χl::Unitful.Energy, χu::Unitful.Energy, χ∞::Unitful.Energy)
-
-Get sampling wavelengths. Bound free wavelengths are
-linearly sampled, while the bound-bound follow the
-log-sampling from github.com/ITA-Solar/rh.
-Taken from https://github.com/f0rmIdabel/SolarMCRT
-"""
-function sample_λ_boundfree(nλ::Int64,
-                            λ_min::Unitful.Length,
-                            χl::Unitful.Energy,
-                            χ∞::Unitful.Energy)
-
-
-    λ_max  = transition_λ(χl, χ∞)
-
-    # Initialise wavelength array
-    λ = Array{Float64,1}(undef, nλ)u"nm"
-
-    # =================================================
-    # Bound-free transitions
-    # Linear spacing
-    # =================================================
-    if nλ == 1
-
-        λ[1] = λ_max
-
-    elseif nλ > 1
-        Δλ = (λ_max - λ_min)/(nλ-1)
-        λ[1] = λ_min
-
-        for w=2:nλ
-            λ[w] = λ[w-1] + Δλ
-        end
-    end
-
-    return λ
-end
-
-"""
-    LTE_populations(atmos::Atmosphere)
-
-Ad hoc calculate the atom populations according to LTE. Only used to sample
-points and for continuum calculations
-"""
-function LTE_populations(atmos::Atmosphere)
-
-    χl = 0.0u"cm^-1"
-    χu = 82258.211u"cm^-1"
-    χ∞ = 109677.617u"cm^-1"
-
-    χl = Transparency.wavenumber_to_energy(χl)
-    χu = Transparency.wavenumber_to_energy(χu)
-    χ∞ = Transparency.wavenumber_to_energy(χ∞)
-
-    χ = [χl, χu, χ∞]
-    # Ionised hydrogen -> g = 1
-    g = [2, 8, 1]
-    atom_density = atmos.hydrogen_populations
-    nz, nx, ny = size(atom_density)
-
-    n_levels = 3
-    n_relative = ones(Float64, nz, nx, ny, n_levels)
-
-    saha_const = (k_B / h) * (2π * m_e) / h
-    saha_factor = 2 * ((saha_const * atmos.temperature).^(3/2) ./ atmos.electron_density) .|> u"m/m"
-
-    for i=2:n_levels
-        ΔE = χ[i] - χ[1]
-        n_relative[:,:,:,i] = g[i] / g[1] * exp.(-ΔE ./ (k_B * atmos.temperature))
-    end
-
-    # Last level is ionised stage (H II)
-    n_relative[:,:,:,n_levels] .*= saha_factor
-    n_relative[:,:,:,1] = 1 ./ sum(n_relative, dims=4)[:,:,:,1]
-    n_relative[:,:,:,2:end] .*= n_relative[:,:,:,1]
-
-    return n_relative .* atom_density
-end
-
-function LTE_populations(sites::VoronoiSites)
-
-    χl = 0.0u"cm^-1"
-    χu = 82258.211u"cm^-1"
-    χ∞ = 109677.617u"cm^-1"
-
-    χl = Transparency.wavenumber_to_energy(χl)
-    χu = Transparency.wavenumber_to_energy(χu)
-    χ∞ = Transparency.wavenumber_to_energy(χ∞)
-
-    χ = [χl, χu, χ∞]
-    # Ionised hydrogen -> g = 1
-    g = [2, 8, 1]
-    atom_density = sites.hydrogen_populations
-    n_sites = length(atom_density)
-
-    n_levels = 3
-    n_relative = ones(Float64, n_sites, n_levels)
-
-    saha_const = (k_B / h) * (2π * m_e) / h
-    saha_factor = 2 * ((saha_const * sites.temperature).^(3/2) ./ sites.electron_density) .|> u"m/m"
-
-    for i=2:n_levels
-        ΔE = χ[i] - χ[1]
-        n_relative[:,i] = g[i] / g[1] * exp.(-ΔE ./ (k_B * sites.temperature))
-    end
-
-    # Last level is ionised stage (H II)
-    n_relative[:,n_levels] .*= saha_factor
-    n_relative[:,1] = 1 ./ sum(n_relative, dims=2)[:,1]
-    n_relative[:,2:end] .*= n_relative[:,1]
-
-    return n_relative .* atom_density
-end
-
-
-"""
     destruction(LTE_pops::Array{<:NumberDensity},
                 electron_density::Array{<:NumberDensity},
                 temperature::Array{<:Unitful.Temperature},
@@ -525,4 +373,23 @@ function destruction(LTE_pops::Array{<:NumberDensity},
     C21 = Cij(2, 1, electron_density, temperature, LTE_pops)
     B_λ0 = B_λ.(line.λ0, temperature)
     ε_λ0 = @. C21/(C21 + A21 + B21*B_λ0)
+end
+
+"""
+    source_line(atmos::Atmosphere, line::HydrogenicLine, populations::Matrix{<:NumberDensity})
+
+Compute the line the source function, from eq. 2.72 in Rutten's notes
+"""
+function source_line(atmos::Atmosphere, line::HydrogenicLine, populations::Array{<:NumberDensity, 4})
+
+    gl = 2
+    gu = 8
+
+    nl = populations[:,:,:,1]
+    nu = populations[:,:,:,2]
+
+    ratio = @. gu*nl/(gl*nu)
+
+    S_λ = @. 2*h*c_0^2/line.λ0^5 * 1/(ratio - 1)
+
 end

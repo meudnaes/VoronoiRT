@@ -2,155 +2,12 @@ using .VoronoiRT
 using Plots
 using Random
 using Unitful
+using NPZ
 
 global my_seed = 1998
 Random.seed!(my_seed)
 
 pyplot()
-
-function plot_sites(sites::VoronoiSites)
-    z = ustrip.(sites.positions[1,:])
-    x = ustrip.(sites.positions[2,:])
-    y = ustrip.(sites.positions[3,:])
-    scatter(x/1e6,
-            y/1e6,
-            z/1e6,
-            title="Sites",
-            dpi=300)
-    savefig("../img/sites.png")
-end
-
-function compare(DATA, quadrature)
-    maxiter = 50
-    ϵ = 1e-4
-
-    θ = 170.0
-    ϕ = 5.0
-
-    n_skip = 1
-
-    function regular()
-
-        atmos = Atmosphere(get_atmos(DATA; periodic=true, skip=n_skip)...)
-
-        @time J_mean, S_λ, α_tot = Λ_regular(ϵ, maxiter, atmos, quadrature)
-
-        k = [cos(θ*π/180), cos(ϕ*π/180)*sin(θ*π/180), sin(ϕ*π/180)*sin(θ*π/180)]
-        I_top = short_characteristics_up(k, S_λ, α_tot, atmos, I_0=S_λ[1,:,:])
-
-        I_top = ustrip(uconvert.(u"kW*nm^-1*m^-2", I_top[end, 2:end-1, 2:end-1]))
-
-        global min_lim, max_lim
-        min_lim = minimum(I_top)
-        max_lim = maximum(I_top)
-
-        heatmap(ustrip.(atmos.x[2:end-1]),
-                ustrip.(atmos.y[2:end-1]),
-                transpose.(I_top),
-                xaxis="x",
-                yaxis="y",
-                dpi=300,
-                rightmargin=10Plots.mm,
-                title="Regular Grid",
-                aspect_ratio=:equal,
-                clim=(min_lim,max_lim))
-
-        μ = abs(k[1])
-        savefig("../img/compare_continuum/regular_cont_$(floor(Int, 100*μ))")
-
-        return 0
-    end
-
-
-    function voronoi()
-
-        atmos = Atmosphere(get_atmos(DATA; periodic=false, skip=n_skip)...)
-
-        nx = length(atmos.x)
-        nz = length(atmos.z)
-        ny = length(atmos.y)
-
-        x_min = ustrip(atmos.x[1])
-        x_max = ustrip(atmos.x[end])
-        y_min = ustrip(atmos.y[1])
-        y_max = ustrip(atmos.y[end])
-        z_min = ustrip(atmos.z[1])
-        z_max = ustrip(atmos.z[end])
-
-        n_sites = 100_000 # floor(Int, nz*nx*ny)
-        positions = rejection_sampling(n_sites, atmos, log10.(ustrip.(atmos.hydrogen_populations)))
-
-        # rand(3, n_sites)
-
-        # positions[1, :] = positions[1, :].*(z_max - z_min) .+ z_min
-        # positions[2, :] = positions[2, :].*(x_max - x_min) .+ x_min
-        # positions[3, :] = positions[3, :].*(y_max - y_min) .+ y_min
-
-        # positions = positions*1u"m"
-
-        # rejection_sampling(n_sites, atmos, log10.(ustrip.(atmos.hydrogen_populations)))
-        # sample_from_extinction(atmos, 500.0u"nm", n_sites)
-
-        sites_file = "../data/sites_continuum_half.txt"
-        neighbours_file = "../data/neighbours_continuum_half.txt"
-        # write sites to file
-        write_arrays(ustrip.(positions[2, :]),
-                     ustrip.(positions[3, :]),
-                     ustrip.(positions[1, :]),
-                     sites_file)
-
-        # export sites to voro++, and compute grid information
-        println("---Preprocessing grid---")
-
-        # compute neigbours
-        voro(voro_exec, sites_file, neighbours_file, 
-             x_min, x_max, y_min, y_max, z_min, z_max)
-
-        # Voronoi grid
-        sites = VoronoiSites(read_cell(neighbours_file, n_sites, positions,
-                                       x_min*1u"m", x_max*1u"m",
-                                       y_min*1u"m", y_max*1u"m")...,
-                             initialise(positions, atmos)...,
-                             z_min*1u"m", z_max*1u"m",
-                             x_min*1u"m", x_max*1u"m",
-                             y_min*1u"m", y_max*1u"m",
-                             n_sites)
-
-        # plot_sites(sites)
-
-        @time J_mean, S_λ, α_tot = Λ_voronoi(ϵ, maxiter, sites, quadrature)
-
-        atmos_from_voronoi, S_λ_grid, α_grid = VoronoiRT.Voronoi_to_Raster(sites, atmos,
-                                                                 S_λ, α_tot, 2;
-                                                                 periodic=true)
-
-        k = [cos(θ*π/180), cos(ϕ*π/180)*sin(θ*π/180), sin(ϕ*π/180)*sin(θ*π/180)]
-        I_top = short_characteristics_up(k, S_λ_grid, α_grid,
-                                        atmos_from_voronoi, I_0=S_λ_grid[1,:,:])
-
-        I_top = ustrip(uconvert.(u"kW*nm^-1*m^-2", I_top[end, 2:end-1, 2:end-1]))
-
-        heatmap(ustrip.(atmos_from_voronoi.x[2:end-1]),
-                ustrip.(atmos_from_voronoi.y[2:end-1]),
-                transpose.(I_top),
-                xaxis="x",
-                yaxis="y",
-                dpi=300,
-                rightmargin=10Plots.mm,
-                title="Irregular Grid",
-                aspect_ratio=:equal,
-                clim=(min_lim,max_lim))
-
-        μ = abs(k[1])
-        savefig("../img/compare_continuum/irregular_cont_$(floor(Int, 100*μ))")
-
-        return 0
-    end
-
-    regular();
-    voronoi();
-
-end
 
 function LTE_compare(DATA::String, n_sites::Int)
 
@@ -158,34 +15,6 @@ function LTE_compare(DATA::String, n_sites::Int)
 
     # choose a wavelength
     λ = 500u"nm"  # nm
-
-    """
-    # Lte populations
-    LTE_pops = VoronoiRT.LTE_populations(atmos)
-
-    # Find continuum extinction (only with Thomson and Rayleigh)
-    α_cont = VoronoiRT.α_absorption.(λ,
-                           atmos.temperature,
-                           atmos.electron_density*1.0,
-                           LTE_pops[:,:,:,1].+LTE_pops[:,:,:,2],
-                           LTE_pops[:,:,:,3]) .+
-             VoronoiRT.α_scattering.(λ,
-                           atmos.electron_density,
-                           LTE_pops[:,:,:,1])
-
-    # Planck function
-    S_λ = B_λ.(λ, atmos.temperature)
-
-    θ = 180.0
-    ϕ = 0.0
-
-    k = [cos(θ*π/180), cos(ϕ*π/180)*sin(θ*π/180), sin(ϕ*π/180)*sin(θ*π/180)]
-    intensity = short_characteristics_up(k, S_λ, S_λ[1,:,:], α_cont, atmos)
-
-    I_regular = transpose.(ustrip.(uconvert.(u"kW*nm^-1*m^-2", intensity[end, 2:end-1, 2:end-1])))
-    x_regular = atmos.x[2:end-1]
-    y_regular = atmos.y[2:end-1]
-    """
 
     atmos = Atmosphere(get_atmos(DATA; periodic=false, skip=1)...)
 
@@ -208,7 +37,8 @@ function LTE_compare(DATA::String, n_sites::Int)
 
     #positions = positions*1u"m"
 
-    positions = sample_from_ionised_hydrogen(atmos, n_sites)
+    positions = sample_from_extinction(atmos, λ, n_sites)
+    # sample_from_ionised_hydrogen(atmos, n_sites)
     # sample_from_extinction(atmos, λ, n_sites)
     # positions = sample_from_destruction(atmos, n_sites)
     # positions = sample_from_temp_gradient(atmos, n_sites)
@@ -227,7 +57,7 @@ function LTE_compare(DATA::String, n_sites::Int)
     println("---Preprocessing grid---")
 
     # compute neigbours
-    voro(voro_exec, sites_file, neighbours_file, 
+    voro(voro_exec, sites_file, neighbours_file,
          x_min, x_max, y_min, y_max, z_min, z_max)
 
     # Voronoi grid
@@ -242,21 +72,12 @@ function LTE_compare(DATA::String, n_sites::Int)
 
     run(`rm ../data/$sites_file ../data/$neighbours_file`)
 
+    line = VoronoiRT.HydrogenicLine(VoronoiRT.test_atom(0, 0)..., sites.temperature)
+
     # Lte populations
-    LTE_pops = VoronoiRT.LTE_populations(sites)
+    LTE_pops = VoronoiRT.LTE_populations(line, sites)
 
-    S_λ = Matrix{Float64}(undef, (1, n_sites))u"kW*m^-2*nm^-1"
-    S_λ[1,:] = B_λ.(λ, sites.temperature)
-
-    # println(typeof(S_λ))
-    # println(typeof(LTE_pops))
-
-    atmos_size = (nz, nx, ny).*0.5
-    atmos_size = floor.(Int, atmos_size)
-
-    atmos, S_λ_grid, populations_grid = VoronoiRT.Voronoi_to_Raster(sites, atmos_size,
-                                                          S_λ, LTE_pops;
-                                                          periodic=true)
+    atmos, populations_grid, _ = VoronoiRT.Voronoi_to_Raster_inv_dist(sites, DATA, LTE_pops; line=false)
 
     # Find continuum extinction (only with Thomson and Rayleigh)
     α_cont = VoronoiRT.α_absorption.(λ,
@@ -268,19 +89,33 @@ function LTE_compare(DATA::String, n_sites::Int)
                            atmos.electron_density,
                            populations_grid[:,:,:,1])
 
+    S_λ_grid = B_λ.(λ, atmos.temperature)
+
     θ = 180.0
     ϕ = 0.0
 
     k = [cos(θ*π/180), cos(ϕ*π/180)*sin(θ*π/180), sin(ϕ*π/180)*sin(θ*π/180)]
 
-    I_0 = S_λ_grid[1,1,:,:]
-    intensity = short_characteristics_up(k, S_λ_grid[1,:,:,:], I_0, α_cont, atmos; n_sweeps=3)
+    I_0 = S_λ_grid[1,:,:]
+    intensity = VoronoiRT.short_characteristics_up(k, S_λ_grid, I_0, α_cont, atmos; n_sweeps=3)
 
     I_irregular = transpose.(ustrip.(uconvert.(u"kW*nm^-1*m^-2", intensity[end, 2:end-1, 2:end-1])))
     x_irregular = atmos.x[2:end-1]
     y_irregular = atmos.y[2:end-1]
 
-    npzwrite("../data/LTE/I_irregular_$(n_sites)_ionised_hydrogen.npy", I_irregular)
+    heatmap(ustrip.(x_irregular),
+            ustrip.(y_irregular),
+            I_irregular,
+            xaxis="x",
+            yaxis="y",
+            dpi=300,
+            rightmargin=10Plots.mm,
+            title="tmp",
+            aspect_ratio=:equal)
+
+    savefig("./tmp.png")
+
+    npzwrite("../data/LTE/I_irregular_$(n_sites)_extinction.npy", I_irregular)
 
 end
 
@@ -326,7 +161,7 @@ function LTE_regular(DATA::String, n_skip::Integer)
     ϕ = 0.0
 
     k = [cos(θ*π/180), cos(ϕ*π/180)*sin(θ*π/180), sin(ϕ*π/180)*sin(θ*π/180)]
-    intensity = short_characteristics_up(k, S_λ, S_λ[1,:,:], α_cont, atmos)
+    intensity = VoronoiRT.short_characteristics_up(k, S_λ, S_λ[1,:,:], α_cont, atmos)
 
     I_regular = transpose.(ustrip.(uconvert.(u"kW*nm^-1*m^-2", intensity[end, 2:end-1, 2:end-1])))
     x_regular = atmos.x[2:end-1]
@@ -377,9 +212,9 @@ function test_interpolation(DATA)
     println("---Preprocessing grid---")
 
     # compute neigbours
-    voro(voro_exec, sites_file, neighbours_file, 
-         x_min-0.1, x_max+0.1, 
-         y_min-0.1, y_max+0.1, 
+    voro(voro_exec, sites_file, neighbours_file,
+         x_min-0.1, x_max+0.1,
+         y_min-0.1, y_max+0.1,
          z_min-0.1, z_max+0.1)
 
     # Voronoi grid
@@ -541,9 +376,9 @@ function test_with_regular_grid(DATA, quadrature)
     println("---Preprocessing grid---")
 
     # compute neigbours
-    voro(voro_exec, sites_file, neighbours_file, 
-         x_min-0.1, x_max+0.1, 
-         y_min-0.1, y_max+0.1, 
+    voro(voro_exec, sites_file, neighbours_file,
+         x_min-0.1, x_max+0.1,
+         y_min-0.1, y_max+0.1,
          z_min-0.1, z_max+0.1)
 
     # Voronoi grid
@@ -646,7 +481,7 @@ function compare_interpolations(DATA::String, n_sites::Int)
     println("---Preprocessing grid---")
 
     # compute neigbours
-    voro(voro_exec, sites_file, neighbours_file, 
+    voro(voro_exec, sites_file, neighbours_file,
          x_min, x_max, y_min, y_max, z_min, z_max)
 
     # Voronoi grid
@@ -747,7 +582,7 @@ function compare_interpolations(DATA::String, n_sites::Int)
 end
 
 # compare("../data/bifrost_qs006023_s525_half.hdf5", "../quadratures/ul2n3.dat");
-n_list = [100_000] #, 250_000, 500_000, 1_000_000, 2_500_000, 5_000_000, 10_000_000, 15_000_000]
+n_list = [3_000_000] #, 250_000, 500_000, 1_000_000, 2_500_000, 5_000_000, 10_000_000, 15_000_000]
 
 for num_sites in n_list
     LTE_compare("../data/bifrost_qs006023_s525.hdf5", num_sites)
@@ -762,4 +597,3 @@ end
 # test_with_regular("../data/bifrost_qs006023_s525_quarter.hdf5", "../quadratures/n1.dat")
 # write_grid("../data/bifrost_qs006023_s525.hdf5", 10_000_000)
 # compare_interpolations("../data/bifrost_qs006023_s525.hdf5", 1_000_000)
-print("")
