@@ -5,7 +5,7 @@
 
 ## 3D Radiative Transfer simulations on irregular grids
 
-Code related to my master thesis, titled "3D Radiative Transfer on Irregular Grids". I simulate radiation in the solar atmosphere on an irregular grid using a Voronoi tesselation. 
+Code related to "Irregular grids for 3D NLTE radiative transfer in stellar atmospheres" (https://arxiv.org/abs/2306.01041), which is based on my master thesis. I simulate radiation in the solar atmosphere on an irregular grid using a Voronoi tesselation. 
 
 The voronoi tesselation is calculated with the open source [`voro++`](https://github.com/chr1shr/voro) library. `C` files for computing and outputting grid statistics for the Voronoi tesselation are located in the [rt_preprocessing/](https://github.com/meudnaes/VoronoiRT/tree/master/rt_preprocessing) folder.
 
